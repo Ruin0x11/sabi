@@ -1,0 +1,15 @@
+* It happens.
+_Principles_
+- Familiar places & persons.
+- Combining things together.
+- Random content.
+- Comfortable repetition.
+
+_Backbone_
+- Feature-agnostic renderer (that is tightly coupled to game specifics)
+- Heavy usage of prebuilt modules.
+** TIPS
+22:43   Aaronepower [mTB nonbirit1m So you'd do something like `#[cfg(windows)] mod windows_sys as sys;
+                        #[cfg(macos)] mod mac_sys as sys;` and you'd make the API uniform so the rest of
+                        the code doesn't have to worry.
+[]]
