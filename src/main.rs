@@ -2,7 +2,6 @@
 extern crate bitflags;
 
 extern crate euclid;
-extern crate rgb;
 
 #[macro_use]
 extern crate log;
@@ -17,6 +16,8 @@ extern crate rustbox;
 #[macro_use]
 extern crate glium;
 
+mod action;
+mod color;
 mod glyph;
 mod engine;
 mod keys;
@@ -37,11 +38,11 @@ fn do_thing(mut canvas: Canvas) {
     let mut y: i32 = 1;
     while !canvas.window_closed() {
         canvas.clear();
-        canvas.print(x, y, glyph::Glyph::Player);
+        canvas.print_glyph(x, y, glyph::Glyph::Player);
         canvas.present();
         let new_keys = canvas.get_input();
         keys.extend(new_keys);
-        if keys.matches(|k| k.code == KeyCode::A) {
+        if keys.matches(|k| k.code == KeyCode::Esc) {
             canvas.close_window();
         }
         while let Some(key) = keys.pop() {
