@@ -150,9 +150,11 @@ impl Canvas_ for TcodCanvas {
 
     fn print_glyph(&mut self, x: i32, y: i32, glyph: Glyph) {
         let rend_glyph = RenderableGlyph::from(glyph);
-        let color = rend_glyph.color.into();
+        let color_fg = rend_glyph.color_fg.into();
+        let color_bg = rend_glyph.color_bg.into();
         self.root.set_char(x, y, rend_glyph.ch);
-        self.root.set_char_foreground(x, y, color);
+        self.root.set_char_foreground(x, y, color_fg);
+        self.root.set_char_background(x, y, color_bg, tcod::BackgroundFlag::None);
     }
 
     fn width(&self) -> i32 {

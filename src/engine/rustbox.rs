@@ -3,11 +3,12 @@ use glyph::{RenderableGlyph, Glyph};
 use std::error::Error;
 use std::default::Default;
 
-use rustbox::{self, Color, RustBox, Event};
-
 use euclid::point::Point2D as Point;
+use rustbox::{self, RustBox, Event};
+use rustbox::Color as RustboxColor;
 use rustbox::Key as RustboxKey;
 
+use color::{Color, Color216, Color16};
 use engine::Canvas_;
 use keys::{self, Key, KeyCode, NumkeyType};
 
@@ -48,16 +49,40 @@ impl From<rustbox::Key> for Key {
     }
 }
 
+impl Into<rustbox::Color> for Color16 {
+    fn into(self) -> rustbox::Color {
+        match self {
+            Color16::Black   => rustbox::Color::Black,
+            Color16::Red     => rustbox::Color::Red,
+            Color16::Green   => rustbox::Color::Green,
+            Color16::Yellow  => rustbox::Color::Yellow,
+            Color16::Blue    => rustbox::Color::Blue,
+            Color16::Magenta => rustbox::Color::Magenta,
+            Color16::Cyan    => rustbox::Color::Cyan,
+            Color16::White   => rustbox::Color::White,
+            _                => rustbox::Color::Default,
+        }
+    }
+}
+
+impl Into<rustbox::Color> for Color216 {
+    fn into(self) -> rustbox::Color {
+        rustbox::Color::Byte(self.to_u8() as u16)
+    }
+}
+
 pub struct RustboxCanvas {
     root: RustBox,
     wants_close: bool,
+    output_mode: rustbox::OutputMode,
 }
 
 impl RustboxCanvas {
     pub fn new(_display_size: Point<i32>, _window_title: &str) -> RustboxCanvas {
-
+        let output_mode = rustbox::OutputMode::WebSafe;
+        
         let root = match RustBox::init(rustbox::InitOptions {
-            output_mode: rustbox::OutputMode::EightBit,
+            output_mode: output_mode,
             ..Default::default()
         }) {
             Result::Ok(v) => v,
@@ -67,6 +92,7 @@ impl RustboxCanvas {
         RustboxCanvas {
             root: root,
             wants_close: false,
+            output_mode: output_mode,
         }
     }
 }
@@ -108,11 +134,13 @@ impl Canvas_ for RustboxCanvas {
 
     fn print_glyph(&mut self, x: i32, y: i32, glyph: Glyph) {
         let rend_glyph = RenderableGlyph::from(glyph);
+        let color_fg = Color16::from(rend_glyph.color_fg).into();
+        let color_bg = Color16::from(rend_glyph.color_bg).into();
         self.root.print(x as usize,
                         y as usize,
                         rustbox::RB_NORMAL,
-                        Color::White,
-                        Color::Black,
+                        color_fg,
+                        color_bg,
                         &rend_glyph.ch.to_string())
     }
 
