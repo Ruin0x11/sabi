@@ -7,10 +7,12 @@ use euclid::point::Point2D as Point;
 use rustbox::{self, RustBox, Event};
 use rustbox::Color as RustboxColor;
 use rustbox::Key as RustboxKey;
+use slog::Logger;
 
 use color::{Color, Color216, Color16};
 use engine::Canvas_;
 use keys::{self, Key, KeyCode, NumkeyType};
+use log;
 
 impl From<rustbox::Key> for Key {
     fn from(rb_key: rustbox::Key) -> Key {
@@ -72,14 +74,16 @@ impl Into<rustbox::Color> for Color216 {
 }
 
 pub struct RustboxCanvas {
+    logger: Logger,
     root: RustBox,
     wants_close: bool,
     output_mode: rustbox::OutputMode,
 }
 
 impl RustboxCanvas {
-    pub fn new(_display_size: Point<i32>, _window_title: &str) -> RustboxCanvas {
-        let output_mode = rustbox::OutputMode::WebSafe;
+    pub fn new(_display_size: Point<i32>,
+               _window_title: &str) -> RustboxCanvas {
+        let output_mode = rustbox::OutputMode::Normal;
         
         let root = match RustBox::init(rustbox::InitOptions {
             output_mode: output_mode,
@@ -89,11 +93,16 @@ impl RustboxCanvas {
             Result::Err(e) => panic!("{}", e),
         };
 
-        RustboxCanvas {
+        let canvas = RustboxCanvas {
+            logger: log::make_logger("graphics").unwrap(),
             root: root,
             wants_close: false,
             output_mode: output_mode,
-        }
+        };
+
+        info!(canvas.logger, "Rustbox canvas initialized, output mode: {:?}", output_mode);
+
+        canvas
     }
 }
 
@@ -123,6 +132,8 @@ impl Canvas_ for RustboxCanvas {
         // NOTE: If it gets bad, switch to peek_event
         match self.root.poll_event(false) {
             Ok(ev) => match ev {
+                // NOTE: Due to the way terminals work, Rustbox sends an Esc
+                // keypress along with the keycode when using Alt with a key.
                 Event::KeyEvent(key) => keys.push(Key::from(key)),
                 Event::NoEvent => (),
                 _              => (),

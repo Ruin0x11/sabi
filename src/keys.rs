@@ -11,7 +11,7 @@ pub struct Key {
 
 impl Default for Key {
     fn default() -> Key {
-        Key { code: KeyCode::A, alt: false, ctrl: false, shift: false }
+        Key { code: KeyCode::NoneKey, alt: false, ctrl: false, shift: false }
     }
 }
 
