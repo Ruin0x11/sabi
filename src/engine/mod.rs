@@ -91,6 +91,10 @@ pub fn get_canvas() -> Option<Canvas> {
     None
 }
 
+pub trait Render {
+    fn render(&self, canvas: &Canvas);
+}
+
 // FIXME: Coherence rules prevent blanket impls without macros, so these are
 // regular functions instead of inside Canvas_.
 

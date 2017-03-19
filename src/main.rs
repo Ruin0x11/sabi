@@ -24,14 +24,18 @@ mod glyph;
 mod keys;
 mod log;
 
+mod tile;
+mod chunk;
+mod world;
+
 use std::panic;
 
 use action::Action;
-use color::*;
-use engine::{Canvas};
+use engine::{Point, Canvas};
+use world::*;
+
 use keys::{Key, Keys, KeyCode};
 use slog::Logger;
-use euclid::point::Point2D as Point;
 
 pub struct Actor {
     x: i32,
@@ -88,12 +92,15 @@ impl Actor {
     }
 }
 
-pub struct GameContext<'a> {
+pub struct GameContext {
     canvas: Canvas,
     logger: Logger,
+}
 
-    /// Actor that we take to be in control
-    player: Option<&'a Actor>,
+pub struct GameState<'a> {
+    world: World,
+    player: Option<&'a Actor>
+
 }
 
 fn main() {
@@ -111,7 +118,6 @@ fn run() {
     let mut ctxt = GameContext {
         canvas: canvas,
         logger: log::make_logger("sabi").unwrap(),
-        player: None,
     };
 
     let ctxt_mut = &mut ctxt;
@@ -122,12 +128,23 @@ fn run() {
 fn do_thing(mut ctxt: &mut GameContext) {
     let ref mut canvas = ctxt.canvas;
 
+    let state = GameState {
+        world: World::generate(128, WorldType::Overworld),
+        player: None,
+    };
+
     let mut prayer = Actor { x: 0, y: 0 };
 
     let mut keys = Keys::new();
     while !canvas.window_closed() {
         canvas.clear();
+
+        let chunk = state.world.get_chunk(Point::new(0, 0)).unwrap();
+        for (chunk_pos, cell) in chunk.iter() {
+            canvas.print_glyph(chunk_pos.x, chunk_pos.y, cell.tile.glyph.clone());
+        }
         canvas.print_glyph(prayer.x, prayer.y, glyph::Glyph::Player);
+
         canvas.present();
         let new_keys = canvas.get_input();
         keys.extend(new_keys);
