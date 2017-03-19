@@ -23,16 +23,17 @@ mod engine;
 mod glyph;
 mod keys;
 mod log;
-
 mod tile;
 mod chunk;
 mod world;
+mod point;
 
 use std::panic;
 
 use action::Action;
-use engine::{Point, Canvas};
+use engine::Canvas;
 use world::*;
+use point::Point;
 
 use keys::{Key, Keys, KeyCode};
 use slog::Logger;
@@ -128,7 +129,7 @@ fn run() {
 fn do_thing(mut ctxt: &mut GameContext) {
     let ref mut canvas = ctxt.canvas;
 
-    let state = GameState {
+    let mut state = GameState {
         world: World::generate(128, WorldType::Overworld),
         player: None,
     };
@@ -139,10 +140,10 @@ fn do_thing(mut ctxt: &mut GameContext) {
     while !canvas.window_closed() {
         canvas.clear();
 
-        let chunk = state.world.get_chunk(Point::new(0, 0)).unwrap();
-        for (chunk_pos, cell) in chunk.iter() {
-            canvas.print_glyph(chunk_pos.x, chunk_pos.y, cell.tile.glyph.clone());
-        }
+        state.world.with_cells(Point::new(0, 0), Point::new(128, 128),
+                               |point, ref cell| {
+                                   canvas.print_glyph(point.x, point.y, cell.tile.glyph.clone())
+                               });
         canvas.print_glyph(prayer.x, prayer.y, glyph::Glyph::Player);
 
         canvas.present();
