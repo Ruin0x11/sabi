@@ -9,6 +9,7 @@ pub mod tcod;
 
 use euclid::point::Point2D;
 
+use color::Color;
 use keys::Key;
 use glyph::Glyph;
 
@@ -81,7 +82,7 @@ pub fn get_canvas() -> Option<Canvas> {
         return Some(canvas);
     }
     if let Some(canvas) = get_canvas_opengl() {
-        println!("using tcod backend");
+        println!("using opengl backend");
         return Some(canvas);
     }
 

@@ -22,6 +22,7 @@ mod glyph;
 mod engine;
 mod keys;
 
+use color::*;
 use engine::{Canvas};
 use keys::{Key, Keys, KeyCode};
 
