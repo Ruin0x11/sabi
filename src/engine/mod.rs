@@ -9,7 +9,6 @@ pub mod tcod;
 
 use euclid::point::Point2D;
 
-use color::Color;
 use keys::Key;
 use glyph::Glyph;
 
@@ -52,7 +51,8 @@ fn get_canvas_opengl() -> Option<Canvas> {
 
 #[cfg(feature = "with-tcod")]
 fn get_canvas_tcod() -> Option<Canvas> {
-    let canvas = Box::new(tcod::TcodCanvas::new(Point::new(80, 25), "some_game"));
+    let canvas = Box::new(tcod::TcodCanvas::new(Point::new(80, 25),
+                                                "sabi"));
     Some(canvas)
 }
 
@@ -63,7 +63,8 @@ fn get_canvas_tcod() -> Option<Canvas> {
 
 #[cfg(feature = "with-rustbox")]
 fn get_canvas_rustbox() -> Option<Canvas> {
-    let canvas = Box::new(rustbox::RustboxCanvas::new(Point::new(80, 25), "some_game"));
+    let canvas = Box::new(rustbox::RustboxCanvas::new(Point::new(80, 25),
+                                                      "sabi"));
     Some(canvas)
 }
 
@@ -93,7 +94,7 @@ pub fn get_canvas() -> Option<Canvas> {
 // FIXME: Coherence rules prevent blanket impls without macros, so these are
 // regular functions instead of inside Canvas_.
 
-pub fn point_inside_canvas(canvas: &Canvas, pos: Point) -> bool {
+pub fn point_inside_canvas(canvas: &Canvas_, pos: Point) -> bool {
     let w = canvas.width();
     let h = canvas.height();
 

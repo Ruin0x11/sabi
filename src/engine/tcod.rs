@@ -1,13 +1,15 @@
 use std::path::PathBuf;
 
 use euclid::point::Point2D as Point;
+use slog::Logger;
 use tcod::{self, Console, FontLayout, FontType, RootConsole};
 use tcod::input::Key as TcodKey;
 use tcod::input::KeyCode as TcodCode;
 
-use engine::Canvas_;
+use engine::{self, Canvas_};
 use glyph::{RenderableGlyph, Glyph};
 use keys::{self, Key, KeyCode};
+use log;
 
 use color::Color;
 
@@ -30,12 +32,14 @@ impl Into<tcod::Color> for Color {
 }
 
 pub struct TcodCanvas {
+    logger: Logger,
     root: RootConsole,
     wants_close: bool,
 }
 
 impl TcodCanvas {
-    pub fn new(display_size: Point<i32>, window_title: &str) -> TcodCanvas {
+    pub fn new(display_size: Point<i32>,
+               window_title: &str) -> TcodCanvas {
         let font_path = PathBuf::from("./fonts/terminal.png");
         let color = tcod::Color::new(0, 0, 0);
 
@@ -48,6 +52,7 @@ impl TcodCanvas {
         root.set_default_background(color);
 
         TcodCanvas {
+            logger: log::make_logger("graphics").unwrap(),
             root: root,
             wants_close: false,
         }
@@ -129,7 +134,7 @@ impl Canvas_ for TcodCanvas {
     }
 
     fn clear(&mut self) {
-        let color = tcod::Color { r: 0, g: 0, b: 0 }; // DOOD
+        let color = tcod::Color { r: 0, g: 0, b: 0 }; // IMPLEMENT
         self.root.set_default_foreground(color);
         self.root.clear();
     }
@@ -149,12 +154,16 @@ impl Canvas_ for TcodCanvas {
     }
 
     fn print_glyph(&mut self, x: i32, y: i32, glyph: Glyph) {
+        if !engine::point_inside_canvas(self, Point::new(x, y)) {
+            return;
+        }
         let rend_glyph = RenderableGlyph::from(glyph);
         let color_fg = rend_glyph.color_fg.into();
         let color_bg = rend_glyph.color_bg.into();
+
         self.root.set_char(x, y, rend_glyph.ch);
         self.root.set_char_foreground(x, y, color_fg);
-        self.root.set_char_background(x, y, color_bg, tcod::BackgroundFlag::None);
+        self.root.set_char_background(x, y, color_bg, tcod::BackgroundFlag::Set);
     }
 
     fn width(&self) -> i32 {

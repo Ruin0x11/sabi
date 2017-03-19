@@ -16,14 +16,14 @@ pub enum Color16 {
     Default,
 }
 
-const LOOKUP_16 : [(RGB, Color16); 8] = [(RGB{ r: 0,    g: 0,   b: 0 },   Color16::Black),
-                                         (RGB{ r: 255,  g: 0,   b: 0 },   Color16::Red),
-                                         (RGB{ r: 0,    g: 255, b: 0 },   Color16::Green),
-                                         (RGB{ r: 255,  g: 255, b: 0 },   Color16::Yellow),
-                                         (RGB{ r: 0,    g: 0,   b: 255 }, Color16::Blue),
-                                         (RGB{ r: 255,  g: 0,   b: 255 }, Color16::Magenta),
-                                         (RGB{ r: 0,    g: 255, b: 255 }, Color16::Cyan),
-                                         (RGB{ r: 255,  g: 255, b: 255 }, Color16::White),
+const LOOKUP_16 : [(RGB, Color16); 8] = [(BLACK,   Color16::Black),
+                                         (RED,     Color16::Red),
+                                         (GREEN,   Color16::Green),
+                                         (YELLOW,  Color16::Yellow),
+                                         (BLUE,    Color16::Blue),
+                                         (MAGENTA, Color16::Magenta),
+                                         (CYAN,    Color16::Cyan),
+                                         (WHITE,   Color16::White),
 ];
 
 impl From<Color256> for Color16 {
@@ -142,6 +142,14 @@ impl RGB {
     }
 }
 
+pub const BLACK:   Color =  Color{ r: 0,    g: 0,   b: 0 };   
+pub const RED:     Color =  Color{ r: 255,  g: 0,   b: 0 };   
+pub const GREEN:   Color =  Color{ r: 0,    g: 255, b: 0 };   
+pub const YELLOW:  Color =  Color{ r: 255,  g: 255, b: 0 };   
+pub const BLUE:    Color =  Color{ r: 0,    g: 0,   b: 255 }; 
+pub const MAGENTA: Color =  Color{ r: 255,  g: 0,   b: 255 }; 
+pub const CYAN:    Color =  Color{ r: 0,    g: 255, b: 255 }; 
+pub const WHITE:   Color =  Color{ r: 255,  g: 255, b: 255 }; 
 
 #[cfg(test)]
 mod tests {
@@ -149,13 +157,13 @@ mod tests {
 
     #[test]
     fn test_rgb_to_16() {
-        assert_eq!(Color16::from(RGB { r: 0,    g: 0,   b: 0 }),   Color16::Black);
-        assert_eq!(Color16::from(RGB { r: 255,  g: 0,   b: 0 }),   Color16::Red);
-        assert_eq!(Color16::from(RGB { r: 0,    g: 255, b: 0 }),   Color16::Green);
-        assert_eq!(Color16::from(RGB { r: 255,  g: 255, b: 0 }),   Color16::Yellow);
-        assert_eq!(Color16::from(RGB { r: 0,    g: 0,   b: 255 }), Color16::Blue);
-        assert_eq!(Color16::from(RGB { r: 255,  g: 0,   b: 255 }), Color16::Magenta);
-        assert_eq!(Color16::from(RGB { r: 0,    g: 255, b: 255 }), Color16::Cyan);
-        assert_eq!(Color16::from(RGB { r: 255,  g: 255, b: 255 }), Color16::White);
+        assert_eq!(Color16::from(BLACK),   Color16::Black);
+        assert_eq!(Color16::from(RED),   Color16::Red);
+        assert_eq!(Color16::from(GREEN),   Color16::Green);
+        assert_eq!(Color16::from(YELLOW),   Color16::Yellow);
+        assert_eq!(Color16::from(BLUE), Color16::Blue);
+        assert_eq!(Color16::from(MAGENTA), Color16::Magenta);
+        assert_eq!(Color16::from(CYAN), Color16::Cyan);
+        assert_eq!(Color16::from(WHITE), Color16::White);
     }
 }
