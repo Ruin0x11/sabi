@@ -7,10 +7,12 @@ pub mod rustbox;
 #[cfg(feature = "with-tcod")]
 pub mod tcod;
 
-use euclid::point::Point2D as Point;
+use euclid::point::Point2D;
 
 use keys::Key;
 use glyph::Glyph;
+
+pub type Point = Point2D<i32>;
 
 /// All rendering targets must follow this API.
 pub trait Canvas_ {
@@ -26,7 +28,9 @@ pub trait Canvas_ {
     // backend, but that might not be a good idea...
     fn get_input(&self) -> Vec<Key>;
 
-    fn print(&mut self, x: i32, y: i32, glyph: Glyph);
+    // NOTE: This is a bit high-level, but backends like OpenGL will have no
+    // concept of foreground/background colors.
+    fn print_glyph(&mut self, x: i32, y: i32, glyph: Glyph);
 }
 
 pub type Canvas = Box<Canvas_>;
@@ -83,4 +87,15 @@ pub fn get_canvas() -> Option<Canvas> {
 
     println!("no graphics backend was compiled in!");
     None
+}
+
+// FIXME: Coherence rules prevent blanket impls without macros, so these are
+// regular functions instead of inside Canvas_.
+
+pub fn point_inside_canvas(canvas: &Canvas, pos: Point) -> bool {
+    let w = canvas.width();
+    let h = canvas.height();
+
+    pos.x >= 0 && pos.y >= 0
+        && pos.x < w && pos.y < h
 }

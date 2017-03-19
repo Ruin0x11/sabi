@@ -1,5 +1,5 @@
 [root]
-name = "some_game"
+name = "sabi"
 version = "0.1.0"
 dependencies = [
  "bitflags 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -8,7 +8,6 @@ dependencies = [
  "euclid 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "glium 0.16.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "rgb 0.5.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustbox 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tcod 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -547,11 +546,6 @@ version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
-name = "rgb"
-version = "0.5.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
 name = "rustbox"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -887,7 +881,6 @@ dependencies = [
 "checksum rand 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)" = "022e0636ec2519ddae48154b028864bdce4eaf7d35226ab8e65c611be97b189d"
 "checksum regex 0.1.80 (registry+https://github.com/rust-lang/crates.io-index)" = "4fd4ace6a8cf7860714a2c2280d6c1f7e6a413486c13298bbc86fd3da019402f"
 "checksum regex-syntax 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)" = "f9ec002c35e86791825ed294b50008eea9ddfc8def4420124fbc6b08db834957"
-"checksum rgb 0.5.7 (registry+https://github.com/rust-lang/crates.io-index)" = "4db5350eea2dbb4f4972c4fb4d980b70c3f0ed3983eb2f66d174a43457514a14"
 "checksum rustbox 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "acc40f390f6c5e2d47ff358020103deb6ebd0e98f2df2cec3cb15e054f403ed8"
 "checksum rustc-demangle 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "3058a43ada2c2d0b92b3ae38007a2d0fa5e9db971be260e0171408a4ff471c95"
 "checksum rustc-serialize 0.3.23 (registry+https://github.com/rust-lang/crates.io-index)" = "684ce48436d6465300c9ea783b6b14c4361d6b8dcbb1375b486a69cc19e2dfb0"
