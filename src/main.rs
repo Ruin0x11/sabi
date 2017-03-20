@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate bitflags;
 
+extern crate backtrace;
 extern crate chrono;
 extern crate euclid;
 
@@ -27,6 +28,7 @@ mod tile;
 mod chunk;
 mod world;
 mod point;
+mod gen;
 
 use std::panic;
 
@@ -91,6 +93,10 @@ impl Actor {
             self.y = ny;
         }
     }
+
+    fn get_pos(&self) -> Point {
+        Point::new(self.x, self.y)
+    }
 }
 
 pub struct GameContext {
@@ -105,20 +111,17 @@ pub struct GameState<'a> {
 }
 
 fn main() {
-
-    let result = panic::catch_unwind(|| {
-        run();
-    });
-
-    println!("{:?}", result);
+    run();
 }
 
 fn run() {
+    log::init_panic_hook();
+    
     let canvas = engine::get_canvas().unwrap();
 
     let mut ctxt = GameContext {
         canvas: canvas,
-        logger: log::make_logger("sabi").unwrap(),
+        logger: log::make_logger("main").unwrap(),
     };
 
     let ctxt_mut = &mut ctxt;
@@ -138,6 +141,7 @@ fn do_thing(mut ctxt: &mut GameContext) {
 
     let mut keys = Keys::new();
     while !canvas.window_closed() {
+        debug!(ctxt.logger, "Started new loop");
         canvas.clear();
 
         state.world.with_cells(Point::new(0, 0), Point::new(128, 128),
@@ -165,6 +169,8 @@ fn do_thing(mut ctxt: &mut GameContext) {
                 _ => Action::Dood,
             };
             prayer.run_action(action);
+
+            debug!(ctxt.logger, "Prayer: {}", prayer.get_pos())
         }
     }
 }
