@@ -3,7 +3,7 @@ use glyph::{RenderableGlyph, Glyph};
 use std::error::Error;
 use std::default::Default;
 
-use euclid::point::Point2D as Point;
+use point::Point;
 use rustbox::{self, RustBox, Event};
 use rustbox::Color as RustboxColor;
 use rustbox::Key as RustboxKey;
@@ -81,7 +81,7 @@ pub struct RustboxCanvas {
 }
 
 impl RustboxCanvas {
-    pub fn new(_display_size: Point<i32>,
+    pub fn new(_display_size: Point,
                _window_title: &str) -> RustboxCanvas {
         let output_mode = rustbox::OutputMode::Normal;
         

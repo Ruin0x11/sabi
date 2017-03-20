@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use euclid::point::Point2D as Point;
+use point::Point;
 use slog::Logger;
 use tcod::{self, Console, FontLayout, FontType, RootConsole};
 use tcod::input::Key as TcodKey;
@@ -38,7 +38,7 @@ pub struct TcodCanvas {
 }
 
 impl TcodCanvas {
-    pub fn new(display_size: Point<i32>,
+    pub fn new(display_size: Point,
                window_title: &str) -> TcodCanvas {
         let font_path = PathBuf::from("./fonts/terminal.png");
         let color = tcod::Color::new(0, 0, 0);

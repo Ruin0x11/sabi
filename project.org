@@ -8,8 +8,38 @@ _Principles_
 _Backbone_
 - Feature-agnostic renderer (that is tightly coupled to game specifics)
 - Heavy usage of prebuilt modules.
-** TIPS
-22:43   Aaronepower [mTB nonbirit1m So you'd do something like `#[cfg(windows)] mod windows_sys as sys;
-                        #[cfg(macos)] mod mac_sys as sys;` and you'd make the API uniform so the rest of
-                        the code doesn't have to worry.
-[]]
+** Things I know I want
+_Mechanics_
+- Ranged weapons
+- Themed dungeons/variety of generation patterns
+- Numeric speed value
+- Magic/events that happen after a set period of time
+- Multi-turn actions that can be interrupted
+- Variable amount of body parts.
+- Some kind of crafting.
+- Friendly AI/pets
+- Friendly/Neutral/Hostile relations between all beings (infighting possible?)
+- Large, persistent and randomly generated open world
+- Home area of some kind
+- No permadeath by default, but it is an option
+  + although there still is a penalty for dying
+
+_Theme_
+- Something modern/abstract
+*** Tiles
+- Multiple items per tile
+- At most one special feature - stairs.
+  + Features can be added to a tile manually by the player
+- Stairs are items, but not normally takeable
+** Things to determine if fun
+- Player may balance between any amount of melee/shooting/magic
+- Creation of temporary dungeons/dungeons from items
+- Customization of home base
+- Maintainance of city/large base
+- Cell phone as quest acceptance/other tool
+- Base building/defense as part of an instanced quest
+- Items can act as living beings
+- Open world not separated by boundaries (chunked) alongside normal maps
+  + This is really cool, but /will/ require a rewrite...
+- Overworld travel
+- Hidden rooms (basements) of instanced buildings

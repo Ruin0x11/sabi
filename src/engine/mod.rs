@@ -7,12 +7,9 @@ pub mod rustbox;
 #[cfg(feature = "with-tcod")]
 pub mod tcod;
 
-use euclid::point::Point2D;
-
 use keys::Key;
 use glyph::Glyph;
-
-pub type Point = Point2D<i32>;
+use point::Point;
 
 /// All rendering targets must follow this API.
 pub trait Canvas_ {
@@ -89,6 +86,10 @@ pub fn get_canvas() -> Option<Canvas> {
 
     println!("no graphics backend was compiled in!");
     None
+}
+
+pub trait Render {
+    fn render(&self, canvas: &Canvas);
 }
 
 // FIXME: Coherence rules prevent blanket impls without macros, so these are

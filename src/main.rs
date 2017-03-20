@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate bitflags;
 
+extern crate backtrace;
 extern crate chrono;
 extern crate euclid;
 
@@ -23,15 +24,21 @@ mod engine;
 mod glyph;
 mod keys;
 mod log;
+mod tile;
+mod chunk;
+mod world;
+mod point;
+mod gen;
 
 use std::panic;
 
 use action::Action;
-use color::*;
-use engine::{Canvas};
+use engine::Canvas;
+use world::*;
+use point::Point;
+
 use keys::{Key, Keys, KeyCode};
 use slog::Logger;
-use euclid::point::Point2D as Point;
 
 pub struct Actor {
     x: i32,
@@ -86,32 +93,35 @@ impl Actor {
             self.y = ny;
         }
     }
+
+    fn get_pos(&self) -> Point {
+        Point::new(self.x, self.y)
+    }
 }
 
-pub struct GameContext<'a> {
+pub struct GameContext {
     canvas: Canvas,
     logger: Logger,
+}
 
-    /// Actor that we take to be in control
-    player: Option<&'a Actor>,
+pub struct GameState<'a> {
+    world: World,
+    player: Option<&'a Actor>
+
 }
 
 fn main() {
-
-    let result = panic::catch_unwind(|| {
-        run();
-    });
-
-    println!("{:?}", result);
+    run();
 }
 
 fn run() {
+    log::init_panic_hook();
+    
     let canvas = engine::get_canvas().unwrap();
 
     let mut ctxt = GameContext {
         canvas: canvas,
-        logger: log::make_logger("sabi").unwrap(),
-        player: None,
+        logger: log::make_logger("main").unwrap(),
     };
 
     let ctxt_mut = &mut ctxt;
@@ -122,12 +132,24 @@ fn run() {
 fn do_thing(mut ctxt: &mut GameContext) {
     let ref mut canvas = ctxt.canvas;
 
+    let mut state = GameState {
+        world: World::generate(128, WorldType::Overworld),
+        player: None,
+    };
+
     let mut prayer = Actor { x: 0, y: 0 };
 
     let mut keys = Keys::new();
     while !canvas.window_closed() {
+        debug!(ctxt.logger, "Started new loop");
         canvas.clear();
+
+        state.world.with_cells(Point::new(0, 0), Point::new(128, 128),
+                               |point, ref cell| {
+                                   canvas.print_glyph(point.x, point.y, cell.tile.glyph.clone())
+                               });
         canvas.print_glyph(prayer.x, prayer.y, glyph::Glyph::Player);
+
         canvas.present();
         let new_keys = canvas.get_input();
         keys.extend(new_keys);
@@ -147,6 +169,8 @@ fn do_thing(mut ctxt: &mut GameContext) {
                 _ => Action::Dood,
             };
             prayer.run_action(action);
+
+            debug!(ctxt.logger, "Prayer: {}", prayer.get_pos())
         }
     }
 }
