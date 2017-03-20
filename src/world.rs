@@ -17,7 +17,8 @@ pub enum WorldType {
 }
 
 /// Describes a collection of Chunks put together to form a complete playing
-/// field. 
+/// field. This is the interface to the world that living beings can interact
+/// with. 
 pub struct World {
     chunk_size: u32,
     chunks: HashMap<ChunkIndex, Chunk>,
@@ -26,46 +27,52 @@ pub struct World {
 }
 
 impl World {
-    pub fn new(chunk_size: u32) -> World {
+    pub fn new(type_: WorldType, chunk_size: u32) -> World {
         World {
             chunk_size: chunk_size,
             chunks: HashMap::new(),
-            type_: WorldType::Overworld,
+            type_: type_,
             logger: log::make_logger("world").unwrap(),
         }
     }
 
     pub fn generate(chunk_size: u32, type_: WorldType) -> World {
-        let type_ = WorldType::Instanced(Point::new(64, 64));
-        let tile = Tile {
-            type_: TileType::Floor,
-            glyph: Glyph::Floor,
-            feature: None,
-        };
-
         let chunks = match type_ {
-            WorldType::Instanced(point) => {
-                let mut v = HashMap::new();
-                v.insert(ChunkIndex::new(0, 0), Chunk::generate_basic(chunk_size, tile));
-                v
-            },
+            WorldType::Instanced(dimensions) => World::generate_chunked(chunk_size, dimensions),
             _   => HashMap::new(),
         };
 
-        let mut world = World::new(chunk_size);
+        let mut world = World::new(type_, chunk_size);
         world.chunks = chunks;
 
-        let chunk_size_i = chunk_size as i32;
-        let tile = Tile {
-            type_: TileType::Wall,
-            glyph: Glyph::Wall,
-            feature: None,
-        };
+        debug!(world.logger, "World created, no. of chunks: {}", world.chunks.len());
 
-        world.draw_rect(WorldPosition::new(0, 0),
-                        WorldPosition::new(24, 24),
-                        tile);
         world
+    }
+
+    fn generate_chunked(chunk_size: u32, dimensions: Point) -> HashMap<ChunkIndex, Chunk> {
+        assert!(dimensions.x >= 0);
+        assert!(dimensions.y >= 0);
+
+        let mut chunks = HashMap::new();
+        let chunk_size_i = chunk_size as i32;
+        let debug = "abcdefg";
+
+        let w = dimensions.x / chunk_size_i;
+        let h = dimensions.y / chunk_size_i;
+        for i in 0..w {
+            for j in 0..h {
+                let index = (j + (i * h)) as usize;
+                let tile = Tile {
+                    type_: TileType::Floor,
+                    glyph: Glyph::Debug(debug.chars().nth(index).unwrap_or('x')),
+                    feature: None,
+                };
+                // TODO: Shave off bounds
+                chunks.insert(ChunkIndex::new(i, j), Chunk::generate_basic(chunk_size, tile));
+            }
+        }
+        chunks
     }
 
     fn world_pos_to_chunk_info(&self, pos: WorldPosition) -> (ChunkIndex, Point) {
@@ -74,19 +81,29 @@ impl World {
 
     fn world_pos_to_chunk_index(&self, pos: WorldPosition) -> ChunkIndex {
         let chunk_size_i = self.chunk_size as i32;
-        let conv = |i: i32| i / (chunk_size_i - 1);
+        let conv = |i: i32| i / chunk_size_i;
 
         ChunkIndex::new(conv(pos.x), conv(pos.y))
     }
 
-    pub fn get_chunk(&self, pos: WorldPosition) -> Option<&Chunk> {
-        let pos = self.world_pos_to_chunk_index(pos);
-        self.chunks.get(&pos)
+    pub fn get_chunk_from_world_pos(&self, pos: WorldPosition) -> Option<&Chunk> {
+        let index = self.world_pos_to_chunk_index(pos);
+        debug!(self.logger, "Chunk index: {} pos: {}", index, pos);
+        self.get_chunk(index)
     }
 
-    pub fn get_chunk_mut(&mut self, pos: WorldPosition) -> Option<&mut Chunk> {
-        let pos = self.world_pos_to_chunk_index(pos);
-        self.chunks.get_mut(&pos)
+    pub fn get_chunk_mut_from_world_pos(&mut self, pos: WorldPosition) -> Option<&mut Chunk> {
+        let index = self.world_pos_to_chunk_index(pos);
+        debug!(self.logger, "Chunk index: {} pos: {}", index, pos);
+        self.get_chunk_mut(index)
+    }
+
+    pub fn get_chunk(&self, index: ChunkIndex) -> Option<&Chunk> {
+        self.chunks.get(&index)
+    }
+
+    pub fn get_chunk_mut(&mut self, index: ChunkIndex) -> Option<&mut Chunk> {
+        self.chunks.get_mut(&index)
     }
 
     fn world_pos_to_chunk_pos(&self, pos: WorldPosition) -> Point {
@@ -108,10 +125,10 @@ impl World {
         self.get_chunk(chunk_index).is_some()
     }
 
-    pub fn cell(&mut self, world_pos: WorldPosition) -> Option<&Cell> {
+    pub fn cell(&self, world_pos: WorldPosition) -> Option<&Cell> {
         assert!(self.is_pos_valid(world_pos), "invalid pos {}", &world_pos);
-        let (chunk_index, chunk_pos) = self.world_pos_to_chunk_info(world_pos);
-        let chunk_o = self.get_chunk(chunk_index);
+        let chunk_pos = self.world_pos_to_chunk_pos(world_pos);
+        let chunk_o = self.get_chunk_from_world_pos(world_pos);
         match chunk_o {
             Some(chunk) => {
                 Some(chunk.cell(chunk_pos))
@@ -119,12 +136,11 @@ impl World {
             None => None,
         }
     }
-    
 
     pub fn cell_mut(&mut self, world_pos: WorldPosition) -> Option<&mut Cell> {
         assert!(self.is_pos_valid(world_pos), "invalid pos {}", &world_pos);
-        let (chunk_index, chunk_pos) = self.world_pos_to_chunk_info(world_pos);
-        let chunk_o = self.get_chunk_mut(chunk_index);
+        let chunk_pos = self.world_pos_to_chunk_pos(world_pos);
+        let chunk_o = self.get_chunk_mut_from_world_pos(world_pos);
         match chunk_o {
             Some(chunk) => {
                 Some(chunk.cell_mut(chunk_pos))
@@ -143,29 +159,8 @@ impl World {
     {
         assert!(dimensions.x >= 0);
         assert!(dimensions.y >= 0);
-        let bottom_right = top_left + dimensions;
 
-        let chunk_size = self.chunk_size;
-        let (chunk_index, mut chunk_pos) = self.world_pos_to_chunk_info(top_left);
-        let starter_chunk_x = chunk_pos.x;
-
-        while chunk_pos.y < bottom_right.y {
-            while chunk_pos.x < bottom_right.x {
-                debug!(self.logger, "pos: {}, right: {}", chunk_pos, bottom_right);
-                let chunk_o = self.get_chunk(chunk_pos);
-                if let Some(chunk) = chunk_o {
-                    for (cell_chunk_pos, cell) in chunk.iter() {
-                        let cell_world_pos = chunk.world_position(chunk_index, cell_chunk_pos);
-                        if cell_world_pos >= top_left && cell_world_pos <= bottom_right {
-                            callback(cell_world_pos, cell);
-                        }
-                    }
-                } 
-                chunk_pos.x += chunk_size as i32;
-            }
-            chunk_pos.y += chunk_size as i32;
-            chunk_pos.x = starter_chunk_x;
-        }
+        // IMPLEMENT
     }
 }
 
@@ -177,7 +172,7 @@ mod tests {
     #[test]
     fn test_world_pos_to_chunk_pos() {
         let chunk_size = 128;
-        let world = World::new(chunk_size as u32);
+        let world = World::new(WorldType::Overworld, chunk_size as u32);
         assert_eq!(
             world.world_pos_to_chunk_pos(Point::new(0, 0)),
             Point::new(0, 0)
@@ -207,13 +202,17 @@ mod tests {
     #[test]
     fn test_world_pos_to_chunk_index() {
         let chunk_size = 128;
-        let world = World::new(chunk_size as u32);
+        let world = World::new(WorldType::Overworld, chunk_size as u32);
         assert_eq!(
             world.world_pos_to_chunk_index(Point::new(0, 0)),
             ChunkIndex::new(0, 0)
         );
         assert_eq!(
             world.world_pos_to_chunk_index(Point::new(1, 1)),
+            ChunkIndex::new(0, 0)
+        );
+        assert_eq!(
+            world.world_pos_to_chunk_index(Point::new(chunk_size - 1, chunk_size - 1)),
             ChunkIndex::new(0, 0)
         );
         assert_eq!(

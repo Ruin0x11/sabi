@@ -8,6 +8,9 @@ _Principles_
 _Backbone_
 - Feature-agnostic renderer (that is tightly coupled to game specifics)
 - Heavy usage of prebuilt modules.
+- 
+** Questions
+- Does there always have to be a player active?
 ** Things I know I want
 _Mechanics_
 - Ranged weapons

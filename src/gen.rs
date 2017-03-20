@@ -56,14 +56,21 @@ impl Rect {
 }
 
 impl World {
-    pub fn set_tile(&mut self, world_pos: WorldPosition, tile: Tile) {
-        if let Some(cell_mut) = self.cell_mut(world_pos) {
+    fn debug_cell(&self, pos: WorldPosition) {
+        if let Some(cell) = self.cell(pos) {
+            debug!(self.logger, "Tile before: {:?}", cell.tile);
+        }
+    }
+
+    pub fn set_tile(&mut self, pos: WorldPosition, tile: Tile) {
+        self.debug_cell(pos);
+        if let Some(cell_mut) = self.cell_mut(pos) {
             cell_mut.tile = tile.clone();
         }
     }
 
-    pub fn set_tile_feature(&mut self, world_pos: WorldPosition, feature: Option<TileFeature>) {
-        if let Some(cell_mut) = self.cell_mut(world_pos) {
+    pub fn set_tile_feature(&mut self, pos: WorldPosition, feature: Option<TileFeature>) {
+        if let Some(cell_mut) = self.cell_mut(pos) {
             cell_mut.tile.feature = feature;
         }
     }

@@ -1,6 +1,6 @@
 use glyph::Glyph;
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum TileType {
     Wall,
     Floor,
@@ -9,14 +9,14 @@ pub enum TileType {
     Lava
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum TileFeature {
     Door(bool),
     StairsUp,
     StairsDown,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Tile {
     pub type_: TileType,
     pub glyph: Glyph,

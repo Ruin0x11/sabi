@@ -6,7 +6,9 @@ use point::Point;
 
 type ChunkPosition = Point;
 
-/// Represents a piece of terrain that is part of a larger World.
+/// Represents a piece of terrain that is part of a larger World. Looking up
+/// cells in a World will resolve to a certain Chunk, but actors don't need to
+/// care about the underlying Chunks.
 pub struct Chunk {
     index: Option<ChunkIndex>,
     dimensions: Point,

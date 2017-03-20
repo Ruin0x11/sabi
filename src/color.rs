@@ -1,5 +1,4 @@
 use std::f64;
-use std::cmp::min;
 
 pub type Color = RGB;
 
@@ -158,12 +157,12 @@ mod tests {
     #[test]
     fn test_rgb_to_16() {
         assert_eq!(Color16::from(BLACK),   Color16::Black);
-        assert_eq!(Color16::from(RED),   Color16::Red);
+        assert_eq!(Color16::from(RED),     Color16::Red);
         assert_eq!(Color16::from(GREEN),   Color16::Green);
-        assert_eq!(Color16::from(YELLOW),   Color16::Yellow);
-        assert_eq!(Color16::from(BLUE), Color16::Blue);
+        assert_eq!(Color16::from(YELLOW),  Color16::Yellow);
+        assert_eq!(Color16::from(BLUE),    Color16::Blue);
         assert_eq!(Color16::from(MAGENTA), Color16::Magenta);
-        assert_eq!(Color16::from(CYAN), Color16::Cyan);
-        assert_eq!(Color16::from(WHITE), Color16::White);
+        assert_eq!(Color16::from(CYAN),    Color16::Cyan);
+        assert_eq!(Color16::from(WHITE),   Color16::White);
     }
 }
