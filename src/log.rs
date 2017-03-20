@@ -39,14 +39,8 @@ pub fn make_logger(system_name: &str) -> Result<Logger, ()> {
 struct Shim(Backtrace);
 
 impl fmt::Debug for Shim {
-    #[cfg(feature = "with-backtrace")]
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         write!(fmt, "\n{:?}", self.0)
-    }
-
-    #[cfg(not(feature = "with-backtrace"))]
-    fn fmt(&self, _: &mut fmt::Formatter) -> fmt::Result {
-        Ok(())
     }
 }
 

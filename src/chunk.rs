@@ -6,8 +6,7 @@ use point::Point;
 
 type ChunkPosition = Point;
 
-/// Represents a piece of terrain.
-/// Monsters/items/instanced things are not kept here. They go in 'World' instead.
+/// Represents a piece of terrain that is part of a larger World.
 pub struct Chunk {
     index: Option<ChunkIndex>,
     dimensions: Point,
@@ -16,20 +15,12 @@ pub struct Chunk {
 }
 
 impl Chunk {
-    // TEMP: You'd normally want to generate a World and then draw rooms, paths,
-    // etc. on top of that, because there is no way to see other Chunks at this
-    // level.
-    pub fn generate_basic(size: u32) -> Chunk {
+    pub fn generate_basic(size: u32, tile: Tile) -> Chunk {
         let size_i = size as i32;
         let mut cells = Vec::new();
 
         for index in 0..(size * size) {
-            cells.push(Cell {
-                tile: Tile {
-                    type_: TileType::Floor,
-                    glyph: Glyph::Floor,
-                    feature: None,
-                }})
+            cells.push( Cell { tile: tile.clone() } );
         }
 
         Chunk {
@@ -40,6 +31,8 @@ impl Chunk {
         }
     }
 
+    /// Converts a regular Point into a ChunkPosition.
+    /// The Point must be within the size of the Chunk.
     pub fn chunk_point(&self, pos: Point) -> ChunkPosition {
         assert!(pos.x >= 0);
         assert!(pos.y >= 0);
@@ -52,16 +45,19 @@ impl Chunk {
         (pos.y * self.dimensions.x + pos.x) as usize
     }
 
+    /// Gets an immutable cell reference relative to within this Chunk.
     pub fn cell(&self, pos: ChunkPosition) -> &Cell {
         let index = self.index(pos.into());
         &self.cells[index]
     }
 
+    /// Gets an mutable cell reference relative to within this Chunk.
     pub fn cell_mut(&mut self, pos: ChunkPosition) -> &mut Cell {
         let index = self.index(pos.into());
         &mut self.cells[index]
     }
 
+    /// Calculates the position in the world the point in the chunk represents.
     pub fn world_position(&self, index: ChunkIndex, pos: ChunkPosition) -> Point {
         Point::new(pos.x + index.x * self.dimensions.x, pos.y + index.y * self.dimensions.y)
     }

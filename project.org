@@ -42,3 +42,4 @@ _Theme_
 - Open world not separated by boundaries (chunked) alongside normal maps
   + This is really cool, but /will/ require a rewrite...
 - Overworld travel
+- Hidden rooms (basements) of instanced buildings

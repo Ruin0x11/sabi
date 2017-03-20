@@ -16,6 +16,8 @@ pub enum WorldType {
     Overworld
 }
 
+/// Describes a collection of Chunks put together to form a complete playing
+/// field. 
 pub struct World {
     chunk_size: u32,
     chunks: HashMap<ChunkIndex, Chunk>,
@@ -35,11 +37,16 @@ impl World {
 
     pub fn generate(chunk_size: u32, type_: WorldType) -> World {
         let type_ = WorldType::Instanced(Point::new(64, 64));
+        let tile = Tile {
+            type_: TileType::Floor,
+            glyph: Glyph::Floor,
+            feature: None,
+        };
 
         let chunks = match type_ {
             WorldType::Instanced(point) => {
                 let mut v = HashMap::new();
-                v.insert(ChunkIndex::new(0, 0), Chunk::generate_basic(chunk_size));
+                v.insert(ChunkIndex::new(0, 0), Chunk::generate_basic(chunk_size, tile));
                 v
             },
             _   => HashMap::new(),
@@ -112,7 +119,7 @@ impl World {
             None => None,
         }
     }
-                    
+    
 
     pub fn cell_mut(&mut self, world_pos: WorldPosition) -> Option<&mut Cell> {
         assert!(self.is_pos_valid(world_pos), "invalid pos {}", &world_pos);
