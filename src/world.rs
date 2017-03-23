@@ -53,7 +53,7 @@ impl World {
         }
     }
 
-    pub fn generate(chunk_size: i32, type_: WorldType) -> World {
+    pub fn generate(type_: WorldType, chunk_size: i32) -> World {
         let chunks = match type_ {
             WorldType::Instanced(dimensions) => World::generate_chunked(chunk_size, dimensions),
             _   => HashMap::new(),
@@ -63,6 +63,9 @@ impl World {
         world.chunks = chunks;
 
         debug!(world.logger, "World created, no. of chunks: {}", world.chunks.len());
+        for chunk_index in world.chunks.keys() {
+            debug!(world.logger, "Index: {}", chunk_index);
+        }
 
         world
     }
@@ -74,8 +77,10 @@ impl World {
         let mut chunks = HashMap::new();
         let debug = "abcdefg";
 
-        let w = dimensions.x / chunk_size;
-        let h = dimensions.y / chunk_size;
+        // ceiling
+        let w = (dimensions.x + chunk_size - 1) / chunk_size;
+        let h = (dimensions.y + chunk_size - 1) / chunk_size;
+
         for i in 0..w {
             for j in 0..h {
                 let index = (j + (i * h)) as usize;
@@ -91,41 +96,35 @@ impl World {
         chunks
     }
 
+    fn are_points_in_different_chunks(&self, pos_a: WorldPosition,
+                                      pos_b: WorldPosition) -> bool {
+        let comp = |p| self.chunk_index_from_world_pos(p);
+        comp(pos_a) != comp(pos_b)
+    }
+
     fn chunk_info_from_world_pos(&self, pos: WorldPosition) -> (ChunkIndex, Point) {
-        (self.chunk_index_from_world_pos(pos), self.world_pos_to_chunk_pos(pos))
+        (self.chunk_index_from_world_pos(pos), self.chunk_pos_from_world_pos(pos))
     }
 
     fn chunk_index_from_world_pos(&self, pos: WorldPosition) -> ChunkIndex {
-        let chunk_size_i = self.chunk_size as i32;
-        let conv = |i: i32| i / chunk_size_i;
+        let conv = |i: i32| {
+            if i < 0 {
+                // [-1, -chunk_size] = -1
+                ((i + 1) / self.chunk_size) - 1
+            } else {
+                // [0, chunk_size-1] = 0
+                i / self.chunk_size
+            }
+        };
 
         ChunkIndex::new(conv(pos.x), conv(pos.y))
     }
 
-    pub fn chunk_from_world_pos(&self, pos: WorldPosition) -> Option<&Chunk> {
-        let index = self.chunk_index_from_world_pos(pos);
-        self.get_chunk(index)
-    }
-
-    pub fn chunk_mut_from_world_pos(&mut self, pos: WorldPosition) -> Option<&mut Chunk> {
-        let index = self.chunk_index_from_world_pos(pos);
-        self.get_chunk_mut(index)
-    }
-
-    pub fn get_chunk(&self, index: ChunkIndex) -> Option<&Chunk> {
-        self.chunks.get(&index)
-    }
-
-    pub fn get_chunk_mut(&mut self, index: ChunkIndex) -> Option<&mut Chunk> {
-        self.chunks.get_mut(&index)
-    }
-
-    fn world_pos_to_chunk_pos(&self, pos: WorldPosition) -> Point {
-        let chunk_size_i = self.chunk_size as i32;
+    fn chunk_pos_from_world_pos(&self, pos: WorldPosition) -> Point {
         let conv = |i: i32| {
-            let i_new = i % chunk_size_i;
+            let i_new = i % self.chunk_size;
             if i_new < 0 {
-                chunk_size_i + i_new
+                self.chunk_size + i_new
             } else {
                 i_new
             }
@@ -134,15 +133,33 @@ impl World {
         Point::new(conv(pos.x), conv(pos.y))
     }
 
+    pub fn chunk_from_world_pos(&self, pos: WorldPosition) -> Option<&Chunk> {
+        let index = self.chunk_index_from_world_pos(pos);
+        self.chunk(index)
+    }
+
+    pub fn chunk_mut_from_world_pos(&mut self, pos: WorldPosition) -> Option<&mut Chunk> {
+        let index = self.chunk_index_from_world_pos(pos);
+        self.chunk_mut(index)
+    }
+
+    pub fn chunk(&self, index: ChunkIndex) -> Option<&Chunk> {
+        self.chunks.get(&index)
+    }
+
+    pub fn chunk_mut(&mut self, index: ChunkIndex) -> Option<&mut Chunk> {
+        self.chunks.get_mut(&index)
+    }
+
     pub fn is_pos_valid(&self, world_pos: WorldPosition) -> bool {
         let chunk_index = self.chunk_index_from_world_pos(world_pos);
-        self.get_chunk(chunk_index).is_some()
+        self.chunk(chunk_index).is_some()
     }
 
     pub fn cell(&self, world_pos: WorldPosition) -> Option<&Cell> {
-        let chunk_pos = self.world_pos_to_chunk_pos(world_pos);
-        let chunk_o = self.chunk_from_world_pos(world_pos);
-        match chunk_o {
+        let chunk_pos = self.chunk_pos_from_world_pos(world_pos);
+        let chunk_opt = self.chunk_from_world_pos(world_pos);
+        match chunk_opt {
             Some(chunk) => {
                 Some(chunk.cell(chunk_pos))
             },
@@ -151,9 +168,9 @@ impl World {
     }
 
     pub fn cell_mut(&mut self, world_pos: WorldPosition) -> Option<&mut Cell> {
-        let chunk_pos = self.world_pos_to_chunk_pos(world_pos);
-        let chunk_o = self.chunk_mut_from_world_pos(world_pos);
-        match chunk_o {
+        let chunk_pos = self.chunk_pos_from_world_pos(world_pos);
+        let chunk_opt = self.chunk_mut_from_world_pos(world_pos);
+        match chunk_opt {
             Some(chunk) => {
                 Some(chunk.cell_mut(chunk_pos))
             }
@@ -214,31 +231,31 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_world_pos_to_chunk_pos() {
+    fn test_chunk_pos_from_world_pos() {
         let chunk_size = 128;
         let world = World::new(WorldType::Overworld, chunk_size);
         assert_eq!(
-            world.world_pos_to_chunk_pos(Point::new(0, 0)),
+            world.chunk_pos_from_world_pos(Point::new(0, 0)),
             Point::new(0, 0)
         );
         assert_eq!(
-            world.world_pos_to_chunk_pos(Point::new(1, 1)),
+            world.chunk_pos_from_world_pos(Point::new(1, 1)),
             Point::new(1, 1)
         );
         assert_eq!(
-            world.world_pos_to_chunk_pos(Point::new(chunk_size, chunk_size)),
+            world.chunk_pos_from_world_pos(Point::new(chunk_size, chunk_size)),
             Point::new(0, 0)
         );
         assert_eq!(
-            world.world_pos_to_chunk_pos(Point::new(chunk_size * 2 + 64, chunk_size * 2 + 32)),
+            world.chunk_pos_from_world_pos(Point::new(chunk_size * 2 + 64, chunk_size * 2 + 32)),
             Point::new(64, 32)
         );
         assert_eq!(
-            world.world_pos_to_chunk_pos(Point::new(-chunk_size, -chunk_size)),
+            world.chunk_pos_from_world_pos(Point::new(-chunk_size, -chunk_size)),
             Point::new(0, 0)
         );
         assert_eq!(
-            world.world_pos_to_chunk_pos(Point::new(-chunk_size * 2 + 64, -chunk_size * 2 + 32)),
+            world.chunk_pos_from_world_pos(Point::new(-chunk_size * 2 + 64, -chunk_size * 2 + 32)),
             Point::new(64, 32)
         );
     }
@@ -264,7 +281,8 @@ mod tests {
             ChunkIndex::new(1, 1)
         );
         assert_eq!(
-            world.chunk_index_from_world_pos(Point::new(chunk_size * 2 + 64, chunk_size * 3 + 32)),
+            world.chunk_index_from_world_pos(Point::new(chunk_size * 2 + (chunk_size / 2),
+                                                        chunk_size * 3 + (chunk_size / 2))),
             ChunkIndex::new(2, 3)
         );
         assert_eq!(
@@ -272,8 +290,35 @@ mod tests {
             ChunkIndex::new(-1, -1)
         );
         assert_eq!(
-            world.chunk_index_from_world_pos(Point::new(-chunk_size * 3 + 64, -chunk_size * 4 + 32)),
-            ChunkIndex::new(-2, -3)
+            world.chunk_index_from_world_pos(Point::new(-chunk_size + (chunk_size / 2),
+                                                        -chunk_size + (chunk_size / 2))),
+            ChunkIndex::new(-1, -1)
         );
+        assert_eq!(
+            world.chunk_index_from_world_pos(Point::new(-chunk_size * 3 + (chunk_size / 2),
+                                                        -chunk_size * 4 + (chunk_size / 2))),
+            ChunkIndex::new(-3, -4)
+        );
+    }
+
+    #[test]
+    fn test_is_pos_valid() {
+        let world = World::generate(WorldType::Instanced(Point::new(1, 1)), 16);
+        assert_eq!(world.is_pos_valid(Point::new(0, 0)), true);
+        for i in -1..1 {
+            for j in -1..1 {
+                if i != 0 && j != 0 {
+                    let pos = Point::new(i, j);
+                    let index = world.chunk_index_from_world_pos(pos);
+                    assert_eq!(world.is_pos_valid(pos), false, "pos: {} index: {}", pos, index);
+                }
+            }
+        }
+
+        let world = World::generate(WorldType::Instanced(Point::new(32, 32)), 16);
+        assert_eq!(world.is_pos_valid(Point::new(0, 0)), true);
+        assert_eq!(world.is_pos_valid(Point::new(17, 17)), true);
+        assert_eq!(world.is_pos_valid(Point::new(32, 17)), false);
+        assert_eq!(world.is_pos_valid(Point::new(-1, -1)), false);
     }
 }

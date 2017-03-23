@@ -1,9 +1,15 @@
 use action::Action;
+use chunk::Chunk;
 use point::Point;
+use world::World;
+use slog::Logger;
+
+use log;
 
 pub struct Actor {
     x: i32,
     y: i32,
+    logger: Logger,
 }
 
 #[derive(Clone, Copy)]
@@ -38,28 +44,30 @@ impl Actor {
         Actor {
             x: x,
             y: y,
+            logger: log::make_logger("actor").unwrap(),
         }
     }
 
-    pub fn run_action(&mut self, action: Action) {
+    pub fn run_action(&mut self, action: Action, world: &mut World) {
         match action {
-            Action::Move(dir) => self.move_in_direction(dir),
+            Action::Move(dir) => self.move_in_direction(dir, world),
             Action::Dood => println!("Dood!"),
         }
     }
 
-    fn move_in_direction(&mut self, dir: Direction) {
+    fn move_in_direction(&mut self, dir: Direction, world: &mut World) {
         let (dx, dy) = dir.to_movement_offset();
         let cx = self.x.clone();
         let cy = self.y.clone();
-        self.move_to(cx + dx, cy + dy);
+        self.move_to(Point::new(cx + dx, cy + dy), world);
     }
 
-    fn move_to(&mut self, nx: i32, ny: i32) {
-    // TODO: needs a map/world to check bounds, at minimum
-        if true { 
-            self.x = nx;
-            self.y = ny;
+    fn move_to(&mut self, pos: Point, world: &mut World) {
+        if world.is_pos_valid(pos) {
+            self.x = pos.x;
+            self.y = pos.y;
+        } else {
+            warn!(self.logger, "Actor tried to move to invalid pos {}", pos);
         }
     }
 

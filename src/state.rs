@@ -87,19 +87,25 @@ pub fn process_player_commands(context: &mut GameContext) {
     let commands = get_commands_from_input(context);
 
     if let Some(first) = commands.iter().next() {
-        process_player_command(first, &mut context.state.player, &mut context.canvas);
+        process_player_command(first,
+                               &mut context.state.player,
+                               &mut context.canvas,
+                               &mut context.state.world);
     }
 }
 
 fn process_player_command(command: &Command,
                           player: &mut Option<Actor>,
-                          canvas: &mut Canvas) {
+                          canvas: &mut Canvas,
+                          world: &mut Option<World>) {
     if let Some(ref mut player_) = *player {
-        match *command {
-            // TEMP: Commands can still be run even if there is no player?
-            Command::Move(dir) => player_.run_action(Action::Move(dir)),
-            Command::Quit      => canvas.close_window(),
-            _                  => ()
+        if let Some(ref mut world_) = *world {
+            match *command {
+                // TEMP: Commands can still be run even if there is no player?
+                Command::Move(dir) => player_.run_action(Action::Move(dir), world_),
+                Command::Quit      => canvas.close_window(),
+                _                  => ()
+            }
         }
     } else {
         panic!("There should be a player by now...");

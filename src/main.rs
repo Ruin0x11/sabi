@@ -77,7 +77,7 @@ pub fn run() {
 }
 
 fn game_loop(mut ctxt: &mut GameContext) {
-    ctxt.state.set_world(World::generate(128, WorldType::Overworld));
+    ctxt.state.set_world(World::generate(WorldType::Overworld, 128));
     ctxt.state.set_player(Actor::new(5,5));
 
     while !ctxt.canvas.window_closed() {

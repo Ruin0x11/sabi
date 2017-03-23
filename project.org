@@ -8,7 +8,12 @@ _Principles_
 _Backbone_
 - Feature-agnostic renderer (that is tightly coupled to game specifics)
 - Heavy usage of prebuilt modules.
-- 
+** Task
+*** TODO Send a message to all actors in a radius.
+*** TODO Create cosmetic decals for blood/cracks on tiles.
+** Architecture Considerations
+- Use a scripting language or not? Lua?
+- Messaging between actors?
 ** Questions
 _Design_
 - Does there always have to be a player active?
@@ -40,6 +45,7 @@ _Theme_
   + Features can be added to a tile manually by the player
 - Stairs are items, but not normally takeable
 ** Things to determine if fun
+- TP/charge system of skills
 - Player may balance between any amount of melee/shooting/magic
 - Creation of temporary dungeons/dungeons from items
 - Customization of home base

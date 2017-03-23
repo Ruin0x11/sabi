@@ -23,7 +23,7 @@ mod tests {
 
     #[test]
     pub fn test_chunked_world() {
-        let mut world = World::generate(16, WorldType::Instanced(Point::new(32, 32)));
+        let mut world = World::generate(WorldType::Instanced(Point::new(32, 32)), 16);
 
         let tile = Tile {
             type_: TileType::Wall,
