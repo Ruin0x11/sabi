@@ -4,6 +4,7 @@ use glyph;
 use keys::*;
 use point::Point;
 use world::World;
+use engine::Canvas;
 use ::GameContext;
 
 pub struct GameState {
@@ -28,11 +29,12 @@ impl GameState {
     }
 }
 
+// IMPLEMENT
 #[cfg(never)]
 pub fn process_actors(context: &GameContext) {
     if let Some(ref mut world) = context.state.world {
         for actor in world.actors() {
-            
+
         }
     }
 }
@@ -43,10 +45,9 @@ pub enum Command {
     Quit,
 }
 
-fn process_world(context: &mut GameContext) {
+fn process_world(world: &mut Option<World>, canvas: &mut Canvas) {
     // TEMP: renders the world!
-    if let Some(ref mut world) = context.state.world {
-        let ref mut canvas = context.canvas;
+    if let Some(ref mut world) = *world {
         world.with_cells(Point::new(0, 0), Point::new(128, 128),
                          |point, ref cell| {
                              canvas.print_glyph(point.x, point.y, cell.tile.glyph.clone())
@@ -72,7 +73,7 @@ fn get_command_for_key(context: &GameContext, key: Key) -> Command {
 pub fn get_commands_from_input(context: &mut GameContext) -> Vec<Command> {
 
     let mut commands = Vec::new();
-    
+
     let new_keys = context.canvas.get_input();
     context.keys.extend(new_keys);
 
@@ -86,16 +87,18 @@ pub fn process_player_commands(context: &mut GameContext) {
     let commands = get_commands_from_input(context);
 
     if let Some(first) = commands.iter().next() {
-        process_player_command(first, context);
+        process_player_command(first, &mut context.state.player, &mut context.canvas);
     }
 }
 
-fn process_player_command(command: &Command, context: &mut GameContext) {
-    if let Some(ref mut player) = context.state.player {
+fn process_player_command(command: &Command,
+                          player: &mut Option<Actor>,
+                          canvas: &mut Canvas) {
+    if let Some(ref mut player_) = *player {
         match *command {
             // TEMP: Commands can still be run even if there is no player?
-            Command::Move(dir) => player.run_action(Action::Move(dir)),
-            Command::Quit      => context.canvas.close_window(),
+            Command::Move(dir) => player_.run_action(Action::Move(dir)),
+            Command::Quit      => canvas.close_window(),
             _                  => ()
         }
     } else {
@@ -105,7 +108,7 @@ fn process_player_command(command: &Command, context: &mut GameContext) {
 
 fn render_player(context: &mut GameContext) {
     if let Some(ref mut player) = context.state.player {
-        let pos = player.get_pos(); 
+        let pos = player.get_pos();
         // TEMP: renders the player!
         context.canvas.print_glyph(pos.x, pos.y, glyph::Glyph::Player);
         debug!(context.logger, "Prayer pos: {}", pos);
@@ -126,7 +129,7 @@ pub fn process(context: &mut GameContext) {
     context.canvas.clear();
 
     // TEMP: Nothing to do with speed here!
-    process_world(context);
+    process_world(&mut context.state.world, &mut context.canvas);
     render_player(context);
 
     context.canvas.present();

@@ -10,12 +10,17 @@ _Backbone_
 - Heavy usage of prebuilt modules.
 - 
 ** Questions
+_Design_
 - Does there always have to be a player active?
+
+_Technical_
+- How do I keep a reference to an optional actor and be able to control it?
 ** Things I know I want
 _Mechanics_
 - Ranged weapons
 - Themed dungeons/variety of generation patterns
 - Numeric speed value
+- Visibility/Invisibility/detection of invisible things
 - Magic/events that happen after a set period of time
 - Multi-turn actions that can be interrupted
 - Variable amount of body parts.
