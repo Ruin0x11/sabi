@@ -8,6 +8,8 @@ use uuid::Uuid;
 
 use log;
 
+pub type ActorId = Uuid;
+
 pub struct Actor {
     x: i32,
     y: i32,
@@ -17,11 +19,9 @@ pub struct Actor {
     uuid: Uuid,
 
     pub speed: u32,
-    ticks_since_update: u32,
-    active: bool,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum Direction {
     N,
     NE,
@@ -46,6 +46,25 @@ impl Direction {
             Direction::NW => (-1, -1),
         }
     }
+
+    fn from_movement_offset(offset: Point) -> Option<Direction> {
+        let (x, y) = (offset.x, offset.y);
+        match (x, y) {
+            (0,  -1) => Some(Direction::N),
+            (1,  -1) => Some(Direction::NE),
+            (1,   0) => Some(Direction::E),
+            (1,   1) => Some(Direction::SE),
+            (0,   1) => Some(Direction::S),
+            (-1,  1) => Some(Direction::SW),
+            (-1,  0) => Some(Direction::W),
+            (-1, -1) => Some(Direction::NW),
+            _        => None,
+        }
+    }
+
+    pub fn from_neighbors(from: Point, to: Point) -> Option<Direction> {
+        Direction::from_movement_offset(from - to)
+    }
 }
 
 impl Actor {
@@ -57,8 +76,6 @@ impl Actor {
             glyph: glyph,
             uuid: Uuid::new_v4(),
             speed: 100,
-            active: false,
-            ticks_since_update: 0,
         }
     }
 
@@ -86,25 +103,19 @@ impl Actor {
         }
     }
 
-    pub fn pass_time(&mut self, ticks: u32) {
-        self.ticks_since_update += ticks;
-        if self.ticks_since_update > self.speed {
-            self.ticks_since_update %= self.speed;
-            self.active = true;
-        }
-    }
-
-    pub fn check_and_reset_is_active(&mut self) -> bool {
-        let result = self.active;
-        self.active = false;
-        result
+    pub fn advance_time(&mut self, ticks: u32) {
+        
     }
 
     pub fn get_pos(&self) -> Point {
         Point::new(self.x, self.y)
     }
 
-    pub fn get_uuid(&self) -> Uuid {
+    pub fn get_id(&self) -> Uuid {
         self.uuid
+    }
+
+    pub fn is_player(&self, world: &World) -> bool {
+        world.player_id() == self.get_id()
     }
 }

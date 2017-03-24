@@ -1,17 +1,17 @@
 use tile::*;
-use point::Point;
+use point::{Point, SquareArea, CircleArea};
 use world::*;
 
-struct Rect {
+struct Border {
     pos: Point,
     min: Point,
     bottom_right: Point,
     done: bool,
 }
 
-impl Iterator for Rect {
+impl Iterator for Border {
     type Item = Point;
-    
+
     fn next(&mut self) -> Option<Point> {
         if self.done {
             return None;
@@ -38,15 +38,15 @@ impl Iterator for Rect {
                     self.pos.x = self.min.x;
                 }
             }
-        
+
         Some(current_point)
     }
 }
 
-impl Rect {
+impl Border {
     pub fn new<P: Into<Point>>(top_left: P, bottom_right: P) -> Self {
         let point = top_left.into();
-        Rect {
+        Border {
             pos: point.clone(),
             min: point.clone(),
             bottom_right: bottom_right.into(),
@@ -75,12 +75,34 @@ impl World {
         }
     }
 
-    pub fn draw_rect(&mut self,
+    pub fn draw_circle(&mut self,
+                       center: WorldPosition,
+                       radius: i32,
+                       tile: Tile) {
+        let circle = CircleArea::new(center, radius);
+        for pos in circle {
+            debug!(self.logger, "Position: {}", pos);
+            self.set_tile(pos, tile);
+        }
+    }
+
+    pub fn draw_square(&mut self,
+                       center: WorldPosition,
+                       radius: i32,
+                       tile: Tile) {
+        let square = SquareArea::new(center, radius);
+        for pos in square {
+            debug!(self.logger, "Position: {}", pos);
+            self.set_tile(pos, tile);
+        }
+    }
+
+    pub fn draw_border(&mut self,
                      top_left: WorldPosition,
                      bottom_right: WorldPosition,
                      tile: Tile) {
-        let rect = Rect::new(top_left, bottom_right);
-        for pos in rect {
+        let border = Border::new(top_left, bottom_right);
+        for pos in border {
             debug!(self.logger, "Position: {}", pos);
             self.set_tile(pos, tile);
         }

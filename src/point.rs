@@ -25,8 +25,8 @@ impl Point {
         max((self.x - other.x).abs(), (self.y - other.y).abs())
     }
 
-    pub fn circular_area(&self, radius: i32) -> CircularArea {
-        CircularArea::new(*self, radius)
+    pub fn circular_area(&self, radius: i32) -> CircleArea {
+        CircleArea::new(*self, radius)
     }
 
     pub fn tuple(&self) -> (i32, i32) {
@@ -161,7 +161,7 @@ impl Div<i32> for Point {
 }
 
 
-pub struct CircularArea {
+pub struct CircleArea {
     pos: Point,
     center: Point,
     radius: i32,
@@ -169,10 +169,10 @@ pub struct CircularArea {
     max: Point
 }
 
-impl CircularArea {
+impl CircleArea {
     pub fn new<P: Into<Point>>(center: P, radius: i32) -> Self {
         let center = center.into();
-        CircularArea {
+        CircleArea {
             pos: center - (radius, radius),
             center: center,
             radius: radius,
@@ -182,7 +182,7 @@ impl CircularArea {
     }
 }
 
-impl Iterator for CircularArea {
+impl Iterator for CircleArea {
     type Item = Point;
 
     fn next(&mut self) -> Option<Point> {

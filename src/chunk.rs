@@ -88,6 +88,7 @@ impl Chunk {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Cell {
     pub tile: Tile,
 }

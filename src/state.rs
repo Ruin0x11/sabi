@@ -2,6 +2,7 @@ use std::collections::{HashMap, VecDeque};
 
 use action::*;
 use actor::*;
+use ai::{self, Ai};
 use keys::*;
 use point::Point;
 use world::{World, WorldType};
@@ -40,22 +41,13 @@ impl GameState {
 
     pub fn player_action(&mut self, action: Action) {
         let id = self.world.player_id();
-        self.run_action(action, id);
+        let world = self.current_world_mut();
+        world.run_action(action, &id);
     }
 
-    pub fn run_action(&mut self, action: Action, actor_id: Uuid) {
-        let world_mut = self.current_world_mut();
-
-        world_mut.run_action(action, actor_id);
-    }
-}
-
-#[cfg(never)]
-pub fn process_actors(context: &GameContext) {
-    if let Some(ref mut world) = context.state.world {
-        for actor in world.actors() {
-
-        }
+    pub fn advance_time(&mut self, diff: i32) {
+        let world = self.current_world_mut();
+        world.advance_time(diff)
     }
 }
 
@@ -70,7 +62,7 @@ pub enum NextState {
     Quit,
 }
 
-fn process_world(world: &mut World, canvas: &mut Canvas) {
+fn draw_world(world: &mut World, canvas: &mut Canvas) {
     // TEMP: move to rendering area
     world.with_cells(Point::new(0, 0), Point::new(128, 128),
                      |point, ref cell| {
@@ -135,14 +127,31 @@ fn process_player(context: &mut GameContext) {
     }
 }
 
+pub fn process_actors(world: &mut World) {
+    while let Some(ref id) = world.next_actor() {
+        if world.is_player(id) {
+            break
+        }
+
+        let action = {
+            let ai = ai::Simple;
+            let actor = world.actor(id);
+            ai.choose_action(actor, world)
+        };
+
+        world.run_action(action, id);
+        world.advance_time(100);
+    }
+}
+
 // TEMP: Just to bootstrap things dirtily.
 pub fn process(context: &mut GameContext) {
     context.canvas.clear();
 
-    // TEMP: Nothing to do with speed here!
-    process_world(&mut context.state.world, &mut context.canvas);
+    process_player(context);
+    process_actors(&mut context.state.world);
+
+    draw_world(&mut context.state.world, &mut context.canvas);
 
     context.canvas.present();
-
-    process_player(context);
 }

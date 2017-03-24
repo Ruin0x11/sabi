@@ -3,7 +3,7 @@ use std::collections::hash_map;
 use std::io;
 use std::fmt;
 
-use actor::Actor;
+use actor::{Actor, ActorId};
 use action::Action;
 use tile::*;
 use point::Point;
@@ -11,12 +11,13 @@ use chunk::*;
 use glyph::*;
 use slog::Logger;
 use log;
+use turn_order::TurnOrder;
 use uuid::Uuid;
 
 #[derive(Copy, Clone)]
 pub enum Walkability {
-    WalkthroughMonsters,
-    BlockingMonsters,
+    MonstersWalkable,
+    MonstersBlocking,
 }
 
 pub type WorldPosition = Point;
@@ -36,14 +37,17 @@ pub struct World {
     type_: WorldType,
 
     // NOTE: could also implement by putting each in its own Chunk
-    actors: HashMap<Uuid, Actor>,
-    actor_ids_by_pos: HashMap<WorldPosition, Uuid>,
+    actors: HashMap<ActorId, Actor>,
+    actor_ids_by_pos: HashMap<WorldPosition, ActorId>,
 
     // NOTE: I'm not sure it makes sense for a player to be tied to an existing
     // world, but it works for now.
-    player_id: Option<Uuid>,
+    player_id: Option<ActorId>,
     // NOTE: Also must keep track of following actors, to move them between
     // areas.
+
+    turn_order: TurnOrder,
+    draw_calls: DrawCalls,
 
     pub logger: Logger,
 }
@@ -57,6 +61,7 @@ impl World {
             actors: HashMap::new(),
             actor_ids_by_pos: HashMap::new(),
             player_id: None,
+            turn_order: TurnOrder::new(),
             logger: log::make_logger("world").unwrap(),
         }
     }
@@ -87,12 +92,12 @@ impl World {
         let debug = "abcdefg";
 
         // ceiling
-        let w = (dimensions.x + chunk_size - 1) / chunk_size;
-        let h = (dimensions.y + chunk_size - 1) / chunk_size;
+        let columns = (dimensions.x + chunk_size - 1) / chunk_size;
+        let rows = (dimensions.y + chunk_size - 1) / chunk_size;
 
-        for i in 0..w {
-            for j in 0..h {
-                let index = (j + (i * h)) as usize;
+        for i in 0..columns {
+            for j in 0..rows {
+                let index = (j + (i * rows)) as usize;
                 let tile = Tile {
                     type_: TileType::Wall,
                     glyph: Glyph::Debug(debug.chars().nth(index).unwrap_or('x')),
@@ -165,20 +170,21 @@ impl World {
 
     pub fn is_walkable(&self, world_pos: WorldPosition,
                         walkability: Walkability) -> bool {
-        let tile_walkable = |world_pos| {
-            match self.cell(world_pos) {
-                Some(cell) => {
-                    let res = cell.tile.can_pass_through();
-                    debug!(self.logger, "Tile: {:?} res: {}", cell.tile, res);
-                    res
-                },
-                None       => false,
-            }
+        let walkable = match walkability {
+            Walkability::MonstersWalkable => true,
+            Walkability::MonstersBlocking => self.actor_at(world_pos).is_none(),
         };
-        match walkability {
-            Walkability::BlockingMonsters if
-                self.actor_at(world_pos).is_some() => false,
-            _                                      => tile_walkable(world_pos),
+
+        match self.cell(world_pos) {
+            Some(cell) => {
+                let passable = cell.tile.can_pass_through();
+                let in_bounds = self.is_pos_in_bounds(world_pos);
+                debug!(self.logger, "Cell: {:?}", cell);
+                debug!(self.logger, "passable, bounds, walkable: {} {} {}",
+                       passable, in_bounds, walkable);
+                passable && in_bounds && walkable
+            },
+            None       => false,
         }
     }
 
@@ -193,6 +199,7 @@ impl World {
         }
     }
 
+    // NOTE: It complains about adding lifetimes.
     fn chunk_result<F, R>(&self, world_pos: WorldPosition, func: &mut F, default: R) -> R
         where F: FnMut(&Chunk, ChunkPosition) -> R {
         let chunk_pos = self.chunk_pos_from_world_pos(world_pos);
@@ -279,54 +286,92 @@ impl World {
 
     /// Return an iterator over the currently loaded set of Actors in this
     /// world across all chunks.
-    pub fn actors(&mut self) -> hash_map::Values<Uuid, Actor> {
+    pub fn actors(&mut self) -> hash_map::Values<ActorId, Actor> {
         self.actors.values()
+    }
+
+    pub fn actor(&self, id: &ActorId) -> &Actor {
+        self.actors.get(id).expect("Actor not found!")
     }
 
     pub fn actor_at(&self, world_pos: WorldPosition) -> Option<&Actor> {
         match self.actor_ids_by_pos.get(&world_pos) {
-            Some(uuid) => {
-                assert!(self.actors.contains_key(uuid), "Coord -> id, id -> actor maps out of sync!");
-                self.actors.get(uuid)
+            Some(id) => {
+                assert!(self.actors.contains_key(id), "Coord -> id, id -> actor maps out of sync!");
+                self.actors.get(id)
             }
             None       => None
         }
     }
 
     pub fn add_actor(&mut self, actor: Actor) {
-        assert!(!self.actors.contains_key(&actor.get_uuid()), "Actor with same UUID already exists!");
-        self.actors.insert(actor.get_uuid(), actor);
+        assert!(!self.actors.contains_key(&actor.get_id()), "Actor with same id already exists!");
+        self.turn_order.add_actor(actor.get_id(), 0);
+        self.actors.insert(actor.get_id(), actor);
     }
 
-    pub fn remove_actor(&mut self, uuid: Uuid) {
-        let removed: bool = self.actors.remove(&uuid).is_some();
+    pub fn remove_actor(&mut self, id: &ActorId) {
+        self.turn_order.remove_actor(id);
+        let removed: bool = self.actors.remove(id).is_some();
         assert!(removed, "Tried removing nonexistent actor from world!");
     }
 
-    pub fn player_id(&self) -> Uuid {
+    pub fn player(&self) -> &Actor {
+        self.actors.get(&self.player_id()).unwrap()
+    }
+
+    pub fn player_id(&self) -> ActorId {
         self.player_id.unwrap()
     }
 
-    pub fn set_player_id(&mut self, uuid: Uuid) {
-        self.player_id = Some(uuid);
+    pub fn set_player_id(&mut self, id: ActorId) {
+        self.player_id = Some(id);
     }
 
     fn pre_tick(&mut self) {
 
     }
 
-    pub fn run_action(&mut self, action: Action, uuid: Uuid) {
+    fn pre_tick_actor(&mut self, actor: &Actor) {
+
+    }
+
+    pub fn run_action(&mut self, action: Action, id: &ActorId) {
+        debug!(self.logger, "Action: {:?} id: {}", action, id);
         self.pre_tick();
-        let mut actor = self.actors.remove(&uuid).unwrap();
+        let mut actor = self.actors.remove(id).unwrap();
 
+        self.pre_tick_actor(&actor);
         actor.run_action(action, self);
+        self.post_tick_actor(&actor);
 
-        self.actors.insert(uuid, actor);
+        self.actors.insert(id.clone(), actor);
         self.post_tick();
+    }
+
+    fn post_tick_actor(&mut self, actor: &Actor) {
+        // TEMP: speed algorithm is needed.
+        self.turn_order.add_delay_for(&actor.get_id(), (1000 / actor.speed) as i32);
     }
 
     fn post_tick(&mut self) {
 
+    }
+
+    pub fn is_player(&self, id: &ActorId) -> bool {
+        &self.player_id() == id
+    }
+
+    /// Update the time-to-action for every actor in the world.
+    /// The actor with the lowest time-to-action is the next one to act.
+    pub fn advance_time(&mut self, amount: i32) {
+        for id in self.actors.keys() {
+            self.turn_order.advance_time_for(id, amount);
+        }
+    }
+
+    pub fn next_actor(&mut self) -> Option<ActorId> {
+        self.turn_order.next()
     }
 }
 

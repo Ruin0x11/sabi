@@ -35,6 +35,7 @@ mod state;
 mod testbed;
 mod ai;
 mod pathfinding;
+mod turn_order;
 
 use slog::Logger;
 

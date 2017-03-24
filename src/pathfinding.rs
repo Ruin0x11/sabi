@@ -50,23 +50,23 @@ impl Path {
 
     fn create_path(from: Point, to: Point, came_from: HashMap<Point, Option<Point>>) -> Path {
         let mut current = to;
-            let mut path_buffer = vec![current];
-            while current != from {
-                match came_from.get(&current) {
-                    Some(&Some(new_current)) => {
-                        current = new_current;
-                        if current != from {
-                            path_buffer.push(current);
-                        }
+        let mut path_buffer = vec![current];
+        while current != from {
+            match came_from.get(&current) {
+                Some(&Some(new_current)) => {
+                    current = new_current;
+                    if current != from {
+                        path_buffer.push(current);
                     }
-                    Some(&None) => panic!(
-                        "Every point except for the initial one (`from`) one should be some."),
-                    None => {
-                        path_buffer = vec![];
-                        break
-                    },
                 }
+                Some(&None) => panic!(
+                    "Every point except for the initial one (`from`) one should be some."),
+                None => {
+                    path_buffer = vec![];
+                    break
+                },
             }
+        }
 
         assert_eq!(None, path_buffer.iter().find(|&&p| p == from));
 
@@ -247,20 +247,24 @@ mod test {
         }
     }
 
+    fn test_harness(board: &str, expected_len: usize, expected_path: &[(i32, i32)]) {
+        let board = make_board(board);
+        let path: Path = Path::find(board.start, board.destination, &board.level,
+                                    Walkability::MonstersWalkable);
+        assert_eq!(expected_len, path.len());
+        let expected = expected_path.iter()
+            .cloned().map(Into::into).collect::<Vec<Point>>();
+        assert_eq!(expected, path.collect::<Vec<_>>());
+    }
+
     #[test]
     fn test_neighbor() {
-        let board = make_board("
+        test_harness("
 ...........
 .sd........
 ...........
 ...........
-");
-        let path: Path = Path::find(board.start, board.destination, &board.level,
-                                    Walkability::WalkthroughMonsters);
-        assert_eq!(1, path.len());
-        let expected = [(2, 1)].iter()
-            .cloned().map(Into::into).collect::<Vec<Point>>();
-        assert_eq!(expected, path.collect::<Vec<_>>());
+", 1, &[(2, 1)]);
     }
 
     #[test]
@@ -273,7 +277,7 @@ mod test {
 ");
         board.destination = board.start;
         let path: Path = Path::find(board.start, board.destination, &board.level,
-                                    Walkability::WalkthroughMonsters);
+                                    Walkability::MonstersWalkable);
         assert_eq!(0, path.len());
         let expected: Vec<Point> = vec![];
         assert_eq!(expected, path.collect::<Vec<_>>());
@@ -281,79 +285,52 @@ mod test {
 
     #[test]
     fn test_straight_path() {
-        let board = make_board("
+        test_harness("
 ...........
 .s******d..
 ...........
 ...........
-");
-        let path: Path = Path::find(board.start, board.destination, &board.level,
-                                    Walkability::WalkthroughMonsters);
-        assert_eq!(7, path.len());
-        let expected = [(2, 1), (3, 1), (4, 1), (5, 1), (6, 1), (7, 1), (8, 1)].iter()
-            .cloned().map(Into::into).collect::<Vec<Point>>();
-        assert_eq!(expected, path.collect::<Vec<_>>());
+", 7, &[(2, 1), (3, 1), (4, 1), (5, 1), (6, 1), (7, 1), (8, 1)]);
     }
 
     #[test]
     fn test_diagonal_path() {
-        let board = make_board("
+        test_harness("
 s..........
 .*.........
 ..*........
 ...d.......
-");
-        let path: Path = Path::find(board.start, board.destination, &board.level,
-                                    Walkability::WalkthroughMonsters);
-        assert_eq!(3, path.len());
-        let expected = [(1, 1), (2, 2), (3, 3)].iter()
-            .cloned().map(Into::into).collect::<Vec<Point>>();
-        assert_eq!(expected, path.collect::<Vec<_>>());
+", 3, &[(1, 1), (2, 2), (3, 3)]);
     }
 
     #[test]
     fn test_no_path() {
-        let board = make_board("
+        test_harness("
 ....x......
 .s..x...d..
 ....x......
 ....x......
-");
-        let path: Path = Path::find(board.start, board.destination, &board.level,
-                                    Walkability::WalkthroughMonsters);
-        assert_eq!(0, path.len());
+", 0, &[]);
     }
 
     #[test]
     fn test_line_obstacle() {
-        let board = make_board("
+        test_harness("
 ....x......
 .s..x......
 ..*.x......
 ...*****d..
-");
-        let path: Path = Path::find(board.start, board.destination, &board.level,
-                                    Walkability::WalkthroughMonsters);
-        assert_eq!(7, path.len());
-        let expected = [(2, 2), (3, 3), (4, 3), (5, 3), (6, 3), (7, 3), (8, 3)].iter()
-            .cloned().map(Into::into).collect::<Vec<Point>>();
-        assert_eq!(expected, path.collect::<Vec<_>>());
+", 7, &[(2, 2), (3, 3), (4, 3), (5, 3), (6, 3), (7, 3), (8, 3)]);
     }
 
     #[test]
     fn test_concave_obstacle() {
-        let board = make_board("
+        test_harness("
 ......x....
 .s....xd...
 ..*...x*...
 ..*xxxx*...
 ...****....
-");
-        let path: Path = Path::find(board.start, board.destination, &board.level,
-                                    Walkability::WalkthroughMonsters);
-        assert_eq!(9, path.len());
-        let expected = [(2, 2), (2, 3), (3, 4), (4, 4), (5, 4), (6, 4), (7, 3), (7, 2), (7, 1)].iter()
-            .cloned().map(Into::into).collect::<Vec<Point>>();
-        assert_eq!(expected, path.collect::<Vec<_>>());
+", 9, &[(2, 2), (2, 3), (3, 4), (4, 4), (5, 4), (6, 4), (7, 3), (7, 2), (7, 1)]);
     }
 }
