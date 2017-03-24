@@ -33,6 +33,8 @@ mod gen;
 mod actor;
 mod state;
 mod testbed;
+mod ai;
+mod pathfinding;
 
 use slog::Logger;
 

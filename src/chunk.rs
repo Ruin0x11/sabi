@@ -1,10 +1,14 @@
+use std::collections::HashSet;
+
 use ::Actor;
 use world::ChunkIndex;
 use glyph::Glyph;
 use tile::*;
 use point::Point;
 
-type ChunkPosition = Point;
+pub type ChunkPosition = Point;
+
+pub type Visibility = HashSet<ChunkPosition>;
 
 /// Represents a piece of terrain that is part of a larger World. Looking up
 /// cells in a World will resolve to a certain Chunk, but actors don't need to
@@ -13,6 +17,7 @@ pub struct Chunk {
     index: Option<ChunkIndex>,
     dimensions: Point,
     cells: Vec<Cell>,
+    visible: Visibility,
 }
 
 impl Chunk {
@@ -27,6 +32,7 @@ impl Chunk {
             dimensions: Point::new(size, size),
             cells: cells,
             index: None,
+            visible: HashSet::new(),
         }
     }
 
@@ -54,6 +60,14 @@ impl Chunk {
     pub fn cell_mut(&mut self, pos: ChunkPosition) -> &mut Cell {
         let index = self.index(pos.into());
         &mut self.cells[index]
+    }
+
+    pub fn see_tile(&mut self, pos: ChunkPosition) {
+        self.visible.insert(pos);
+    }
+
+    pub fn is_seen(&self, pos: ChunkPosition) -> bool {
+        self.visible.contains(&pos)
     }
 
     /// Calculates the position in the world the point in the chunk represents.

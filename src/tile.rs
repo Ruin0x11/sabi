@@ -9,6 +9,22 @@ pub enum TileType {
     Lava
 }
 
+impl Tile {
+    pub fn can_see_through(&self) -> bool {
+        match self.type_ {
+            TileType::Wall => false,
+            _              => true,
+        }
+    }
+
+    pub fn can_pass_through(&self) -> bool {
+        match self.type_ {
+            TileType::Wall => false,
+            _              => true,
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 pub enum TileFeature {
     Door(bool),
@@ -19,6 +35,9 @@ pub enum TileFeature {
 #[derive(Debug, Copy, Clone)]
 pub struct Tile {
     pub type_: TileType,
+
+    // TEMP: Shouldn't go here, but is instead looked up
     pub glyph: Glyph,
+
     pub feature: Option<TileFeature>,
 }

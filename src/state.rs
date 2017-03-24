@@ -2,7 +2,6 @@ use std::collections::{HashMap, VecDeque};
 
 use action::*;
 use actor::*;
-use glyph;
 use keys::*;
 use point::Point;
 use world::{World, WorldType};
@@ -18,7 +17,7 @@ pub struct GameState {
 impl GameState {
     pub fn new() -> Self {
         GameState {
-            world: World::new(WorldType::Nothing, 0),
+            world: World::new_empty(WorldType::Nothing, 0),
             action_queue: VecDeque::new(),
         }
     }
@@ -128,9 +127,6 @@ fn process_player_command(command: &Command, context: &mut GameContext) {
     }
 }
 
-fn render_player(context: &mut GameContext) {
-}
-
 fn process_player(context: &mut GameContext) {
     process_player_commands(context);
 
@@ -145,7 +141,6 @@ pub fn process(context: &mut GameContext) {
 
     // TEMP: Nothing to do with speed here!
     process_world(&mut context.state.world, &mut context.canvas);
-    render_player(context);
 
     context.canvas.present();
 

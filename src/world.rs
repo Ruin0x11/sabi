@@ -13,21 +13,10 @@ use slog::Logger;
 use log;
 use uuid::Uuid;
 
-// Because a world position and chunk index are different quantities, newtype to
-// enforce corrent usage
-#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
-pub struct ChunkIndex(pub Point);
-
-impl ChunkIndex {
-    fn new(x: i32, y: i32) -> Self {
-        ChunkIndex(Point::new(x, y))
-    }
-}
-
-impl fmt::Display for ChunkIndex {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
+#[derive(Copy, Clone)]
+pub enum Walkability {
+    WalkthroughMonsters,
+    BlockingMonsters,
 }
 
 pub type WorldPosition = Point;
@@ -48,6 +37,7 @@ pub struct World {
 
     // NOTE: could also implement by putting each in its own Chunk
     actors: HashMap<Uuid, Actor>,
+    actor_ids_by_pos: HashMap<WorldPosition, Uuid>,
 
     // NOTE: I'm not sure it makes sense for a player to be tied to an existing
     // world, but it works for now.
@@ -59,12 +49,13 @@ pub struct World {
 }
 
 impl World {
-    pub fn new(type_: WorldType, chunk_size: i32) -> Self {
+    pub fn new_empty(type_: WorldType, chunk_size: i32) -> Self {
         World {
             chunk_size: chunk_size,
             chunks: HashMap::new(),
             type_: type_,
             actors: HashMap::new(),
+            actor_ids_by_pos: HashMap::new(),
             player_id: None,
             logger: log::make_logger("world").unwrap(),
         }
@@ -76,10 +67,11 @@ impl World {
             _   => HashMap::new(),
         };
 
-        let mut world = World::new(type_, chunk_size);
+        let mut world = World::new_empty(type_, chunk_size);
         world.chunks = chunks;
 
         debug!(world.logger, "World created, no. of chunks: {}", world.chunks.len());
+        assert!(world.chunks.len() > 0, "No chunks created!");
         for chunk_index in world.chunks.keys() {
             debug!(world.logger, "Index: {}", chunk_index);
         }
@@ -102,7 +94,7 @@ impl World {
             for j in 0..h {
                 let index = (j + (i * h)) as usize;
                 let tile = Tile {
-                    type_: TileType::Floor,
+                    type_: TileType::Wall,
                     glyph: Glyph::Debug(debug.chars().nth(index).unwrap_or('x')),
                     feature: None,
                 };
@@ -111,10 +103,6 @@ impl World {
             }
         }
         chunks
-    }
-
-    fn chunk_info_from_world_pos(&self, pos: WorldPosition) -> (ChunkIndex, Point) {
-        (self.chunk_index_from_world_pos(pos), self.chunk_pos_from_world_pos(pos))
     }
 
     fn chunk_index_from_world_pos(&self, pos: WorldPosition) -> ChunkIndex {
@@ -162,9 +150,71 @@ impl World {
         self.chunks.get_mut(&index)
     }
 
-    pub fn is_pos_valid(&self, world_pos: WorldPosition) -> bool {
+    pub fn is_pos_in_bounds(&self, world_pos: WorldPosition) -> bool {
         let chunk_index = self.chunk_index_from_world_pos(world_pos);
         self.chunk(chunk_index).is_some()
+    }
+
+    pub fn see_tile(&mut self, world_pos: WorldPosition) {
+        let chunk_pos = self.chunk_pos_from_world_pos(world_pos);
+        let chunk_opt = self.chunk_mut_from_world_pos(world_pos);
+        if let Some(chunk) = chunk_opt {
+            chunk.see_tile(chunk_pos);
+        }
+    }
+
+    pub fn is_walkable(&self, world_pos: WorldPosition,
+                        walkability: Walkability) -> bool {
+        let tile_walkable = |world_pos| {
+            match self.cell(world_pos) {
+                Some(cell) => {
+                    let res = cell.tile.can_pass_through();
+                    debug!(self.logger, "Tile: {:?} res: {}", cell.tile, res);
+                    res
+                },
+                None       => false,
+            }
+        };
+        match walkability {
+            Walkability::BlockingMonsters if
+                self.actor_at(world_pos).is_some() => false,
+            _                                      => tile_walkable(world_pos),
+        }
+    }
+
+    pub fn is_visible(&self, world_pos: WorldPosition) -> bool {
+        let chunk_pos = self.chunk_pos_from_world_pos(world_pos);
+        let chunk_opt = self.chunk_from_world_pos(world_pos);
+        match chunk_opt {
+            Some(chunk) => {
+                chunk.is_seen(chunk_pos)
+            },
+            None => false,
+        }
+    }
+
+    fn chunk_result<F, R>(&self, world_pos: WorldPosition, func: &mut F, default: R) -> R
+        where F: FnMut(&Chunk, ChunkPosition) -> R {
+        let chunk_pos = self.chunk_pos_from_world_pos(world_pos);
+        let chunk_opt = self.chunk_from_world_pos(world_pos);
+        match chunk_opt {
+            Some(chunk) => {
+                func(chunk, chunk_pos)
+            },
+            None => default,
+        }
+    }
+
+    fn chunk_result_mut<F, R>(&self, world_pos: WorldPosition, func: &mut F, default: R) -> R
+        where F: FnMut(&Chunk, ChunkPosition) -> R {
+        let chunk_pos = self.chunk_pos_from_world_pos(world_pos);
+        let chunk_opt = self.chunk_from_world_pos(world_pos);
+        match chunk_opt {
+            Some(chunk) => {
+                func(chunk, chunk_pos)
+            },
+            None => default,
+        }
     }
 
     pub fn cell(&self, world_pos: WorldPosition) -> Option<&Cell> {
@@ -233,6 +283,16 @@ impl World {
         self.actors.values()
     }
 
+    pub fn actor_at(&self, world_pos: WorldPosition) -> Option<&Actor> {
+        match self.actor_ids_by_pos.get(&world_pos) {
+            Some(uuid) => {
+                assert!(self.actors.contains_key(uuid), "Coord -> id, id -> actor maps out of sync!");
+                self.actors.get(uuid)
+            }
+            None       => None
+        }
+    }
+
     pub fn add_actor(&mut self, actor: Actor) {
         assert!(!self.actors.contains_key(&actor.get_uuid()), "Actor with same UUID already exists!");
         self.actors.insert(actor.get_uuid(), actor);
@@ -270,6 +330,22 @@ impl World {
     }
 }
 
+// Because a world position and chunk index are different quantities, newtype to
+// enforce correct usage
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
+pub struct ChunkIndex(pub Point);
+
+impl ChunkIndex {
+    fn new(x: i32, y: i32) -> Self {
+        ChunkIndex(Point::new(x, y))
+    }
+}
+
+impl fmt::Display for ChunkIndex {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -278,7 +354,7 @@ mod tests {
     #[test]
     fn test_chunk_pos_from_world_pos() {
         let chunk_size = 128;
-        let world = World::new(WorldType::Overworld, chunk_size);
+        let world = World::new_empty(WorldType::Overworld, chunk_size);
         assert_eq!(
             world.chunk_pos_from_world_pos(Point::new(0, 0)),
             Point::new(0, 0)
@@ -308,7 +384,7 @@ mod tests {
     #[test]
     fn test_chunk_index_from_world_pos() {
         let chunk_size = 128;
-        let world = World::new(WorldType::Overworld, chunk_size);
+        let world = World::new_empty(WorldType::Overworld, chunk_size);
         assert_eq!(
             world.chunk_index_from_world_pos(Point::new(0, 0)),
             ChunkIndex::new(0, 0)
@@ -347,23 +423,23 @@ mod tests {
     }
 
     #[test]
-    fn test_is_pos_valid() {
+    fn test_is_pos_in_bounds() {
         let world = World::generate(WorldType::Instanced(Point::new(1, 1)), 16);
-        assert_eq!(world.is_pos_valid(Point::new(0, 0)), true);
+        assert_eq!(world.is_pos_in_bounds(Point::new(0, 0)), true);
         for i in -1..1 {
             for j in -1..1 {
                 if i != 0 && j != 0 {
                     let pos = Point::new(i, j);
                     let index = world.chunk_index_from_world_pos(pos);
-                    assert_eq!(world.is_pos_valid(pos), false, "pos: {} index: {}", pos, index);
+                    assert_eq!(world.is_pos_in_bounds(pos), false, "pos: {} index: {}", pos, index);
                 }
             }
         }
 
         let world = World::generate(WorldType::Instanced(Point::new(32, 32)), 16);
-        assert_eq!(world.is_pos_valid(Point::new(0, 0)), true);
-        assert_eq!(world.is_pos_valid(Point::new(17, 17)), true);
-        assert_eq!(world.is_pos_valid(Point::new(32, 17)), false);
-        assert_eq!(world.is_pos_valid(Point::new(-1, -1)), false);
+        assert_eq!(world.is_pos_in_bounds(Point::new(0, 0)), true);
+        assert_eq!(world.is_pos_in_bounds(Point::new(17, 17)), true);
+        assert_eq!(world.is_pos_in_bounds(Point::new(32, 17)), false);
+        assert_eq!(world.is_pos_in_bounds(Point::new(-1, -1)), false);
     }
 }
