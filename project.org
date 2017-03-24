@@ -11,6 +11,8 @@ _Backbone_
 ** Task
 *** TODO Send a message to all actors in a radius.
 *** TODO Create cosmetic decals for blood/cracks on tiles.
+*** TODO A world generation.
+Create a single deterministic layer from noise and, instead of looking at neighbors between regions, use the deterministic layer for generation
 ** Architecture Considerations
 - Use a scripting language or not? Lua?
 - Messaging between actors?

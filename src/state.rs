@@ -1,35 +1,56 @@
+use std::collections::{HashMap, VecDeque};
+
 use action::*;
 use actor::*;
 use glyph;
 use keys::*;
 use point::Point;
-use world::World;
+use world::{World, WorldType};
 use engine::Canvas;
+use uuid::Uuid;
 use ::GameContext;
 
 pub struct GameState {
-    world: Option<World>,
-    player: Option<Actor> // FIXME: Does there always have to be a player?
+    world: World,
+    action_queue: VecDeque<Action>,
 }
 
 impl GameState {
     pub fn new() -> Self {
         GameState {
-            world: None,
-            player: None,
+            world: World::new(WorldType::Nothing, 0),
+            action_queue: VecDeque::new(),
         }
     }
 
     pub fn set_world(&mut self, world: World) {
-        self.world = Some(world);
+        self.world = world;
     }
 
-    pub fn set_player(&mut self, player: Actor) {
-        self.player = Some(player);
+    pub fn current_world(&self) -> &World {
+        &self.world
+    }
+
+    pub fn current_world_mut(&mut self) -> &mut World {
+        &mut self.world
+    }
+
+    pub fn add_action(&mut self, action: Action) {
+        self.action_queue.push_back(action);
+    }
+
+    pub fn player_action(&mut self, action: Action) {
+        let id = self.world.player_id();
+        self.run_action(action, id);
+    }
+
+    pub fn run_action(&mut self, action: Action, actor_id: Uuid) {
+        let world_mut = self.current_world_mut();
+
+        world_mut.run_action(action, actor_id);
     }
 }
 
-// IMPLEMENT
 #[cfg(never)]
 pub fn process_actors(context: &GameContext) {
     if let Some(ref mut world) = context.state.world {
@@ -45,13 +66,20 @@ pub enum Command {
     Quit,
 }
 
-fn process_world(world: &mut Option<World>, canvas: &mut Canvas) {
-    // TEMP: renders the world!
-    if let Some(ref mut world) = *world {
-        world.with_cells(Point::new(0, 0), Point::new(128, 128),
-                         |point, ref cell| {
-                             canvas.print_glyph(point.x, point.y, cell.tile.glyph.clone())
-                         });
+pub enum NextState {
+    Inventory,
+    Quit,
+}
+
+fn process_world(world: &mut World, canvas: &mut Canvas) {
+    // TEMP: move to rendering area
+    world.with_cells(Point::new(0, 0), Point::new(128, 128),
+                     |point, ref cell| {
+                         canvas.print_glyph(point.x, point.y, cell.tile.glyph.clone())
+                     });
+    for actor in world.actors() {
+        let pos = actor.get_pos();
+        canvas.print_glyph(pos.x, pos.y, actor.glyph);
     }
 }
 
@@ -71,7 +99,6 @@ fn get_command_for_key(context: &GameContext, key: Key) -> Command {
 }
 
 pub fn get_commands_from_input(context: &mut GameContext) -> Vec<Command> {
-
     let mut commands = Vec::new();
 
     let new_keys = context.canvas.get_input();
@@ -87,47 +114,29 @@ pub fn process_player_commands(context: &mut GameContext) {
     let commands = get_commands_from_input(context);
 
     if let Some(first) = commands.iter().next() {
-        process_player_command(first,
-                               &mut context.state.player,
-                               &mut context.canvas,
-                               &mut context.state.world);
+        process_player_command(first, context);
     }
 }
 
-fn process_player_command(command: &Command,
-                          player: &mut Option<Actor>,
-                          canvas: &mut Canvas,
-                          world: &mut Option<World>) {
-    if let Some(ref mut player_) = *player {
-        if let Some(ref mut world_) = *world {
-            match *command {
-                // TEMP: Commands can still be run even if there is no player?
-                Command::Move(dir) => player_.run_action(Action::Move(dir), world_),
-                Command::Quit      => canvas.close_window(),
-                _                  => ()
-            }
-        }
-    } else {
-        panic!("There should be a player by now...");
+fn process_player_command(command: &Command, context: &mut GameContext) {
+    match *command {
+        // TEMP: Commands can still be run even if there is no player?
+        Command::Quit           => context.canvas.close_window(),
+        Command::Move(dir)      => context.state.add_action(Action::Move(dir)),
+        Command::Wait           => context.state.add_action(Action::Dood),
+        _                       => ()
     }
 }
 
 fn render_player(context: &mut GameContext) {
-    if let Some(ref mut player) = context.state.player {
-        let pos = player.get_pos();
-        // TEMP: renders the player!
-        context.canvas.print_glyph(pos.x, pos.y, glyph::Glyph::Player);
-        debug!(context.logger, "Prayer pos: {}", pos);
-        if let Some(ref world) = context.state.world {
-            if let Some(cell) = world.cell(pos)  {
-                debug!(context.logger, "Tile: {:?}", cell.tile);
-            }
-        }
-    }
 }
 
 fn process_player(context: &mut GameContext) {
     process_player_commands(context);
+
+    while let Some(action) = context.state.action_queue.pop_front() {
+        context.state.player_action(action)
+    }
 }
 
 // TEMP: Just to bootstrap things dirtily.

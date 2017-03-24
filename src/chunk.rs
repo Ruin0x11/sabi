@@ -13,7 +13,6 @@ pub struct Chunk {
     index: Option<ChunkIndex>,
     dimensions: Point,
     cells: Vec<Cell>,
-    actors: Vec<Actor>,
 }
 
 impl Chunk {
@@ -27,7 +26,6 @@ impl Chunk {
         Chunk {
             dimensions: Point::new(size, size),
             cells: cells,
-            actors: Vec::new(),
             index: None,
         }
     }

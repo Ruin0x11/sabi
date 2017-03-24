@@ -1,13 +1,17 @@
 use std::collections::HashMap;
+use std::collections::hash_map;
 use std::io;
 use std::fmt;
 
+use actor::Actor;
+use action::Action;
 use tile::*;
 use point::Point;
 use chunk::*;
 use glyph::*;
 use slog::Logger;
 use log;
+use uuid::Uuid;
 
 // Because a world position and chunk index are different quantities, newtype to
 // enforce corrent usage
@@ -30,7 +34,8 @@ pub type WorldPosition = Point;
 
 pub enum WorldType {
     Instanced(Point),
-    Overworld
+    Overworld,
+    Nothing
 }
 
 /// Describes a collection of Chunks put together to form a complete playing
@@ -40,6 +45,16 @@ pub struct World {
     chunk_size: i32,
     chunks: HashMap<ChunkIndex, Chunk>,
     type_: WorldType,
+
+    // NOTE: could also implement by putting each in its own Chunk
+    actors: HashMap<Uuid, Actor>,
+
+    // NOTE: I'm not sure it makes sense for a player to be tied to an existing
+    // world, but it works for now.
+    player_id: Option<Uuid>,
+    // NOTE: Also must keep track of following actors, to move them between
+    // areas.
+
     pub logger: Logger,
 }
 
@@ -49,6 +64,8 @@ impl World {
             chunk_size: chunk_size,
             chunks: HashMap::new(),
             type_: type_,
+            actors: HashMap::new(),
+            player_id: None,
             logger: log::make_logger("world").unwrap(),
         }
     }
@@ -94,12 +111,6 @@ impl World {
             }
         }
         chunks
-    }
-
-    fn are_points_in_different_chunks(&self, pos_a: WorldPosition,
-                                      pos_b: WorldPosition) -> bool {
-        let comp = |p| self.chunk_index_from_world_pos(p);
-        comp(pos_a) != comp(pos_b)
     }
 
     fn chunk_info_from_world_pos(&self, pos: WorldPosition) -> (ChunkIndex, Point) {
@@ -178,14 +189,6 @@ impl World {
         }
     }
 
-    // IMPLEMENT
-    /// Return an iterator over the currently loaded set of Actors in this
-    /// world across all chunks.
-    #[cfg(never)]
-    pub fn actors() {
-
-    }
-
     /// Return an iterator over `Cell` that covers a rectangular shape
     /// specified by the top-left (inclusive) point and the dimensions
     /// (width, height) of the rectangle.
@@ -221,6 +224,48 @@ impl World {
             world_pos.y += self.chunk_size;
             world_pos.x = starter_chunk_x;
         }
+
+    }
+
+    /// Return an iterator over the currently loaded set of Actors in this
+    /// world across all chunks.
+    pub fn actors(&mut self) -> hash_map::Values<Uuid, Actor> {
+        self.actors.values()
+    }
+
+    pub fn add_actor(&mut self, actor: Actor) {
+        assert!(!self.actors.contains_key(&actor.get_uuid()), "Actor with same UUID already exists!");
+        self.actors.insert(actor.get_uuid(), actor);
+    }
+
+    pub fn remove_actor(&mut self, uuid: Uuid) {
+        let removed: bool = self.actors.remove(&uuid).is_some();
+        assert!(removed, "Tried removing nonexistent actor from world!");
+    }
+
+    pub fn player_id(&self) -> Uuid {
+        self.player_id.unwrap()
+    }
+
+    pub fn set_player_id(&mut self, uuid: Uuid) {
+        self.player_id = Some(uuid);
+    }
+
+    fn pre_tick(&mut self) {
+
+    }
+
+    pub fn run_action(&mut self, action: Action, uuid: Uuid) {
+        self.pre_tick();
+        let mut actor = self.actors.remove(&uuid).unwrap();
+
+        actor.run_action(action, self);
+
+        self.actors.insert(uuid, actor);
+        self.post_tick();
+    }
+
+    fn post_tick(&mut self) {
 
     }
 }
