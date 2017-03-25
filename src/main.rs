@@ -5,6 +5,7 @@ extern crate backtrace;
 extern crate chrono;
 extern crate euclid;
 extern crate uuid;
+extern crate rand;
 
 #[macro_use]
 extern crate slog;

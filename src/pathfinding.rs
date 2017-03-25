@@ -192,7 +192,7 @@ mod test {
     }
 
     fn make_board(text: &str) -> Board {
-        use tile::Tile;
+        use tile::{self, Tile};
         use tile::TileType::{Wall, Floor};
         use glyph::Glyph;
         let mut start = Point{x: 0, y: 0};
@@ -207,7 +207,7 @@ mod test {
         assert!(width > 0);
         assert!(lines.iter().all(|line| line.chars().count() == width));
 
-        let mut level = World::generate(WorldType::Instanced(Point::new(width as i32, height as i32)), 128);
+        let mut level = World::generate(WorldType::Instanced(Point::new(width as i32, height as i32)), 128, tile::WALL);
 
         for line in lines {
             for c in line.chars() {

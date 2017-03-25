@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::iter::Iterator;
+use std::cmp;
 
 use actor::ActorId;
 
@@ -32,11 +33,12 @@ impl TurnOrder {
     pub fn add_delay_for(&mut self, id: &ActorId, diff: i32) {
         let time_until_turn = self.times_until_turn.get_mut(id)
             .expect("Tried advancing time of actor not in turn order");
+        *time_until_turn = cmp::max(0, *time_until_turn);
         *time_until_turn += diff;
     }
 
-    pub fn get_time_for(&mut self, id: ActorId) -> &i32 {
-        self.times_until_turn.get(&id)
+    pub fn get_time_for(&self, id: &ActorId) -> &i32 {
+        self.times_until_turn.get(id)
             .expect("Actor not in turn order map")
     }
 }
@@ -51,5 +53,43 @@ impl Iterator for TurnOrder {
         self.times_until_turn.iter()
             .min_by_key(|a| a.1)
             .map(|(a, b)| *a)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_single_actor() {
+        let mut turn_order = TurnOrder::new();
+        let actor = ActorId::new_v4();
+        turn_order.add_actor(actor, 0);
+
+        assert_eq!(turn_order.next().unwrap(), actor);
+
+        turn_order.add_delay_for(&actor, 100);
+
+        assert_eq!(turn_order.next().unwrap(), actor);
+    }
+
+    #[test]
+    fn test_two_actors() {
+        let mut turn_order = TurnOrder::new();
+        let actor_a = ActorId::new_v4();
+        let actor_b = ActorId::new_v4();
+        turn_order.add_actor(actor_a, 0);
+        turn_order.add_actor(actor_b, 10);
+
+        assert_eq!(turn_order.next().unwrap(), actor_a);
+
+        turn_order.add_delay_for(&actor_a, 100);
+        assert_eq!(turn_order.next().unwrap(), actor_b);
+
+        turn_order.add_delay_for(&actor_b, 100);
+        assert_eq!(turn_order.next().unwrap(), actor_a);
+
+        turn_order.advance_time_for(&actor_b, 100);
+        assert_eq!(turn_order.next().unwrap(), actor_b);
     }
 }

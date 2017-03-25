@@ -136,6 +136,11 @@ fn process_player(context: &mut GameContext) {
 
 pub fn process_actors(world: &mut World) {
     while let Some(ref id) = world.next_actor() {
+        let leftover_ticks = world.time_until_turn_for(id);
+        if leftover_ticks > 0 {
+            world.advance_time(leftover_ticks);
+        }
+
         if world.is_player(id) {
             break
         }

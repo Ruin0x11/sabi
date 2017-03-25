@@ -12,7 +12,8 @@ pub enum TileType {
 impl Tile {
     pub fn can_see_through(&self) -> bool {
         match self.type_ {
-            TileType::Wall => false,
+            TileType::Wall |
+            TileType::Air  => false,
             _              => true,
         }
     }
@@ -41,3 +42,22 @@ pub struct Tile {
 
     pub feature: Option<TileFeature>,
 }
+
+// TEMP: A tile ID is all that should be needed, not type and glyph
+pub const WALL: Tile = Tile {
+    type_: TileType::Wall,
+    glyph: Glyph::Wall,
+    feature: None,
+};
+
+pub const FLOOR: Tile = Tile {
+    type_: TileType::Floor,
+    glyph: Glyph::Floor,
+    feature: None,
+};
+
+pub const AIR: Tile = Tile {
+    type_: TileType::Air,
+    glyph: Glyph::None,
+    feature: None,
+};

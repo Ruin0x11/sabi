@@ -101,6 +101,7 @@ impl Actor {
 
     fn move_to(&mut self, pos: Point, world: &mut World) {
         if world.is_pos_in_bounds(pos) {
+            world.pre_update_actor_pos(self.get_pos(), pos);
             self.x = pos.x;
             self.y = pos.y;
         } else {

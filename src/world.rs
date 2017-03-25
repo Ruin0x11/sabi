@@ -69,9 +69,9 @@ impl World {
         }
     }
 
-    pub fn generate(type_: WorldType, chunk_size: i32) -> World {
+    pub fn generate(type_: WorldType, chunk_size: i32, tile: Tile) -> World {
         let chunks = match type_ {
-            WorldType::Instanced(dimensions) => World::generate_chunked(chunk_size, dimensions),
+            WorldType::Instanced(dimensions) => World::generate_chunked(chunk_size, dimensions, tile),
             _   => HashMap::new(),
         };
 
@@ -87,7 +87,7 @@ impl World {
         world
     }
 
-    fn generate_chunked(chunk_size: i32, dimensions: Point) -> HashMap<ChunkIndex, Chunk> {
+    fn generate_chunked(chunk_size: i32, dimensions: Point, tile: Tile) -> HashMap<ChunkIndex, Chunk> {
         assert!(dimensions.x >= 0);
         assert!(dimensions.y >= 0);
 
@@ -101,11 +101,6 @@ impl World {
         for i in 0..columns {
             for j in 0..rows {
                 let index = (j + (i * rows)) as usize;
-                let tile = Tile {
-                    type_: TileType::Wall,
-                    glyph: Glyph::Debug(debug.chars().nth(index).unwrap_or('x')),
-                    feature: None,
-                };
                 // TODO: Shave off bounds
                 chunks.insert(ChunkIndex::new(i, j), Chunk::generate_basic(chunk_size, tile));
             }
@@ -160,7 +155,14 @@ impl World {
 
     pub fn is_pos_in_bounds(&self, world_pos: WorldPosition) -> bool {
         let chunk_index = self.chunk_index_from_world_pos(world_pos);
-        self.chunk(chunk_index).is_some()
+        let is_in_chunk = self.chunk(chunk_index).is_some();
+        match self.type_ {
+            WorldType::Instanced(size) => {
+                let is_in_boundaries = world_pos < size;
+                is_in_chunk && is_in_boundaries
+            }
+            _ => is_in_chunk
+        }
     }
 
     pub fn see_tile(&mut self, world_pos: WorldPosition) {
@@ -172,7 +174,7 @@ impl World {
     }
 
     pub fn is_walkable(&self, world_pos: WorldPosition,
-                        walkability: Walkability) -> bool {
+                       walkability: Walkability) -> bool {
         let walkable = match walkability {
             Walkability::MonstersWalkable => true,
             Walkability::MonstersBlocking => self.actor_at(world_pos).is_none(),
@@ -182,9 +184,9 @@ impl World {
             Some(cell) => {
                 let passable = cell.tile.can_pass_through();
                 let in_bounds = self.is_pos_in_bounds(world_pos);
-                debug!(self.logger, "Cell: {:?}", cell);
-                debug!(self.logger, "passable, bounds, walkable: {} {} {}",
-                       passable, in_bounds, walkable);
+                // debug!(self.logger, "Cell: {:?}", cell);
+                // debug!(self.logger, "passable, bounds, walkable: {} {} {}",
+                // passable, in_bounds, walkable);
                 passable && in_bounds && walkable
             },
             None       => false,
@@ -297,6 +299,10 @@ impl World {
         self.actors.get(id).expect("Actor not found!")
     }
 
+    pub fn actor_mut(&mut self, id: &ActorId) -> &mut Actor {
+        self.actors.get_mut(id).expect("Actor not found!")
+    }
+
     pub fn actor_at(&self, world_pos: WorldPosition) -> Option<&Actor> {
         match self.actor_ids_by_pos.get(&world_pos) {
             Some(id) => {
@@ -307,14 +313,32 @@ impl World {
         }
     }
 
+    pub fn actor_at_mut(&mut self, world_pos: WorldPosition) -> Option<&mut Actor> {
+        match self.actor_ids_by_pos.get_mut(&world_pos) {
+            Some(id) => {
+                assert!(self.actors.contains_key(id), "Coord -> id, id -> actor maps out of sync!");
+                self.actors.get_mut(id)
+            }
+            None       => None
+        }
+    }
+
+    pub fn pre_update_actor_pos(&mut self, pos_now: WorldPosition, pos_next: WorldPosition) {
+        let id = self.actor_ids_by_pos.remove(&pos_now).unwrap();
+        self.actor_ids_by_pos.insert(pos_next, id);
+    }
+
     pub fn add_actor(&mut self, actor: Actor) {
         assert!(!self.actors.contains_key(&actor.get_id()), "Actor with same id already exists!");
         self.turn_order.add_actor(actor.get_id(), 0);
+        self.actor_ids_by_pos.insert(actor.get_pos(), actor.get_id());
         self.actors.insert(actor.get_id(), actor);
     }
 
     pub fn remove_actor(&mut self, id: &ActorId) {
+        let pos = self.actor(id).get_pos();
         self.turn_order.remove_actor(id);
+        self.actor_ids_by_pos.remove(&pos);
         let removed: bool = self.actors.remove(id).is_some();
         assert!(removed, "Tried removing nonexistent actor from world!");
     }
@@ -373,6 +397,10 @@ impl World {
         }
     }
 
+    pub fn time_until_turn_for(&self, id: &ActorId) -> i32 {
+        *self.turn_order.get_time_for(id)
+    }
+
     pub fn next_actor(&mut self) -> Option<ActorId> {
         self.turn_order.next()
     }
@@ -398,6 +426,12 @@ impl fmt::Display for ChunkIndex {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tile::{self, FLOOR};
+    use actor::Direction;
+
+    fn get_world(size: Point) -> World {
+        World::generate(WorldType::Instanced(size), 16, tile::FLOOR)
+    }
 
     #[test]
     fn test_chunk_pos_from_world_pos() {
@@ -472,7 +506,7 @@ mod tests {
 
     #[test]
     fn test_is_pos_in_bounds() {
-        let world = World::generate(WorldType::Instanced(Point::new(1, 1)), 16);
+        let world = get_world(Point::new(1, 1));
         assert_eq!(world.is_pos_in_bounds(Point::new(0, 0)), true);
         for i in -1..1 {
             for j in -1..1 {
@@ -484,10 +518,58 @@ mod tests {
             }
         }
 
-        let world = World::generate(WorldType::Instanced(Point::new(32, 32)), 16);
+        let world = get_world(Point::new(32, 32));
         assert_eq!(world.is_pos_in_bounds(Point::new(0, 0)), true);
         assert_eq!(world.is_pos_in_bounds(Point::new(17, 17)), true);
         assert_eq!(world.is_pos_in_bounds(Point::new(32, 17)), false);
         assert_eq!(world.is_pos_in_bounds(Point::new(-1, -1)), false);
+    }
+
+    #[test]
+    fn test_actor_at() {
+        let mut world = get_world(Point::new(2, 2));
+        let pos = Point::new(0, 0);
+        assert!(world.actor_at(pos).is_none());
+
+        let actor = Actor::new(0, 0, Glyph::Player);
+        world.add_actor(actor);
+        assert!(world.actor_at(pos).is_some());
+
+        let next_actor = world.next_actor().unwrap();
+        world.run_action(Action::Move(Direction::SE), &next_actor);
+        assert!(world.actor_at(pos).is_none(), "{:?}", world.actor_ids_by_pos);
+        assert!(world.actor_at(Point::new(1,1)).is_some());
+
+        world.remove_actor(&next_actor);
+        assert!(world.actor_at(Point::new(1,1)).is_none());
+    }
+
+    #[test]
+    fn test_is_walkable() {
+        let mut world = get_world(Point::new(1, 1));
+
+        assert_eq!(world.is_walkable(Point::new(-1, -1), Walkability::MonstersWalkable), false);
+        assert_eq!(world.is_walkable(Point::new(1, 1), Walkability::MonstersWalkable), false);
+
+        let pos = Point::new(0, 0);
+
+        world.set_tile(pos, Tile {
+            type_: TileType::Wall,
+            glyph: Glyph::Wall,
+            feature: None,
+        });
+        assert_eq!(world.is_walkable(pos, Walkability::MonstersBlocking), false);
+
+        world.set_tile(pos, Tile {
+            type_: TileType::Floor,
+            glyph: Glyph::Floor,
+            feature: None,
+        });
+        assert_eq!(world.is_walkable(pos, Walkability::MonstersBlocking), true);
+
+        let actor = Actor::new(0, 0, Glyph::Player);
+        world.add_actor(actor);
+        assert_eq!(world.is_walkable(pos, Walkability::MonstersBlocking), false);
+        assert_eq!(world.is_walkable(pos, Walkability::MonstersWalkable), true);
     }
 }

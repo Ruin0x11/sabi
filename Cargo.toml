@@ -9,6 +9,7 @@ with-rustbox = ["rustbox"]
 with-tcod = []
 
 [dependencies]
+rand = "0.3.15"
 tcod = "0.11.0"
 ears = "0.4.0"
 euclid = "0.11.0"
