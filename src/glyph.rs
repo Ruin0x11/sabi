@@ -6,12 +6,16 @@ pub struct RenderableGlyph {
     pub color_bg: Color,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum Glyph {
     Player,
 
     Floor,
     Wall,
+    Debug(char),
+    DebugDraw,
+
+    None,
 }
 
 impl From<Glyph> for RenderableGlyph {
@@ -25,6 +29,15 @@ impl From<Glyph> for RenderableGlyph {
                                                color_bg: color::BLACK },
             Glyph::Wall  => RenderableGlyph  { ch: '#',
                                                color_fg: color::WHITE,
+                                               color_bg: color::BLACK },
+            Glyph::Debug(ch)  => RenderableGlyph  { ch: ch,
+                                                    color_fg: color::WHITE,
+                                                    color_bg: color::BLACK },
+            Glyph::DebugDraw  => RenderableGlyph  { ch: 'X',
+                                                    color_fg: color::WHITE,
+                                                    color_bg: color::RED },
+            Glyph::None  => RenderableGlyph  { ch: ' ',
+                                               color_fg: color::BLACK,
                                                color_bg: color::BLACK },
         }
     }

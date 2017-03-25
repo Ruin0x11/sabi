@@ -84,7 +84,7 @@ impl RustboxCanvas {
     pub fn new(_display_size: Point,
                _window_title: &str) -> RustboxCanvas {
         let output_mode = rustbox::OutputMode::Normal;
-        
+
         let root = match RustBox::init(rustbox::InitOptions {
             output_mode: output_mode,
             ..Default::default()

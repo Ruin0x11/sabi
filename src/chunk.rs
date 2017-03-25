@@ -1,22 +1,27 @@
+use std::collections::HashSet;
+
 use ::Actor;
 use world::ChunkIndex;
 use glyph::Glyph;
 use tile::*;
 use point::Point;
 
-type ChunkPosition = Point;
+pub type ChunkPosition = Point;
 
-/// Represents a piece of terrain that is part of a larger World.
+pub type Visibility = HashSet<ChunkPosition>;
+
+/// Represents a piece of terrain that is part of a larger World. Looking up
+/// cells in a World will resolve to a certain Chunk, but actors don't need to
+/// care about the underlying Chunks.
 pub struct Chunk {
     index: Option<ChunkIndex>,
     dimensions: Point,
     cells: Vec<Cell>,
-    actors: Vec<Actor>,
+    visible: Visibility,
 }
 
 impl Chunk {
-    pub fn generate_basic(size: u32, tile: Tile) -> Chunk {
-        let size_i = size as i32;
+    pub fn generate_basic(size: i32, tile: Tile) -> Chunk {
         let mut cells = Vec::new();
 
         for index in 0..(size * size) {
@@ -24,10 +29,10 @@ impl Chunk {
         }
 
         Chunk {
-            dimensions: Point::new(size_i, size_i),
+            dimensions: Point::new(size, size),
             cells: cells,
-            actors: Vec::new(),
             index: None,
+            visible: HashSet::new(),
         }
     }
 
@@ -57,9 +62,21 @@ impl Chunk {
         &mut self.cells[index]
     }
 
+    pub fn see_tile(&mut self, pos: ChunkPosition) {
+        self.visible.insert(pos);
+    }
+
+    pub fn is_seen(&self, pos: ChunkPosition) -> bool {
+        self.visible.contains(&pos)
+    }
+
     /// Calculates the position in the world the point in the chunk represents.
     pub fn world_position(&self, index: ChunkIndex, pos: ChunkPosition) -> Point {
-        Point::new(pos.x + index.x * self.dimensions.x, pos.y + index.y * self.dimensions.y)
+        Point::new(pos.x + index.0.x * self.dimensions.x, pos.y + index.0.y * self.dimensions.y)
+    }
+
+    pub fn world_position_from_index(index: ChunkIndex, size: i32) -> Point {
+        Point::new(index.0.x * size, index.0.y * size)
     }
 
     pub fn iter(&self) -> Cells {
@@ -71,6 +88,7 @@ impl Chunk {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Cell {
     pub tile: Tile,
 }
