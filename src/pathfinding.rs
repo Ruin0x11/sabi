@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 use std::f32;
 
+use drawcalls::Draw;
 use point::Point;
 use world::{World, Walkability};
 
@@ -111,6 +112,7 @@ impl Path {
                 calculation_steps += 1;
             }
             let neigh = Path::neighbors(current.position, world, walkability);
+
             for &next in neigh.iter() {
                 let new_cost = cost_so_far[&current.position] + Path::cost_heuristic(current.position, next);
                 let val = cost_so_far.entry(next).or_insert(f32::MAX);

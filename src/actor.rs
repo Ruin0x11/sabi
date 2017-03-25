@@ -1,8 +1,9 @@
 use action::Action;
 use chunk::Chunk;
+use drawcalls::Draw;
 use glyph::Glyph;
 use point::Point;
-use world::World;
+use world::{World, Walkability};
 use slog::Logger;
 use uuid::Uuid;
 
@@ -37,13 +38,13 @@ impl Direction {
     fn to_movement_offset(&self) -> (i32, i32) {
         match *self {
             Direction::N  => (0,  -1),
-            Direction::NE => (1,  -1),
-            Direction::E  => (1,   0),
-            Direction::SE => (1,   1),
-            Direction::S  => (0,   1),
-            Direction::SW => (-1,  1),
-            Direction::W  => (-1,  0),
             Direction::NW => (-1, -1),
+            Direction::W  => (-1,  0),
+            Direction::SW => (-1,  1),
+            Direction::S  => (0,   1),
+            Direction::SE => (1,   1),
+            Direction::E  => (1,   0),
+            Direction::NE => (1,  -1),
         }
     }
 
@@ -51,19 +52,19 @@ impl Direction {
         let (x, y) = (offset.x, offset.y);
         match (x, y) {
             (0,  -1) => Some(Direction::N),
-            (1,  -1) => Some(Direction::NE),
-            (1,   0) => Some(Direction::E),
-            (1,   1) => Some(Direction::SE),
-            (0,   1) => Some(Direction::S),
-            (-1,  1) => Some(Direction::SW),
-            (-1,  0) => Some(Direction::W),
             (-1, -1) => Some(Direction::NW),
+            (-1,  0) => Some(Direction::W),
+            (-1,  1) => Some(Direction::SW),
+            (0,   1) => Some(Direction::S),
+            (1,   1) => Some(Direction::SE),
+            (1,   0) => Some(Direction::E),
+            (1,  -1) => Some(Direction::NE),
             _        => None,
         }
     }
 
     pub fn from_neighbors(from: Point, to: Point) -> Option<Direction> {
-        Direction::from_movement_offset(from - to)
+        Direction::from_movement_offset(to - from)
     }
 }
 
@@ -89,9 +90,13 @@ impl Actor {
 
     fn move_in_direction(&mut self, dir: Direction, world: &mut World) {
         let (dx, dy) = dir.to_movement_offset();
-        let cx = self.x.clone();
-        let cy = self.y.clone();
-        self.move_to(Point::new(cx + dx, cy + dy), world);
+        let cx = self.x.clone() + dx;
+        let cy = self.y.clone() + dy;
+        let pos = Point::new(cx, cy);
+
+        if world.is_walkable(pos, Walkability::MonstersBlocking) {
+            self.move_to(pos, world);
+        }
     }
 
     fn move_to(&mut self, pos: Point, world: &mut World) {
@@ -101,10 +106,6 @@ impl Actor {
         } else {
             warn!(self.logger, "Actor tried to move outside of loaded world! {}", pos);
         }
-    }
-
-    pub fn advance_time(&mut self, ticks: u32) {
-        
     }
 
     pub fn get_pos(&self) -> Point {

@@ -2,6 +2,7 @@ use actor::{Actor, Direction};
 use action::Action;
 use world::{World, Walkability};
 use pathfinding::Path;
+use drawcalls::Draw;
 
 pub struct Simple;
 
@@ -25,6 +26,10 @@ impl Ai for Simple {
         }
 
         let next_pos = path.next().unwrap();
+
+        for pt in path {
+            world.draw_calls.push(Draw::Point(pt.x, pt.y));
+        }
 
         match Direction::from_neighbors(my_pos, next_pos) {
             Some(dir) => Action::Move(dir),

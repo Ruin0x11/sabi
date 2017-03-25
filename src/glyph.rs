@@ -13,6 +13,7 @@ pub enum Glyph {
     Floor,
     Wall,
     Debug(char),
+    DebugDraw,
 
     None,
 }
@@ -32,6 +33,9 @@ impl From<Glyph> for RenderableGlyph {
             Glyph::Debug(ch)  => RenderableGlyph  { ch: ch,
                                                     color_fg: color::WHITE,
                                                     color_bg: color::BLACK },
+            Glyph::DebugDraw  => RenderableGlyph  { ch: 'X',
+                                                    color_fg: color::WHITE,
+                                                    color_bg: color::RED },
             Glyph::None  => RenderableGlyph  { ch: ' ',
                                                color_fg: color::BLACK,
                                                color_bg: color::BLACK },

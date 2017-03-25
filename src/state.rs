@@ -62,16 +62,23 @@ pub enum NextState {
     Quit,
 }
 
+fn draw_overlays(world: &mut World, canvas: &mut Canvas) {
+    world.draw_calls.draw_all(canvas);
+}
+
 fn draw_world(world: &mut World, canvas: &mut Canvas) {
     // TEMP: move to rendering area
     world.with_cells(Point::new(0, 0), Point::new(128, 128),
                      |point, ref cell| {
                          canvas.print_glyph(point.x, point.y, cell.tile.glyph.clone())
                      });
+}
+
+fn draw_actors(world: &mut World, canvas: &mut Canvas) {
     for actor in world.actors() {
         let pos = actor.get_pos();
         canvas.print_glyph(pos.x, pos.y, actor.glyph);
-    }
+    }   
 }
 
 fn get_command_for_key(context: &GameContext, key: Key) -> Command {
@@ -148,10 +155,13 @@ pub fn process_actors(world: &mut World) {
 pub fn process(context: &mut GameContext) {
     context.canvas.clear();
 
-    process_player(context);
-    process_actors(&mut context.state.world);
-
     draw_world(&mut context.state.world, &mut context.canvas);
 
+    process_actors(&mut context.state.world);
+    draw_actors(&mut context.state.world, &mut context.canvas);
+    draw_overlays(&mut context.state.world, &mut context.canvas);
+
     context.canvas.present();
+
+    process_player(context);
 }

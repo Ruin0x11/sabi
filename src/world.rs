@@ -5,6 +5,7 @@ use std::fmt;
 
 use actor::{Actor, ActorId};
 use action::Action;
+use drawcalls::*;
 use tile::*;
 use point::Point;
 use chunk::*;
@@ -47,7 +48,8 @@ pub struct World {
     // areas.
 
     turn_order: TurnOrder,
-    draw_calls: DrawCalls,
+
+    pub draw_calls: DrawCalls,
 
     pub logger: Logger,
 }
@@ -62,6 +64,7 @@ impl World {
             actor_ids_by_pos: HashMap::new(),
             player_id: None,
             turn_order: TurnOrder::new(),
+            draw_calls: DrawCalls::new(),
             logger: log::make_logger("world").unwrap(),
         }
     }
