@@ -147,7 +147,6 @@ impl Light {
         for arc in self.arcs.borrow().iter() {
             if arc.hits(pt) {
                 let idx = self.arcs.borrow().iter().position(|a| *a == *arc).unwrap();
-                println!("{}", idx);
                 return Some(idx);
             }
         }
@@ -158,7 +157,6 @@ impl Light {
     /// obstructions, then updates this light's list of arcs.
     pub fn shade(&mut self, arc_idx: usize, pt: &Point) -> bool {
         let res = self.arcs.borrow_mut().get_mut(arc_idx).unwrap().shade(pt);
-        println!("{:?}", res);
         match res {
             Blocking::Nothing(arc_a, arc_b) => {
                 self.arcs.borrow_mut().remove(arc_idx);
@@ -186,8 +184,9 @@ impl FieldOfView {
 
     /// Updates this field of view using the Precise Permissive Field of View
     /// algorithm.
-    pub fn update<F>(&mut self, center: &Point, radius: i32, mut blocked: F)
-        where F: FnMut(&Point) -> bool {
+    pub fn update<F, G>(&mut self, center: &Point, radius: i32, mut blocked: F, mut in_bounds: G)
+        where F: FnMut(&Point) -> bool,
+              G: FnMut(&Point) -> bool {
         self.visible.insert(center.clone());
 
         let mut quadrant = |dx, dy| {
@@ -209,8 +208,10 @@ impl FieldOfView {
                     let ay = center.y + cell.y * dy;
                     let next = Point::new(ax, ay);
 
-                    self.visible.insert(next);
-                    println!("{}", next);
+                    if in_bounds(&next) {
+                        self.visible.insert(next);
+                    }
+
                     if !blocked(&next) {
                         continue;
                     }
@@ -256,14 +257,14 @@ mod tests {
         Nothing,
     }
 
-    pub struct World {
+    pub struct Board {
         dimensions: Point,
         tiles: Vec<Cell>,
         pub fov: RefCell<FieldOfView>,
         light: Source,
     }
 
-    impl World {
+    impl Board {
         pub fn new(x: i32, y: i32, light_pos: Point, light_radius: i32) -> Self {
             let mut tiles = Vec::new();
             for _ in 0..x {
@@ -271,7 +272,7 @@ mod tests {
                     tiles.push(Cell::Floor);
                 }
             }
-            World {
+            Board {
                 dimensions: Point::new(x, y),
                 tiles: tiles,
                 fov: RefCell::new(FieldOfView::new()),
@@ -297,6 +298,7 @@ mod tests {
         pub fn get(&self, pt: &Point) -> Cell {
             if self.in_bounds(pt) {
                 let idx = (pt.y * self.dimensions.x + pt.x) as usize;
+                println!("pt: {} dim: {} idx: {}", pt, self.dimensions, idx);
                 self.tiles.get(idx).unwrap().clone()
             } else {
                 Cell::Nothing
@@ -307,7 +309,11 @@ mod tests {
             let blocked = |pt: &Point| {
                 self.get(pt).clone() == Cell::Wall
             };
-            self.fov.borrow_mut().update(&self.light.pos, self.light.radius, blocked);
+            let in_bounds = |pt: &Point| {
+                self.in_bounds(pt)
+            };
+
+            self.fov.borrow_mut().update(&self.light.pos, self.light.radius, blocked, in_bounds);
         }
 
         pub fn get_visible(&self) -> HashSet<Point> {
@@ -315,7 +321,7 @@ mod tests {
         }
     }
 
-    impl Display for World {
+    impl Display for Board {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             for i in 0..self.dimensions.x {
                 for j in 0..self.dimensions.y {
@@ -325,55 +331,91 @@ mod tests {
                     } else if self.fov.borrow().is_visible(&pos) {
                         write!(f, "X")?;
                     } else {
-                    let ch = match self.get(&pos) {
-                        Cell::Wall => "#",
-                        Cell::Floor => ".",
-                        Cell::Nothing => " ",
-                    };
-                    write!(f, "{}", ch)?;
+                        let ch = match self.get(&pos) {
+                            Cell::Wall => "#",
+                            Cell::Floor => ".",
+                            Cell::Nothing => " ",
+                        };
+                        write!(f, "{}", ch)?;
+                    }
                 }
+                write!(f, "\n")?;
             }
-            write!(f, "\n")?;
+            Ok(())
         }
-        Ok(())
     }
-}
 
-fn make_world(text: &str, radius: i32) -> World {
-    let callback = |pt: &Point, c: char, world: &mut World| {
-        if c == '@' {
-            world.light.pos = pt.clone();
-        }
+    fn make_board(text: &str, radius: i32) -> Board {
+        let callback = |pt: &Point, c: char, board: &mut Board| {
+            if c == '@' {
+                board.light.pos = pt.clone();
+            }
 
-        let cell_kind = match c {
-            '.' => Cell::Floor,
-            '@' => Cell::Floor,
-            '#' => Cell::Wall,
-            _   => unreachable!(),
+            let cell_kind = match c {
+                '.' => Cell::Floor,
+                '@' => Cell::Floor,
+                '#' => Cell::Wall,
+                _   => unreachable!(),
+            };
+            board.set(&pt, cell_kind);
         };
-        world.set(&pt, cell_kind);
-    };
-    let make = |dim: Point| World::new(dim.x, dim.y, POINT_ZERO, radius);
-    make_from_str(text, make, callback)
-}
+        let make = |dim: Point| Board::new(dim.x, dim.y, POINT_ZERO, radius);
+        make_from_str(text, make, callback)
+    }
 
-fn test_harness(world: &str, radius: i32, expected_visible: &[(i32, i32)]) {
-    let mut world = make_world(world, radius);
-    world.update_fov();
-    let mut visible = world.get_visible();
-    let expected = HashSet::from_iter(expected_visible.iter().clone()
-                                  .map(|&(a, b)| Point::new(a, b)));
-    assert_eq!(visible, expected, "\n{}\nExpect: {:?}\nGot:    {:?}",
-               world, expected, visible);
-}
+    fn test_harness(board: &str, radius: i32, expected_visible: &[(i32, i32)]) {
+        let mut board = make_board(board, radius);
+        board.update_fov();
+        let visible = board.get_visible();
+        let expected = HashSet::from_iter(expected_visible.iter().clone()
+                                          .map(|&(a, b)| Point::new(a, b)));
+        assert_eq!(visible, expected, "\n{}\nExpect: {:?}\nGot:    {:?}",
+                   board, expected, visible);
+    }
 
-#[test]
-fn test_all_blocked() {
-    test_harness("
+    #[test]
+    fn test_all_blocked() {
+        test_harness("
 .....
 .###.
 .#@#.
 .###.
+.....
 ", 5, &[(1, 1), (1, 2), (1, 3), (2, 1), (2, 2), (2, 3), (3, 1), (3, 2), (3, 3)]);
-}
+    }
+
+    #[test]
+    fn test_none_blocked() {
+        let mut vis = vec![];
+        for i in 0..5 {
+            for j in 0..5 {
+                vis.push((i, j));
+            }
+        }
+        test_harness("
+.....
+.....
+..@..
+.....
+.....
+", 5, &vis);
+    }
+
+    #[test]
+    fn test_line_blocking() {
+        let mut vis = vec![];
+        for i in 1..5 {
+            for j in 0..5 {
+                vis.push((i, j));
+            }
+        }
+        test_harness("
+.#...
+.#...
+.#@..
+.#...
+.#...
+", 5, &vis);
+    }
+
 }
