@@ -1,13 +1,18 @@
+use std::cell::RefCell;
+
 use action::Action;
 use chunk::Chunk;
 use drawcalls::Draw;
 use glyph::Glyph;
 use point::Point;
-use world::{World, Walkability};
+use world::{World, WorldPosition, Walkability};
 use slog::Logger;
 use uuid::Uuid;
+use fov::FieldOfView;
 
 use log;
+
+const FOV_RADIUS: i32 = 5;
 
 pub type ActorId = Uuid;
 
@@ -20,6 +25,8 @@ pub struct Actor {
     uuid: Uuid,
 
     pub speed: u32,
+
+    fov: RefCell<FieldOfView>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -77,6 +84,7 @@ impl Actor {
             glyph: glyph,
             uuid: Uuid::new_v4(),
             speed: 100,
+            fov: RefCell::new(FieldOfView::new()),
         }
     }
 
@@ -100,7 +108,7 @@ impl Actor {
     }
 
     fn move_to(&mut self, pos: Point, world: &mut World) {
-        if world.is_pos_in_bounds(pos) {
+        if world.pos_valid(&pos) {
             world.pre_update_actor_pos(self.get_pos(), pos);
             self.x = pos.x;
             self.y = pos.y;
@@ -115,6 +123,24 @@ impl Actor {
 
     pub fn get_id(&self) -> Uuid {
         self.uuid
+    }
+
+    pub fn update_fov(&self, world: &World) {
+        self.fov.borrow_mut().clear();
+
+        let in_bounds = |pos: &WorldPosition| world.pos_valid(pos);
+        let blocked = |pos: &WorldPosition| !world.cell(pos).unwrap().tile.can_pass_through();
+
+        self.fov.borrow_mut().update(&self.get_pos(), FOV_RADIUS, in_bounds, blocked);
+    }
+
+    pub fn can_see(&self, pos: &WorldPosition) -> bool {
+        self.fov.borrow().is_visible(pos)
+    }
+
+    // FIXME: to satisfy the borrow checker
+    pub fn fov(&self) -> FieldOfView {
+        self.fov.borrow().clone()
     }
 
     pub fn is_player(&self, world: &World) -> bool {

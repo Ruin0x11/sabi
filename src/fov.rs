@@ -170,6 +170,7 @@ impl Light {
     }
 }
 
+#[derive(Clone, Debug)]
 /// Represents a set of points that are visible.
 pub struct FieldOfView {
     visible: HashSet<Point>,
@@ -184,7 +185,7 @@ impl FieldOfView {
 
     /// Updates this field of view using the Precise Permissive Field of View
     /// algorithm.
-    pub fn update<F, G>(&mut self, center: &Point, radius: i32, mut blocked: F, mut in_bounds: G)
+    pub fn update<F, G>(&mut self, center: &Point, radius: i32, mut in_bounds: F, mut blocked: G)
         where F: FnMut(&Point) -> bool,
               G: FnMut(&Point) -> bool {
         self.visible.insert(center.clone());
@@ -210,6 +211,9 @@ impl FieldOfView {
 
                     if in_bounds(&next) {
                         self.visible.insert(next);
+                    } else {
+                        // Position invalid, so don't try to check cell type there.
+                        continue;
                     }
 
                     if !blocked(&next) {
@@ -227,6 +231,10 @@ impl FieldOfView {
         quadrant(1,   1);
         quadrant(-1, -1);
         quadrant(1,  -1);
+    }
+
+    pub fn clear(&mut self) {
+        self.visible.clear()
     }
 
     pub fn iter(&self) -> hash_set::Iter<Point> {
@@ -306,14 +314,10 @@ mod tests {
         }
 
         pub fn update_fov(&mut self) {
-            let blocked = |pt: &Point| {
-                self.get(pt).clone() == Cell::Wall
-            };
-            let in_bounds = |pt: &Point| {
-                self.in_bounds(pt)
-            };
+            let in_bounds = |pt: &Point| self.in_bounds(pt);
+            let blocked = |pt: &Point| self.get(pt).clone() == Cell::Wall;
 
-            self.fov.borrow_mut().update(&self.light.pos, self.light.radius, blocked, in_bounds);
+            self.fov.borrow_mut().update(&self.light.pos, self.light.radius, in_bounds, blocked);
         }
 
         pub fn get_visible(&self) -> HashSet<Point> {

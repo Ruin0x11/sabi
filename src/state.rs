@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 
 use action::*;
@@ -67,17 +68,22 @@ fn draw_overlays(world: &mut World, canvas: &mut Canvas) {
 }
 
 fn draw_world(world: &mut World, canvas: &mut Canvas) {
-    // TEMP: move to rendering area
+    let fov = world.player().fov();
     world.with_cells(Point::new(0, 0), Point::new(128, 128),
                      |point, ref cell| {
-                         canvas.print_glyph(point.x, point.y, cell.tile.glyph.clone())
+                         if fov.is_visible(&point) {
+                             canvas.print_glyph(point.x, point.y, cell.tile.glyph.clone())
+                         }
                      });
 }
 
 fn draw_actors(world: &mut World, canvas: &mut Canvas) {
+    let fov = world.player().fov();
     for actor in world.actors() {
         let pos = actor.get_pos();
-        canvas.print_glyph(pos.x, pos.y, actor.glyph);
+        if fov.is_visible(&pos) {
+            canvas.print_glyph(pos.x, pos.y, actor.glyph);
+        }
     }
 }
 
@@ -152,7 +158,6 @@ pub fn process_actors(world: &mut World) {
         };
 
         world.run_action(action, id);
-        world.advance_time(100);
     }
 }
 

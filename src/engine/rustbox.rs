@@ -26,8 +26,7 @@ impl From<rustbox::Key> for Key {
                 key
             },
             RustboxKey::F(n)    => {
-                let keycode = keys::numkey_code_from_digit(n, NumkeyType::Function)
-                    .unwrap_or(KeyCode::Unknown);
+                let keycode = keys::Key::numkey_code_from_digit(n, NumkeyType::Function);
                 Key::from(keycode)
             }
 
@@ -46,7 +45,7 @@ impl From<rustbox::Key> for Key {
             RustboxKey::End       => Key::from(KeyCode::End),
             RustboxKey::PageUp    => Key::from(KeyCode::PageUp),
             RustboxKey::PageDown  => Key::from(KeyCode::PageDown),
-            _                     => Key::from(KeyCode::Unknown),
+            _                     => Key::from(KeyCode::Unknown(' ')),
         }
     }
 }

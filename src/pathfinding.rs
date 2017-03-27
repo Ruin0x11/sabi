@@ -18,7 +18,7 @@ impl Path {
     fn neighbors(current: Point,
                  world: &World,
                  walkability: Walkability) -> Vec<Point> {
-        assert!(world.is_pos_in_bounds(current));
+        assert!(world.pos_valid(&current));
         let nearby_points: [Point; 9] = [
             (-1, -1).into(),
             (-1,  0).into(),
@@ -34,7 +34,7 @@ impl Path {
         nearby_points.clone().iter()
             .map(|&d| current + d)
             .filter(|&point|
-                    world.is_pos_in_bounds(point)
+                    world.pos_valid(&point)
                     && world.is_walkable(point, walkability))
             .collect::<Vec<_>>()
     }

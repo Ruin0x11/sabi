@@ -17,6 +17,10 @@ impl Ai for Simple {
         let my_pos = actor.get_pos();
         let player_pos = player.get_pos();
 
+        if !actor.can_see(&player_pos) {
+            return Action::Wait; // TEMP: or wander
+        }
+
         let mut path = Path::find(my_pos, player_pos, &world, Walkability::MonstersWalkable);
 
         debug!(world.logger, "My: {} player: {}, path: {:?}", my_pos, player_pos, path);

@@ -155,12 +155,12 @@ impl World {
         self.chunks.get_mut(&index)
     }
 
-    pub fn is_pos_in_bounds(&self, world_pos: WorldPosition) -> bool {
-        let chunk_index = self.chunk_index_from_world_pos(world_pos);
+    pub fn pos_valid(&self, world_pos: &WorldPosition) -> bool {
+        let chunk_index = self.chunk_index_from_world_pos(*world_pos);
         let is_in_chunk = self.chunk(chunk_index).is_some();
         match self.type_ {
             WorldType::Instanced(size) => {
-                let is_in_boundaries = world_pos < size;
+                let is_in_boundaries = *world_pos < size;
                 is_in_chunk && is_in_boundaries
             }
             _ => is_in_chunk
@@ -185,7 +185,7 @@ impl World {
         match self.cell(&world_pos) {
             Some(cell) => {
                 let passable = cell.tile.can_pass_through();
-                let in_bounds = self.is_pos_in_bounds(world_pos);
+                let in_bounds = self.pos_valid(&world_pos);
                 // debug!(self.logger, "Cell: {:?}", cell);
                 // debug!(self.logger, "passable, bounds, walkable: {} {} {}",
                 // passable, in_bounds, walkable);
@@ -380,7 +380,15 @@ impl World {
 
     fn post_tick_actor(&mut self, actor: &Actor) {
         // TEMP: speed algorithm is needed.
-        self.turn_order.add_delay_for(&actor.get_id(), (1000 / actor.speed) as i32);
+        let delay = (100*100 / actor.speed) as i32;
+        let name = if actor.is_player(self) {
+            "[Player]"
+        } else {
+            "actor"
+        };
+        info!(self.logger, "{} at {} gets delay of {}, speed {}", name, actor.get_pos(), delay, actor.speed);
+        self.turn_order.add_delay_for(&actor.get_id(), delay);
+        actor.update_fov(self);
     }
 
     fn post_tick(&mut self) {
@@ -397,6 +405,7 @@ impl World {
         for id in self.actors.keys() {
             self.turn_order.advance_time_for(id, amount);
         }
+        info!(self.logger, "world time advanced by {}", amount);
     }
 
     pub fn time_until_turn_for(&self, id: &ActorId) -> i32 {
@@ -507,24 +516,24 @@ mod tests {
     }
 
     #[test]
-    fn test_is_pos_in_bounds() {
+    fn test_pos_valid() {
         let world = get_world(Point::new(1, 1));
-        assert_eq!(world.is_pos_in_bounds(Point::new(0, 0)), true);
+        assert_eq!(world.pos_valid(&Point::new(0, 0)), true);
         for i in -1..1 {
             for j in -1..1 {
                 if i != 0 && j != 0 {
                     let pos = Point::new(i, j);
                     let index = world.chunk_index_from_world_pos(pos);
-                    assert_eq!(world.is_pos_in_bounds(pos), false, "pos: {} index: {}", pos, index);
+                    assert_eq!(world.pos_valid(&pos), false, "pos: {} index: {}", pos, index);
                 }
             }
         }
 
         let world = get_world(Point::new(32, 32));
-        assert_eq!(world.is_pos_in_bounds(Point::new(0, 0)), true);
-        assert_eq!(world.is_pos_in_bounds(Point::new(17, 17)), true);
-        assert_eq!(world.is_pos_in_bounds(Point::new(32, 17)), false);
-        assert_eq!(world.is_pos_in_bounds(Point::new(-1, -1)), false);
+        assert_eq!(world.pos_valid(&Point::new(0, 0)), true);
+        assert_eq!(world.pos_valid(&Point::new(17, 17)), true);
+        assert_eq!(world.pos_valid(&Point::new(32, 17)), false);
+        assert_eq!(world.pos_valid(&Point::new(-1, -1)), false);
     }
 
     #[test]
