@@ -89,7 +89,7 @@ pub fn make_from_str<M, F, T>(text: &str, mut make: M, mut callback: F) -> T
         let mut player = Actor::new(6, 6, Glyph::Player);
         player.speed = 300;
 
-        let mut other = Actor::new(10, 10, Glyph::Player);
+        let mut other = Actor::new(10, 10, Glyph::Dood);
         other.speed = 100;
         world.add_actor(other);
         world.draw_square(Point::new(15, 15), 10, tile::FLOOR);
@@ -108,7 +108,7 @@ pub fn make_from_str<M, F, T>(text: &str, mut make: M, mut callback: F) -> T
         world.draw_square(Point::new(15, 15), 10, tile::FLOOR);
 
         for i in 1..10 {
-            let mut other = Actor::new(10 + i, 10, Glyph::Player);
+            let mut other = Actor::new(10 + i, 10, Glyph::Dood);
             other.speed = *rng.choose(&values).unwrap();
             world.add_actor(other);
         }

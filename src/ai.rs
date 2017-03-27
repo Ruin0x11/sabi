@@ -21,6 +21,12 @@ impl Ai for Simple {
             return Action::Wait; // TEMP: or wander
         }
 
+        // Am I right next to the player?
+        match Direction::from_neighbors(my_pos, player_pos) {
+            Some(_) => return Action::Dood,
+            None      => (),
+        }
+
         let mut path = Path::find(my_pos, player_pos, &world, Walkability::MonstersWalkable);
 
         debug!(world.logger, "My: {} player: {}, path: {:?}", my_pos, player_pos, path);
