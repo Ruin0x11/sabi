@@ -15,6 +15,8 @@ use log;
 use turn_order::TurnOrder;
 use uuid::Uuid;
 
+pub type WorldPosIter = Iterator<Item=WorldPosition>;
+
 #[derive(Copy, Clone)]
 pub enum Walkability {
     MonstersWalkable,
@@ -180,7 +182,7 @@ impl World {
             Walkability::MonstersBlocking => self.actor_at(world_pos).is_none(),
         };
 
-        match self.cell(world_pos) {
+        match self.cell(&world_pos) {
             Some(cell) => {
                 let passable = cell.tile.can_pass_through();
                 let in_bounds = self.is_pos_in_bounds(world_pos);
@@ -204,8 +206,8 @@ impl World {
         }
     }
 
-    // NOTE: It complains about adding lifetimes.
-    fn chunk_result<F, R>(&self, world_pos: WorldPosition, func: &mut F, default: R) -> R
+    // FIXME: It complains about adding lifetimes.
+    fn chunk_result<'a, F, R>(&'a self, world_pos: WorldPosition, func: &mut F, default: R) -> R
         where F: FnMut(&Chunk, ChunkPosition) -> R {
         let chunk_pos = self.chunk_pos_from_world_pos(world_pos);
         let chunk_opt = self.chunk_from_world_pos(world_pos);
@@ -217,7 +219,7 @@ impl World {
         }
     }
 
-    fn chunk_result_mut<F, R>(&self, world_pos: WorldPosition, func: &mut F, default: R) -> R
+    fn chunk_result_mut<'a, F, R>(&'a self, world_pos: WorldPosition, func: &mut F, default: R) -> R
         where F: FnMut(&Chunk, ChunkPosition) -> R {
         let chunk_pos = self.chunk_pos_from_world_pos(world_pos);
         let chunk_opt = self.chunk_from_world_pos(world_pos);
@@ -229,9 +231,9 @@ impl World {
         }
     }
 
-    pub fn cell(&self, world_pos: WorldPosition) -> Option<&Cell> {
-        let chunk_pos = self.chunk_pos_from_world_pos(world_pos);
-        let chunk_opt = self.chunk_from_world_pos(world_pos);
+    pub fn cell(&self, world_pos: &WorldPosition) -> Option<&Cell> {
+        let chunk_pos = self.chunk_pos_from_world_pos(*world_pos);
+        let chunk_opt = self.chunk_from_world_pos(*world_pos);
         match chunk_opt {
             Some(chunk) => {
                 Some(chunk.cell(chunk_pos))
@@ -240,9 +242,9 @@ impl World {
         }
     }
 
-    pub fn cell_mut(&mut self, world_pos: WorldPosition) -> Option<&mut Cell> {
-        let chunk_pos = self.chunk_pos_from_world_pos(world_pos);
-        let chunk_opt = self.chunk_mut_from_world_pos(world_pos);
+    pub fn cell_mut(&mut self, world_pos: &WorldPosition) -> Option<&mut Cell> {
+        let chunk_pos = self.chunk_pos_from_world_pos(*world_pos);
+        let chunk_opt = self.chunk_mut_from_world_pos(*world_pos);
         match chunk_opt {
             Some(chunk) => {
                 Some(chunk.cell_mut(chunk_pos))

@@ -38,6 +38,7 @@ mod ai;
 mod pathfinding;
 mod turn_order;
 mod drawcalls;
+mod fov;
 
 use slog::Logger;
 

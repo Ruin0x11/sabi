@@ -8,7 +8,7 @@ use point::Point;
 
 pub type ChunkPosition = Point;
 
-pub type Visibility = HashSet<ChunkPosition>;
+pub type FieldOfView = HashSet<ChunkPosition>;
 
 /// Represents a piece of terrain that is part of a larger World. Looking up
 /// cells in a World will resolve to a certain Chunk, but actors don't need to
@@ -17,7 +17,7 @@ pub struct Chunk {
     index: Option<ChunkIndex>,
     dimensions: Point,
     cells: Vec<Cell>,
-    visible: Visibility,
+    visible: FieldOfView,
 }
 
 impl Chunk {

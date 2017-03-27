@@ -78,12 +78,12 @@ fn draw_actors(world: &mut World, canvas: &mut Canvas) {
     for actor in world.actors() {
         let pos = actor.get_pos();
         canvas.print_glyph(pos.x, pos.y, actor.glyph);
-    }   
+    }
 }
 
 fn get_command_for_key(context: &GameContext, key: Key) -> Command {
-    if key.code == KeyCode::NoneKey {
-        warn!(context.logger, "NoneKey was returned");
+    if let KeyCode::Unknown(c) = key.code {
+        warn!(context.logger, "Unknown was returned, {}", c);
     }
     debug!(context.logger, "Key: {:?}", key);
     match key {

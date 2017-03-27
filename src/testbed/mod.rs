@@ -17,8 +17,39 @@ pub fn start_with_params(player: Actor, world: World) {
     }
 }
 
+pub fn make_from_str<M, F, T>(text: &str, mut make: M, mut callback: F) -> T
+    where M: FnMut(Point) -> T,
+          F: FnMut(&Point, char, &mut T) {
+    let mut start = Point{x: 0, y: 0};
+    let mut destination = Point{x: 0, y: 0};
+    let mut x = 0;
+    let mut y = 0;
+
+    let lines = text.split('\n').filter(|l| l.len() > 0).collect::<Vec<_>>();
+    let height = lines.len();
+    assert!(height > 0);
+    let width = lines[0].len();
+    assert!(width > 0);
+    assert!(lines.iter().all(|line| line.chars().count() == width));
+    let mut thing = make(Point::new(height as i32, width as i32));
+
+    for line in lines {
+        for c in line.chars() {
+            let pt = Point { x: x as i32, y: y as i32 };
+            callback(&pt, c, &mut thing);
+
+            x += 1;
+        }
+        y += 1;
+        x = 0;
+    }
+
+    thing
+}
+
+
 #[cfg(test)]
-mod tests {
+    mod tests {
     use rand::{self, Rng};
     use super::*;
     use tile::{self, FLOOR};

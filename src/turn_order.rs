@@ -32,7 +32,7 @@ impl TurnOrder {
 
     pub fn add_delay_for(&mut self, id: &ActorId, diff: i32) {
         let time_until_turn = self.times_until_turn.get_mut(id)
-            .expect("Tried advancing time of actor not in turn order");
+            .expect("Tried delaying time of actor not in turn order");
         *time_until_turn = cmp::max(0, *time_until_turn);
         *time_until_turn += diff;
     }
