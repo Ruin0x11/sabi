@@ -32,7 +32,7 @@ impl TurnOrder {
 
     pub fn add_delay_for(&mut self, id: &ActorId, diff: i32) {
         let time_until_turn = self.times_until_turn.get_mut(id)
-            .expect("Tried advancing time of actor not in turn order");
+            .expect("Tried delaying time of actor not in turn order");
         *time_until_turn = cmp::max(0, *time_until_turn);
         *time_until_turn += diff;
     }
@@ -59,9 +59,19 @@ impl Iterator for TurnOrder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use world::*;
+    use tile;
+    use point::Point;
+
+    fn get_world() -> World {
+        let mut world = World::generate(WorldType::Instanced(WorldPosition::new(32, 32)),
+                            16, tile::WALL);
+        world.draw_square(WorldPosition::new(15, 15), 10, tile::FLOOR);
+        world
+    }
 
     #[test]
-    fn test_single_actor() {
+    fn test_single_id() {
         let mut turn_order = TurnOrder::new();
         let actor = ActorId::new_v4();
         turn_order.add_actor(actor, 0);
@@ -74,7 +84,7 @@ mod tests {
     }
 
     #[test]
-    fn test_two_actors() {
+    fn test_two_ids() {
         let mut turn_order = TurnOrder::new();
         let actor_a = ActorId::new_v4();
         let actor_b = ActorId::new_v4();
@@ -91,5 +101,21 @@ mod tests {
 
         turn_order.advance_time_for(&actor_b, 100);
         assert_eq!(turn_order.next().unwrap(), actor_b);
+    }
+
+    use actor::*;
+    use glyph::Glyph;
+
+    #[test]
+    fn test_two_actors() {
+        let mut world = get_world();
+
+        let mut player = Actor::new(6, 6, Glyph::Player);
+        player.speed = 300;
+
+        let mut other = Actor::new(10, 10, Glyph::Player);
+        other.speed = 100;
+        world.add_actor(other);
+        world.draw_square(Point::new(15, 15), 10, tile::FLOOR);
     }
 }

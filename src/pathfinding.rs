@@ -18,7 +18,7 @@ impl Path {
     fn neighbors(current: Point,
                  world: &World,
                  walkability: Walkability) -> Vec<Point> {
-        assert!(world.is_pos_in_bounds(current));
+        assert!(world.pos_valid(&current));
         let nearby_points: [Point; 9] = [
             (-1, -1).into(),
             (-1,  0).into(),
@@ -34,7 +34,7 @@ impl Path {
         nearby_points.clone().iter()
             .map(|&d| current + d)
             .filter(|&point|
-                    world.is_pos_in_bounds(point)
+                    world.pos_valid(&point)
                     && world.is_walkable(point, walkability))
             .collect::<Vec<_>>()
     }
@@ -182,8 +182,12 @@ impl PartialOrd for State {
 #[cfg(test)]
 mod test {
     use super::Path;
-    use point::Point;
+    use point::{Point, POINT_ZERO};
     use world::{WorldType, World, Walkability};
+    use testbed::make_from_str;
+    use tile::{self, Tile};
+    use tile::TileType::{Wall, Floor};
+    use glyph::Glyph;
 
     struct Board {
         start: Point,
@@ -192,9 +196,6 @@ mod test {
     }
 
     fn make_board(text: &str) -> Board {
-        use tile::{self, Tile};
-        use tile::TileType::{Wall, Floor};
-        use glyph::Glyph;
         let mut start = Point{x: 0, y: 0};
         let mut destination = Point{x: 0, y: 0};
         let mut x = 0;
@@ -211,27 +212,6 @@ mod test {
 
         for line in lines {
             for c in line.chars() {
-                if c == 's' {
-                    start = Point { x: x as i32, y: y as i32 };
-                }
-
-                if c == 'd' {
-                    destination = Point { x: x as i32, y: y as i32 };
-                }
-
-                let tile_kind = match c {
-                    '.' => Floor,
-                    '*' => Floor,
-                    's' => Floor,
-                    'd' => Floor,
-                    'x' => Wall,
-                    _   => unreachable!(),
-                };
-                level.set_tile(Point{ x: x as i32, y: y as i32 }, Tile {
-                    type_: tile_kind,
-                    glyph: Glyph::None,
-                    feature: None,
-                });
 
                 x += 1;
             }
@@ -250,7 +230,39 @@ mod test {
     }
 
     fn test_harness(board: &str, expected_len: usize, expected_path: &[(i32, i32)]) {
-        let board = make_board(board);
+        let callback = |pt: &Point, c: char, board: &mut Board| {
+                if c == 's' {
+                    board.start = pt.clone();
+                }
+
+                if c == 'd' {
+                    board.destination = pt.clone();
+                }
+
+                let tile_kind = match c {
+                    '.' => Floor,
+                    '*' => Floor,
+                    's' => Floor,
+                    'd' => Floor,
+                    'x' => Wall,
+                    _   => unreachable!(),
+                };
+                board.level.set_tile(pt.clone(), Tile {
+                    type_: tile_kind,
+                    glyph: Glyph::None,
+                    feature: None,
+                });
+        };
+        let make = |dim: Point| {
+            let world = World::generate(WorldType::Instanced(Point::new(dim.x,
+                    dim.y)), 128, tile::WALL);
+            Board {
+                start: POINT_ZERO,
+                destination: POINT_ZERO,
+                level: world,
+            }
+        };
+        let board = make_from_str(board, make, callback);
         let path: Path = Path::find(board.start, board.destination, &board.level,
                                     Walkability::MonstersWalkable);
         assert_eq!(expected_len, path.len());

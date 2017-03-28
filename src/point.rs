@@ -34,6 +34,8 @@ impl Point {
     }
 }
 
+pub const POINT_ZERO: Point = Point { x: 0, y: 0 };
+
 impl Into<Point> for (i32, i32) {
     fn into(self) -> Point {
         Point{ x: self.0, y: self.1 }

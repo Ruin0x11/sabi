@@ -6,7 +6,7 @@ use glyph::Glyph;
 use tile::*;
 use point::Point;
 
-pub type ChunkPosition = Point;
+type ChunkPosition = Point;
 
 pub type FieldOfView = HashSet<ChunkPosition>;
 
@@ -63,7 +63,7 @@ impl Chunk {
     }
 
     pub fn see_tile(&mut self, pos: ChunkPosition) {
-        self.visible.insert(pos);
+        self.visible.insert(pos)
     }
 
     pub fn is_seen(&self, pos: ChunkPosition) -> bool {
@@ -88,7 +88,6 @@ impl Chunk {
     }
 }
 
-#[derive(Debug, Clone)]
 pub struct Cell {
     pub tile: Tile,
 }

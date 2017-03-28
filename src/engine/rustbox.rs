@@ -26,8 +26,7 @@ impl From<rustbox::Key> for Key {
                 key
             },
             RustboxKey::F(n)    => {
-                let keycode = keys::numkey_code_from_digit(n, NumkeyType::Function)
-                    .unwrap_or(KeyCode::NoneKey);
+                let keycode = keys::Key::numkey_code_from_digit(n, NumkeyType::Function);
                 Key::from(keycode)
             }
 
@@ -46,7 +45,7 @@ impl From<rustbox::Key> for Key {
             RustboxKey::End       => Key::from(KeyCode::End),
             RustboxKey::PageUp    => Key::from(KeyCode::PageUp),
             RustboxKey::PageDown  => Key::from(KeyCode::PageDown),
-            _                     => Key::from(KeyCode::NoneKey),
+            _                     => Key::from(KeyCode::Unknown(' ')),
         }
     }
 }
@@ -147,12 +146,12 @@ impl Canvas_ for RustboxCanvas {
         let rend_glyph = RenderableGlyph::from(glyph);
         let color_fg = Color16::from(rend_glyph.color_fg).into();
         let color_bg = Color16::from(rend_glyph.color_bg).into();
-        self.root.print(x as usize,
-                        y as usize,
-                        rustbox::RB_NORMAL,
-                        color_fg,
-                        color_bg,
-                        &rend_glyph.ch.to_string())
+        self.root.print_char(x as usize,
+                             y as usize,
+                             rustbox::RB_NORMAL,
+                             color_fg,
+                             color_bg,
+                             rend_glyph.ch)
     }
 
     fn close_window(&mut self) {
@@ -161,6 +160,29 @@ impl Canvas_ for RustboxCanvas {
 
     fn window_closed(&self) -> bool {
         self.wants_close
+    }
+
+    fn print_str(&mut self, x: i32, y: i32, s: &str) {
+        self.root.print(x as usize,
+                        y as usize,
+                        rustbox::RB_NORMAL,
+                        RustboxColor::White,
+                        RustboxColor::Black,
+                        s);
+    }
+
+    fn print_message(&mut self, message: &str) {
+        let h = self.height() - 1;
+        self.print_str(0, h, message);
+    }
+
+    fn show_messages(&mut self, messages: Vec<String>) {
+        for (i, mes) in messages.iter().enumerate() {
+            self.print_message(&mes);
+            if i != messages.len() - 1 {
+                self.get_input();
+            }
+        }
     }
 }
 

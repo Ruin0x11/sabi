@@ -15,6 +15,7 @@ _Backbone_
 Create a single deterministic layer from noise and, instead of looking at neighbors between regions, use the deterministic layer for generation
 ** Architecture Considerations
 - Use a scripting language or not? Lua?
+  + Yes. Lua.
 - Messaging between actors?
 ** Questions
 _Design_
@@ -27,7 +28,7 @@ _Mechanics_
 - Ranged weapons
 - Themed dungeons/variety of generation patterns
 - Numeric speed value
-- Visibility/Invisibility/detection of invisible things
+- FieldOfView/Invisibility/detection of invisible things
 - Magic/events that happen after a set period of time
 - Multi-turn actions that can be interrupted
 - Variable amount of body parts.
@@ -59,3 +60,7 @@ _Theme_
   + This is really cool, but /will/ require a rewrite...
 - Overworld travel
 - Hidden rooms (basements) of instanced buildings
+- People who create things out of materials?
+- Body parts equippable also, affecting state percentage modifier?
+** TIPS
+- There is one key optimization that makes this method faster (on top of the very fast raycasting method that is Bresenham): An actor's FOV map is not cleared before it’s recalculated--this is a waste of time since the map isn’t changing size, only content. Instead, with each map you store an “FOV ID” which is essentially an integer that equates to the value identifying visible cells on the map. Example: The first time you use a map it is filled with zeros and your ID is set to ’1′; the raycasting process sets all visible cells in the map to ’1′; later when you want to know if a particular cell is visible, you just test whether it equals the current ID. Every time you recalculate the FOV, you first increment the ID (2, 3, 4…), so you never have to clear your map in memory. Saves a lot of time if you’re frequently updating numerous maps. (I also use a similar time-saving method with my Dijkstra and A* pathfinding implementations, and in many other areas.)

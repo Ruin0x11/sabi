@@ -10,6 +10,8 @@ pub struct RenderableGlyph {
 pub enum Glyph {
     Player,
 
+    Dood,
+
     Floor,
     Wall,
     Debug(char),
@@ -22,6 +24,9 @@ impl From<Glyph> for RenderableGlyph {
     fn from(glyph: Glyph) -> RenderableGlyph {
         match glyph {
             Glyph::Player => RenderableGlyph { ch: '@',
+                                               color_fg: color::RED,
+                                               color_bg: color::BLACK },
+            Glyph::Dood   => RenderableGlyph { ch: 'p',
                                                color_fg: color::BLUE,
                                                color_bg: color::BLACK },
             Glyph::Floor => RenderableGlyph  { ch: '.',

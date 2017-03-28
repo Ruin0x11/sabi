@@ -11,7 +11,7 @@ pub struct Key {
 
 impl Default for Key {
     fn default() -> Key {
-        Key { code: KeyCode::NoneKey, alt: false, ctrl: false, shift: false }
+        Key { code: KeyCode::Unknown(' '), alt: false, ctrl: false, shift: false }
     }
 }
 
@@ -28,7 +28,7 @@ impl From<char> for Key {
             shift = true;
         }
 
-        let keycode = keycode_from_char(ch).unwrap_or(KeyCode::NoneKey);
+        let keycode = KeyCode::from(ch); // Or unknown
 
         let mut key = Key::from(keycode);
         key.shift = shift;
@@ -64,7 +64,7 @@ pub enum KeyCode {
     PageUp,
     PageDown,
 
-    NoneKey,
+    Unknown(char),
 }
 
 pub enum NumkeyType {
@@ -73,95 +73,98 @@ pub enum NumkeyType {
     Function
 }
 
-pub fn numkey_code_from_digit(digit: u32, type_: NumkeyType) -> Option<KeyCode> {
-    match type_ {
-        NumkeyType::Digit => match digit {
-            1 => Some(KeyCode::D1),
-            2 => Some(KeyCode::D2),
-            3 => Some(KeyCode::D3),
-            4 => Some(KeyCode::D4),
-            5 => Some(KeyCode::D5),
-            6 => Some(KeyCode::D6),
-            7 => Some(KeyCode::D7),
-            8 => Some(KeyCode::D8),
-            9 => Some(KeyCode::D9),
-            0 => Some(KeyCode::D0),
-            _ => None,
-        },
-        NumkeyType::NumPad => match digit {
-            1 => Some(KeyCode::NumPad1),
-            2 => Some(KeyCode::NumPad2),
-            3 => Some(KeyCode::NumPad3),
-            4 => Some(KeyCode::NumPad4),
-            5 => Some(KeyCode::NumPad5),
-            6 => Some(KeyCode::NumPad6),
-            7 => Some(KeyCode::NumPad7),
-            8 => Some(KeyCode::NumPad8),
-            9 => Some(KeyCode::NumPad9),
-            0 => Some(KeyCode::NumPad0),
-            _ => None,
-        },
-        NumkeyType::Function => match digit {
-            1 => Some(KeyCode::F1),
-            2 => Some(KeyCode::F2),
-            3 => Some(KeyCode::F3),
-            4 => Some(KeyCode::F4),
-            5 => Some(KeyCode::F5),
-            6 => Some(KeyCode::F6),
-            7 => Some(KeyCode::F7),
-            8 => Some(KeyCode::F8),
-            9 => Some(KeyCode::F9),
-            10 => Some(KeyCode::F10),
-            11 => Some(KeyCode::F11),
-            12 => Some(KeyCode::F12),
-            _ => None,
+impl From<char> for KeyCode {
+    fn from(ch: char) -> KeyCode {
+        if ch.is_numeric() {
+            let numeric_ch = ch.to_digit(10).unwrap();
+            return Key::numkey_code_from_digit(numeric_ch, NumkeyType::Digit);
+        }
+        // Lowercasing in Rust returns an iterator, making this match necessary.
+        let ch_lower_iter = ch.to_lowercase().next();
+
+        match ch_lower_iter {
+            Some(ch_lower) => match ch_lower {
+                'a' => KeyCode::A,
+                'b' => KeyCode::B,
+                'c' => KeyCode::C,
+                'd' => KeyCode::D,
+                'e' => KeyCode::E,
+                'f' => KeyCode::F,
+                'g' => KeyCode::G,
+                'h' => KeyCode::H,
+                'i' => KeyCode::I,
+                'j' => KeyCode::J,
+                'k' => KeyCode::K,
+                'l' => KeyCode::L,
+                'm' => KeyCode::M,
+                'n' => KeyCode::N,
+                'o' => KeyCode::O,
+                'p' => KeyCode::P,
+                'q' => KeyCode::Q,
+                'r' => KeyCode::R,
+                's' => KeyCode::S,
+                't' => KeyCode::T,
+                'u' => KeyCode::U,
+                'v' => KeyCode::V,
+                'w' => KeyCode::W,
+                'x' => KeyCode::X,
+                'y' => KeyCode::Y,
+                'z' => KeyCode::Z,
+
+                _   => KeyCode::Unknown(ch_lower),
+            },
+            None => KeyCode::Unknown(ch),
+        }
+    }
+}
+
+impl Key {
+    pub fn numkey_code_from_digit(digit: u32, type_: NumkeyType) -> KeyCode {
+        match type_ {
+            NumkeyType::Digit => match digit {
+                1 => KeyCode::D1,
+                2 => KeyCode::D2,
+                3 => KeyCode::D3,
+                4 => KeyCode::D4,
+                5 => KeyCode::D5,
+                6 => KeyCode::D6,
+                7 => KeyCode::D7,
+                8 => KeyCode::D8,
+                9 => KeyCode::D9,
+                0 => KeyCode::D0,
+                _ => KeyCode::Unknown(digit as u8 as char),
+            },
+            NumkeyType::NumPad => match digit {
+                1 => KeyCode::NumPad1,
+                2 => KeyCode::NumPad2,
+                3 => KeyCode::NumPad3,
+                4 => KeyCode::NumPad4,
+                5 => KeyCode::NumPad5,
+                6 => KeyCode::NumPad6,
+                7 => KeyCode::NumPad7,
+                8 => KeyCode::NumPad8,
+                9 => KeyCode::NumPad9,
+                0 => KeyCode::NumPad0,
+                _ => KeyCode::Unknown(digit as u8 as char),
+            },
+            NumkeyType::Function => match digit {
+                1 => KeyCode::F1,
+                2 => KeyCode::F2,
+                3 => KeyCode::F3,
+                4 => KeyCode::F4,
+                5 => KeyCode::F5,
+                6 => KeyCode::F6,
+                7 => KeyCode::F7,
+                8 => KeyCode::F8,
+                9 => KeyCode::F9,
+                10 => KeyCode::F10,
+                11 => KeyCode::F11,
+                12 => KeyCode::F12,
+                _ => KeyCode::Unknown(digit as u8 as char),
+            }
         }
     }
 
-}
-
-pub fn keycode_from_char(ch: char) -> Option<KeyCode> {
-    if ch.is_numeric() {
-        let numeric_ch = ch.to_digit(10).unwrap();
-        return numkey_code_from_digit(numeric_ch, NumkeyType::Digit);
-    }
-    // Lowercasing in Rust returns an iterator, making this match necessary.
-    let ch_lower_iter = ch.to_lowercase().next();
-
-    match ch_lower_iter {
-        Some(ch_lower) => match ch_lower {
-            'a' => Some(KeyCode::A),
-            'b' => Some(KeyCode::B),
-            'c' => Some(KeyCode::C),
-            'd' => Some(KeyCode::D),
-            'e' => Some(KeyCode::E),
-            'f' => Some(KeyCode::F),
-            'g' => Some(KeyCode::G),
-            'h' => Some(KeyCode::H),
-            'i' => Some(KeyCode::I),
-            'j' => Some(KeyCode::J),
-            'k' => Some(KeyCode::K),
-            'l' => Some(KeyCode::L),
-            'm' => Some(KeyCode::M),
-            'n' => Some(KeyCode::N),
-            'o' => Some(KeyCode::O),
-            'p' => Some(KeyCode::P),
-            'q' => Some(KeyCode::Q),
-            'r' => Some(KeyCode::R),
-            's' => Some(KeyCode::S),
-            't' => Some(KeyCode::T),
-            'u' => Some(KeyCode::U),
-            'v' => Some(KeyCode::V),
-            'w' => Some(KeyCode::W),
-            'x' => Some(KeyCode::X),
-            'y' => Some(KeyCode::Y),
-            'z' => Some(KeyCode::Z),
-
-            _   => None
-        },
-        None => None
-    }
-    
 }
 
 

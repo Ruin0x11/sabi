@@ -1,17 +1,12 @@
-#[macro_use]
-extern crate bitflags;
-
 extern crate backtrace;
 extern crate chrono;
-extern crate euclid;
+#[macro_use] extern crate lazy_static;
 extern crate uuid;
 extern crate rand;
-
-#[macro_use]
-extern crate slog;
+#[macro_use] extern crate slog;
 extern crate slog_stream;
-
 pub extern crate tcod;
+extern crate textwrap;
 
 #[cfg(feature = "with-rustbox")]
 extern crate rustbox;
@@ -38,17 +33,17 @@ mod ai;
 mod pathfinding;
 mod turn_order;
 mod drawcalls;
+mod fov;
+mod event;
 
 use slog::Logger;
 
-use action::Action;
 use actor::*;
 use engine::Canvas;
-use world::*;
 use point::Point;
 use state::GameState;
 
-use keys::{Key, Keys, KeyCode};
+use keys::Keys;
 
 pub struct GameContext {
     canvas: Canvas,
