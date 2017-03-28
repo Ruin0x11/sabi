@@ -13,6 +13,7 @@ use point::Point;
 
 /// All rendering targets must follow this API.
 pub trait Canvas_ {
+    // low-level
     fn width(&self) -> i32;
     fn height(&self) -> i32;
     fn print_info(&self);
@@ -21,13 +22,21 @@ pub trait Canvas_ {
     fn close_window(&mut self);
     fn window_closed(&self) -> bool;
 
+    fn print_str(&mut self, x: i32, y: i32, s: &str);
+
+
     // NOTE: The intention is that this may or may not block depending on the
     // backend, but that might not be a good idea...
     fn get_input(&self) -> Vec<Key>;
 
+    // high-level
+
     // NOTE: This is a bit high-level, but backends like OpenGL will have no
     // concept of foreground/background colors.
     fn print_glyph(&mut self, x: i32, y: i32, glyph: Glyph);
+
+    fn print_message(&mut self, message: &str);
+    fn show_messages(&mut self, messages: Vec<String>);
 }
 
 pub type Canvas = Box<Canvas_>;
@@ -35,7 +44,7 @@ pub type Canvas = Box<Canvas_>;
 #[cfg(feature = "with-opengl")]
 fn get_canvas_opengl() -> Option<Canvas> {
     let canvas = Box::new(glium::OpenGLCanvas {
-        
+
     });
     Some(canvas)
 }

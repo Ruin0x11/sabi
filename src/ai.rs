@@ -29,7 +29,7 @@ impl Ai for Simple {
 
         let mut path = Path::find(my_pos, player_pos, &world, Walkability::MonstersWalkable);
 
-        debug!(world.logger, "My: {} player: {}, path: {:?}", my_pos, player_pos, path);
+        debug!(actor.logger, "My: {} player: {}, path: {:?}", my_pos, player_pos, path);
 
         if path.len() == 0 {
             return Action::Wait;

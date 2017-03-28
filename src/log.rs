@@ -1,15 +1,15 @@
-use std::fmt;
+use std::fmt::{self, Display};
 use std::panic;
 use std::thread;
 
 use backtrace::Backtrace;
 
-use std::panic::*;
 use std::io;
 use std::fs::File;
 
 use chrono::Local;
 use slog::{self, Logger, DrainExt};
+use slog::ser::Result as SerResult;
 use slog_stream;
 
 const VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
@@ -28,8 +28,7 @@ pub fn make_logger(system_name: &str) -> Result<Logger, ()> {
 
     let root_drain = slog_stream::stream(root_logfile, SabiLogFormat);
     let version = VERSION.unwrap_or("unknown");
-    let logger = Logger::root(root_drain.fuse(), o!("version" => version, "system"
-    => system_name.to_string()));
+    let logger = Logger::root(root_drain.fuse(), o!("system" => system_name.to_string()));
 
     info!(logger, "Log for {} initialized.", system_name);
 
@@ -80,9 +79,94 @@ impl slog_stream::Format for SabiLogFormat {
     fn format(&self,
               io: &mut io::Write,
               rinfo: &slog::Record,
-              _logger_values: &slog::OwnedKeyValueList) // IMPLEMENT
+              logger_values: &slog::OwnedKeyValueList)
               -> io::Result<()> {
-        let msg = format!("{} {} - {}\n", now!(), rinfo.level(), rinfo.msg());
-        io.write_all(msg.as_bytes()).map(|_| ())
+        let mut serializer = Serializer::new();
+        for (k, v) in logger_values.iter() {
+            try!(v.serialize(rinfo, k, &mut serializer));
+        }
+        let pairs = serializer.fields.join(", ");
+        let msg = format!("{} {} - {} ({})\n",
+                          now!(), rinfo.level(), rinfo.msg(), pairs);
+        io.write_all(msg.as_bytes())?;
+
+        Ok(())
+    }
+}
+
+struct Serializer {
+    fields: Vec<String>,
+}
+
+impl Serializer {
+    fn new() -> Serializer {
+        Serializer { fields: Vec::new() }
+    }
+    /// Add field without sanitizing the key
+    ///
+    /// Note: if the key isn't a valid journald key name, it will be ignored.
+    fn add_field(&mut self, field: String) {
+        self.fields.push(field);
+    }
+    fn emit<T: Display>(&mut self, key: &str, val: T) -> SerResult {
+        self.add_field(format!("{}={}", key, val));
+        Ok(())
+    }
+}
+
+impl slog::Serializer for Serializer {
+    fn emit_bool(&mut self, key: &str, val: bool) -> SerResult {
+        self.emit(key, val)
+    }
+    fn emit_unit(&mut self, key: &str) -> SerResult {
+        self.emit(key, "")
+    }
+    fn emit_none(&mut self, key: &str) -> SerResult {
+        self.emit(key, "None")
+    }
+    fn emit_char(&mut self, key: &str, val: char) -> SerResult {
+        self.emit(key, val)
+    }
+    fn emit_u8(&mut self, key: &str, val: u8) -> SerResult {
+        self.emit(key, val)
+    }
+    fn emit_i8(&mut self, key: &str, val: i8) -> SerResult {
+        self.emit(key, val)
+    }
+    fn emit_u16(&mut self, key: &str, val: u16) -> SerResult {
+        self.emit(key, val)
+    }
+    fn emit_i16(&mut self, key: &str, val: i16) -> SerResult {
+        self.emit(key, val)
+    }
+    fn emit_u32(&mut self, key: &str, val: u32) -> SerResult {
+        self.emit(key, val)
+    }
+    fn emit_i32(&mut self, key: &str, val: i32) -> SerResult {
+        self.emit(key, val)
+    }
+    fn emit_u64(&mut self, key: &str, val: u64) -> SerResult {
+        self.emit(key, val)
+    }
+    fn emit_i64(&mut self, key: &str, val: i64) -> SerResult {
+        self.emit(key, val)
+    }
+    fn emit_f32(&mut self, key: &str, val: f32) -> SerResult {
+        self.emit(key, val)
+    }
+    fn emit_f64(&mut self, key: &str, val: f64) -> SerResult {
+        self.emit(key, val)
+    }
+    fn emit_usize(&mut self, key: &str, val: usize) -> SerResult {
+        self.emit(key, val)
+    }
+    fn emit_isize(&mut self, key: &str, val: isize) -> SerResult {
+        self.emit(key, val)
+    }
+    fn emit_str(&mut self, key: &str, val: &str) -> SerResult {
+        self.emit(key, val)
+    }
+    fn emit_arguments(&mut self, key: &str, val: &fmt::Arguments) -> SerResult {
+        self.emit(key, val)
     }
 }

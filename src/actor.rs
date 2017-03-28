@@ -1,8 +1,6 @@
 use std::cell::RefCell;
 
 use action::Action;
-use chunk::Chunk;
-use drawcalls::Draw;
 use glyph::Glyph;
 use point::Point;
 use world::{World, WorldPosition, Walkability};
@@ -14,6 +12,10 @@ use log;
 
 const FOV_RADIUS: i32 = 5;
 
+lazy_static! {
+    static ref ACTOR_LOG: Logger = log::make_logger("actor").unwrap();
+}
+
 pub type ActorId = Uuid;
 
 pub struct Actor {
@@ -21,7 +23,7 @@ pub struct Actor {
     y: i32,
     pub glyph: Glyph,
 
-    logger: Logger,
+    pub logger: Logger,
     uuid: Uuid,
 
     pub speed: u32,
@@ -77,12 +79,13 @@ impl Direction {
 
 impl Actor {
     pub fn new(x: i32, y: i32, glyph: Glyph) -> Self {
+        let id = Uuid::new_v4();
         Actor {
             x: x,
             y: y,
-            logger: log::make_logger("actor").unwrap(),
+            logger: ACTOR_LOG.new(o!("id" => format!("{:.8}...", id.to_string()))),
             glyph: glyph,
-            uuid: Uuid::new_v4(),
+            uuid: id,
             speed: 100,
             fov: RefCell::new(FieldOfView::new()),
         }
@@ -91,7 +94,7 @@ impl Actor {
     pub fn run_action(&mut self, action: Action, world: &mut World) {
         match action {
             Action::Move(dir) => self.move_in_direction(dir, world),
-            Action::Dood => println!("Dood!"),
+            Action::Dood => world.message("Dood!".to_string()),
             Action::Wait => (),
         }
     }

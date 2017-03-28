@@ -103,11 +103,11 @@ pub fn make_from_str<M, F, T>(text: &str, mut make: M, mut callback: F) -> T
 
         let player = Actor::new(6, 6, Glyph::Player);
 
-        let values: [u32; 5] = [10, 50, 100, 200, 400];
+        let values: [u32; 4] = [10, 50, 100, 200];
 
         world.draw_square(Point::new(15, 15), 10, tile::FLOOR);
 
-        for i in 1..10 {
+        for i in 1..16 {
             let mut other = Actor::new(10 + i, 10, Glyph::Dood);
             other.speed = *rng.choose(&values).unwrap();
             world.add_actor(other);

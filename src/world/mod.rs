@@ -1,6 +1,6 @@
-use std::collections::HashMap;
-use std::collections::hash_map;
-use std::io;
+mod message;
+
+use std::collections::{VecDeque, HashMap, hash_map};
 use std::fmt;
 
 use actor::{Actor, ActorId};
@@ -13,9 +13,10 @@ use glyph::*;
 use slog::Logger;
 use log;
 use turn_order::TurnOrder;
-use uuid::Uuid;
 
-pub type WorldPosIter = Iterator<Item=WorldPosition>;
+use self::message::Messages;
+
+pub type WorldIter = Iterator<Item=WorldPosition>;
 
 #[derive(Copy, Clone)]
 pub enum Walkability {
@@ -53,6 +54,7 @@ pub struct World {
 
     pub draw_calls: DrawCalls,
 
+    messages: Messages,
     pub logger: Logger,
 }
 
@@ -67,6 +69,8 @@ impl World {
             player_id: None,
             turn_order: TurnOrder::new(),
             draw_calls: DrawCalls::new(),
+
+            messages: Messages::new(),
             logger: log::make_logger("world").unwrap(),
         }
     }
@@ -366,9 +370,9 @@ impl World {
     }
 
     pub fn run_action(&mut self, action: Action, id: &ActorId) {
-        debug!(self.logger, "Action: {:?} id: {}", action, id);
         self.pre_tick();
         let mut actor = self.actors.remove(id).unwrap();
+        debug!(actor.logger, "Action: {:?}", action);
 
         self.pre_tick_actor(&actor);
         actor.run_action(action, self);
@@ -386,7 +390,7 @@ impl World {
         } else {
             "actor"
         };
-        info!(self.logger, "{} at {} gets delay of {}, speed {}", name, actor.get_pos(), delay, actor.speed);
+        debug!(actor.logger, "{}: delay {}, speed {}", name, delay, actor.speed);
         self.turn_order.add_delay_for(&actor.get_id(), delay);
         actor.update_fov(self);
     }
