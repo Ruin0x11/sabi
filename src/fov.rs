@@ -15,6 +15,7 @@ impl Line {
     pub fn new(from: Point, to: Point) -> Self {
         Line { from: from, to: to }
     }
+
     pub fn is_clear_cw(&self, pt: &Point) -> bool {
         self.dtheta(pt) > 0.0
     }

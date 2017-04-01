@@ -180,7 +180,11 @@ impl Canvas_ for RustboxCanvas {
         for (i, mes) in messages.iter().enumerate() {
             self.print_message(&mes);
             if i != messages.len() - 1 {
+                self.present();
                 self.get_input();
+                let w = self.width();
+                let h = self.height() - 1;
+                self.print_str(0, h, " ".repeat(w as usize).as_str());
             }
         }
     }

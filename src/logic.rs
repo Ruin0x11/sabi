@@ -44,16 +44,16 @@ fn post_tick(world: &mut World) {
 fn run_actor_action(world: &mut World, actor: &mut Actor, action: Action) {
     match action {
         Action::Move(dir) => actor.move_in_direction(dir, world),
-        Action::Dood => world.message("Dood!".to_string()),
+        Action::Dood => world.message(format!("{}: \"Dood!\"", actor.get_display_name())),
         Action::Wait => (),
         Action::Explod => {
             let pos = actor.get_pos();
-            world.message("Ex!".to_string());
+            world.message(format!("{} explodes!", actor.get_display_name()));
             world.events.push(Event {
                 area: EventArea::Square(pos.x, pos.y, 5),
                 kind: EventKind::SayName,
             })
         },
-        Action::Hurt => world.message("Oof!".to_string())
+        Action::Hurt => world.message(format!("{}: \"Oof\"!", actor.get_display_name()))
     }
 }
