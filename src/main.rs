@@ -36,6 +36,7 @@ mod fov;
 mod logic;
 mod event;
 mod namegen;
+mod stats;
 
 use slog::Logger;
 
