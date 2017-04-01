@@ -2,7 +2,6 @@ use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 use std::f32;
 
-use drawcalls::Draw;
 use point::Point;
 use world::{World, Walkability};
 
@@ -184,7 +183,7 @@ mod test {
     use super::Path;
     use point::{Point, POINT_ZERO};
     use world::{WorldType, World, Walkability};
-    use testbed::make_from_str;
+    use testbed::make_grid_from_str;
     use tile::{self, Tile};
     use tile::TileType::{Wall, Floor};
     use glyph::Glyph;
@@ -196,10 +195,8 @@ mod test {
     }
 
     fn make_board(text: &str) -> Board {
-        let mut start = Point{x: 0, y: 0};
-        let mut destination = Point{x: 0, y: 0};
-        let mut x = 0;
-        let mut y = 0;
+        let start = Point{x: 0, y: 0};
+        let destination = Point{x: 0, y: 0};
 
         let lines = text.split('\n').filter(|l| l.len() > 0).collect::<Vec<_>>();
         let height = lines.len();
@@ -208,19 +205,7 @@ mod test {
         assert!(width > 0);
         assert!(lines.iter().all(|line| line.chars().count() == width));
 
-        let mut level = World::generate(WorldType::Instanced(Point::new(width as i32, height as i32)), 128, tile::WALL);
-
-        for line in lines {
-            for c in line.chars() {
-
-                x += 1;
-            }
-            y += 1;
-            x = 0;
-        }
-
-        assert!(start != Point { x: -1, y: -1});
-        assert!(destination != Point { x: -1, y: -1});
+        let level = World::generate(WorldType::Instanced(Point::new(width as i32, height as i32)), 128, tile::WALL);
 
         Board {
             start: start,
@@ -262,7 +247,7 @@ mod test {
                 level: world,
             }
         };
-        let board = make_from_str(board, make, callback);
+        let board = make_grid_from_str(board, make, callback);
         let path: Path = Path::find(board.start, board.destination, &board.level,
                                     Walkability::MonstersWalkable);
         assert_eq!(expected_len, path.len());

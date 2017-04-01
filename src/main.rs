@@ -31,9 +31,9 @@ mod state;
 mod testbed;
 mod ai;
 mod pathfinding;
-mod turn_order;
 mod drawcalls;
 mod fov;
+mod logic;
 mod event;
 
 use slog::Logger;
@@ -78,7 +78,6 @@ pub fn run() {
 }
 
 fn game_loop(mut ctxt: &mut GameContext) {
-
     while !ctxt.canvas.window_closed() {
         state::process(ctxt);
     }

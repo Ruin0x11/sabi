@@ -1,4 +1,6 @@
+mod actors;
 mod message;
+mod turn_order;
 
 use std::collections::{VecDeque, HashMap, hash_map};
 use std::fmt;
@@ -6,14 +8,15 @@ use std::fmt;
 use actor::{Actor, ActorId};
 use action::Action;
 use drawcalls::*;
+use event::Event;
 use tile::*;
 use point::Point;
 use chunk::*;
 use glyph::*;
 use slog::Logger;
 use log;
-use turn_order::TurnOrder;
 
+use self::turn_order::TurnOrder;
 use self::message::Messages;
 
 pub type WorldIter = Iterator<Item=WorldPosition>;
@@ -51,10 +54,9 @@ pub struct World {
     // areas.
 
     turn_order: TurnOrder,
-
     pub draw_calls: DrawCalls,
-
     messages: Messages,
+    pub events: Vec<Event>,
     pub logger: Logger,
 }
 
@@ -69,7 +71,7 @@ impl World {
             player_id: None,
             turn_order: TurnOrder::new(),
             draw_calls: DrawCalls::new(),
-
+            events: Vec::new(),
             messages: Messages::new(),
             logger: log::make_logger("world").unwrap(),
         }
@@ -84,8 +86,8 @@ impl World {
         let mut world = World::new_empty(type_, chunk_size);
         world.chunks = chunks;
 
-        debug!(world.logger, "World created, no. of chunks: {}", world.chunks.len());
         assert!(world.chunks.len() > 0, "No chunks created!");
+        debug!(world.logger, "World created, no. of chunks: {}", world.chunks.len());
         for chunk_index in world.chunks.keys() {
             debug!(world.logger, "Index: {}", chunk_index);
         }
@@ -294,131 +296,6 @@ impl World {
         }
 
     }
-
-    /// Return an iterator over the currently loaded set of Actors in this
-    /// world across all chunks.
-    pub fn actors(&mut self) -> hash_map::Values<ActorId, Actor> {
-        self.actors.values()
-    }
-
-    pub fn actor(&self, id: &ActorId) -> &Actor {
-        self.actors.get(id).expect("Actor not found!")
-    }
-
-    pub fn actor_mut(&mut self, id: &ActorId) -> &mut Actor {
-        self.actors.get_mut(id).expect("Actor not found!")
-    }
-
-    pub fn actor_at(&self, world_pos: WorldPosition) -> Option<&Actor> {
-        match self.actor_ids_by_pos.get(&world_pos) {
-            Some(id) => {
-                assert!(self.actors.contains_key(id), "Coord -> id, id -> actor maps out of sync!");
-                self.actors.get(id)
-            }
-            None       => None
-        }
-    }
-
-    pub fn actor_at_mut(&mut self, world_pos: WorldPosition) -> Option<&mut Actor> {
-        match self.actor_ids_by_pos.get_mut(&world_pos) {
-            Some(id) => {
-                assert!(self.actors.contains_key(id), "Coord -> id, id -> actor maps out of sync!");
-                self.actors.get_mut(id)
-            }
-            None       => None
-        }
-    }
-
-    pub fn pre_update_actor_pos(&mut self, pos_now: WorldPosition, pos_next: WorldPosition) {
-        let id = self.actor_ids_by_pos.remove(&pos_now).unwrap();
-        self.actor_ids_by_pos.insert(pos_next, id);
-    }
-
-    pub fn add_actor(&mut self, actor: Actor) {
-        assert!(!self.actors.contains_key(&actor.get_id()), "Actor with same id already exists!");
-        self.turn_order.add_actor(actor.get_id(), 0);
-        self.actor_ids_by_pos.insert(actor.get_pos(), actor.get_id());
-        self.actors.insert(actor.get_id(), actor);
-    }
-
-    pub fn remove_actor(&mut self, id: &ActorId) {
-        let pos = self.actor(id).get_pos();
-        self.turn_order.remove_actor(id);
-        self.actor_ids_by_pos.remove(&pos);
-        let removed: bool = self.actors.remove(id).is_some();
-        assert!(removed, "Tried removing nonexistent actor from world!");
-    }
-
-    pub fn player(&self) -> &Actor {
-        self.actors.get(&self.player_id()).unwrap()
-    }
-
-    pub fn player_id(&self) -> ActorId {
-        self.player_id.unwrap()
-    }
-
-    pub fn set_player_id(&mut self, id: ActorId) {
-        self.player_id = Some(id);
-    }
-
-    fn pre_tick(&mut self) {
-
-    }
-
-    fn pre_tick_actor(&mut self, actor: &Actor) {
-
-    }
-
-    pub fn run_action(&mut self, action: Action, id: &ActorId) {
-        self.pre_tick();
-        let mut actor = self.actors.remove(id).unwrap();
-        debug!(actor.logger, "Action: {:?}", action);
-
-        self.pre_tick_actor(&actor);
-        actor.run_action(action, self);
-        self.post_tick_actor(&actor);
-
-        self.actors.insert(id.clone(), actor);
-        self.post_tick();
-    }
-
-    fn post_tick_actor(&mut self, actor: &Actor) {
-        // TEMP: speed algorithm is needed.
-        let delay = (100*100 / actor.speed) as i32;
-        let name = if actor.is_player(self) {
-            "[Player]"
-        } else {
-            "actor"
-        };
-        debug!(actor.logger, "{}: delay {}, speed {}", name, delay, actor.speed);
-        self.turn_order.add_delay_for(&actor.get_id(), delay);
-        actor.update_fov(self);
-    }
-
-    fn post_tick(&mut self) {
-
-    }
-
-    pub fn is_player(&self, id: &ActorId) -> bool {
-        &self.player_id() == id
-    }
-
-    /// Update the time-to-action for every actor in the world.
-    /// The actor with the lowest time-to-action is the next one to act.
-    pub fn advance_time(&mut self, amount: i32) {
-        for id in self.actors.keys() {
-            self.turn_order.advance_time_for(id, amount);
-        }
-        info!(self.logger, "world time advanced by {}", amount);
-    }
-
-    pub fn time_until_turn_for(&self, id: &ActorId) -> i32 {
-        *self.turn_order.get_time_for(id)
-    }
-
-    pub fn next_actor(&mut self) -> Option<ActorId> {
-        self.turn_order.next()
-    }
 }
 
 // Because a world position and chunk index are different quantities, newtype to
@@ -443,6 +320,7 @@ mod tests {
     use super::*;
     use tile::{self, FLOOR};
     use actor::Direction;
+    use logic;
 
     fn get_world(size: Point) -> World {
         World::generate(WorldType::Instanced(size), 16, tile::FLOOR)
@@ -551,7 +429,7 @@ mod tests {
         assert!(world.actor_at(pos).is_some());
 
         let next_actor = world.next_actor().unwrap();
-        world.run_action(Action::Move(Direction::SE), &next_actor);
+        logic::run_action(&mut world, &next_actor, Action::Move(Direction::SE));
         assert!(world.actor_at(pos).is_none(), "{:?}", world.actor_ids_by_pos);
         assert!(world.actor_at(Point::new(1,1)).is_some());
 
