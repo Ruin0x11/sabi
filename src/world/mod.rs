@@ -2,6 +2,7 @@ mod actors;
 mod message;
 mod turn_order;
 
+use std::cell::RefCell;
 use std::collections::{VecDeque, HashMap, hash_map};
 use std::fmt;
 
@@ -55,7 +56,7 @@ pub struct World {
 
     turn_order: TurnOrder,
     pub draw_calls: DrawCalls,
-    messages: Messages,
+    messages: RefCell<Messages>,
     pub events: Vec<Event>,
     pub logger: Logger,
 }
@@ -72,7 +73,7 @@ impl World {
             turn_order: TurnOrder::new(),
             draw_calls: DrawCalls::new(),
             events: Vec::new(),
-            messages: Messages::new(),
+            messages: RefCell::new(Messages::new()),
             logger: log::make_logger("world").unwrap(),
         }
     }

@@ -20,6 +20,16 @@ impl Point {
         ((a + b) as f32).sqrt()
     }
 
+    /// Checks if this point is strictly a neighbor of a another point (not the same).
+    pub fn next_to<P: Into<Point>>(&self, other: P) -> bool {
+        let other = other.into();
+        let res = *self - other;
+        if *self == other {
+            return false
+        }
+        res.x.abs() <= 1 && res.y.abs() <= 1
+    }
+
     pub fn tile_distance<P: Into<Point>>(&self, other: P) -> i32 {
         let other = other.into();
         max((self.x - other.x).abs(), (self.y - other.y).abs())
@@ -435,5 +445,23 @@ mod test {
         assert_eq!(within_bounds(Point::new(1, 10)), false);
         assert_eq!(within_bounds(Point::new(10, 1)), false);
         assert_eq!(within_bounds(Point::new(10, 10)), false);
+    }
+
+    #[test]
+    fn test_next_to() {
+        let center = Point::new(1, 1);
+        for i in 0..2 {
+            for j in 0..2 {
+                if i != 1 && j != 1 {
+                    assert_eq!(center.next_to(Point::new(i, j)), true);
+                }
+            }
+        }
+        assert_eq!(center.next_to(Point::new(1, 1)), false);
+        assert_eq!(center.next_to(Point::new(-1, 2)), false);
+        assert_eq!(center.next_to(Point::new(-1, -1)), false);
+        assert_eq!(center.next_to(Point::new(1, 10)),  false);
+        assert_eq!(center.next_to(Point::new(10, 1)),  false);
+        assert_eq!(center.next_to(Point::new(10, 10)), false);
     }
 }

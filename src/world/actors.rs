@@ -1,4 +1,5 @@
 use world::*;
+
 impl World {
     /// Return an iterator over the currently loaded set of Actors in this
     /// world across all chunks.
@@ -14,16 +15,23 @@ impl World {
         self.actors.get_mut(id).expect("Actor not found!")
     }
 
+    /// Returns a copy of the ID of the actor at point.
+    pub fn actor_id_at(&self, world_pos: WorldPosition) -> Option<ActorId> {
+        self.actor_ids_by_pos.get(&world_pos).map(|i| i.clone())
+    }
+
+    /// Returns a reference to the actor at point.
     pub fn actor_at(&self, world_pos: WorldPosition) -> Option<&Actor> {
-        match self.actor_ids_by_pos.get(&world_pos) {
+        match self.actor_id_at(world_pos) {
             Some(id) => {
-                assert!(self.actors.contains_key(id), "Coord -> id, id -> actor maps out of sync!");
-                self.actors.get(id)
+                assert!(self.actors.contains_key(&id), "Coord -> id, id -> actor maps out of sync!");
+                self.actors.get(&id)
             }
             None       => None
         }
     }
 
+    /// Returns a mutable reference to the actor at point.
     pub fn actor_at_mut(&mut self, world_pos: WorldPosition) -> Option<&mut Actor> {
         match self.actor_ids_by_pos.get_mut(&world_pos) {
             Some(id) => {
@@ -34,6 +42,7 @@ impl World {
         }
     }
 
+    /// Updates the position of the actor at `pos_now`.
     pub fn pre_update_actor_pos(&mut self, pos_now: WorldPosition, pos_next: WorldPosition) {
         let id = self.actor_ids_by_pos.remove(&pos_now).unwrap();
         self.actor_ids_by_pos.insert(pos_next, id);
@@ -56,6 +65,8 @@ impl World {
         actor.unwrap()
     }
 
+    /// Wrapper to move an actor out of the world's actor hashmap, so it can be
+    /// mutated, then putting it back into the hashmap after.
     pub fn with_actor<F>(&mut self, id: &ActorId, mut callback: F)
         where F: FnMut(&mut World, &mut Actor) {
         let mut actor = self.actors.remove(id).expect("Actor not found!");
@@ -64,17 +75,16 @@ impl World {
     }
 
     pub fn player(&self) -> &Actor {
-        self.actors.get(&self.player_id()).unwrap()
+        self.actors.get(&self.player_id()).expect("Player not found!")
     }
 
     pub fn player_id(&self) -> ActorId {
-        self.player_id.unwrap()
+        self.player_id.expect("No player in this world!")
     }
 
     pub fn set_player_id(&mut self, id: ActorId) {
         self.player_id = Some(id);
     }
-
 
     pub fn is_player(&self, id: &ActorId) -> bool {
         &self.player_id() == id
