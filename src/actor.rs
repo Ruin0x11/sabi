@@ -91,15 +91,7 @@ impl Actor {
         }
     }
 
-    pub fn run_action(&mut self, action: Action, world: &mut World) {
-        match action {
-            Action::Move(dir) => self.move_in_direction(dir, world),
-            Action::Dood => world.message("Dood!".to_string()),
-            Action::Wait => (),
-        }
-    }
-
-    fn move_in_direction(&mut self, dir: Direction, world: &mut World) {
+    pub fn move_in_direction(&mut self, dir: Direction, world: &mut World) {
         let (dx, dy) = dir.to_movement_offset();
         let cx = self.x.clone() + dx;
         let cy = self.y.clone() + dy;

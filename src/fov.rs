@@ -122,7 +122,7 @@ pub enum Blocking {
     Nothing(Arc, Arc),
 }
 
-/// Represents a light source with a radius.
+/// Represents a light source with a radius covering a quadrant.
 pub struct Light {
     arcs: RefCell<Vec<Arc>>,
 }
@@ -155,7 +155,7 @@ impl Light {
 
     /// Checks the blocking status of an arc at a point and adds any
     /// obstructions, then updates this light's list of arcs.
-    pub fn shade(&mut self, arc_idx: usize, pt: &Point) -> bool {
+    pub fn shade(&mut self, arc_idx: usize, pt: &Point) -> usize {
         let res = self.arcs.borrow_mut().get_mut(arc_idx).unwrap().shade(pt);
         match res {
             Blocking::Nothing(arc_a, arc_b) => {
@@ -166,7 +166,7 @@ impl Light {
             Blocking::Partial     => (),
             Blocking::Complete    => {self.arcs.borrow_mut().remove(arc_idx); },
         };
-        self.arcs.borrow().len() > 0
+        self.arcs.borrow().len()
     }
 }
 
@@ -194,16 +194,18 @@ impl FieldOfView {
             let mut light = Light::new(radius);
             for dr in 1..radius+1 {
                 for i in 0..dr+1 {
-                    // check for light hitting this cell
+                    // Translate the world coordinate into the light's
+                    // coordinate space.
                     let cell = Point::new(dr - i, i);
                     let idx_opt = light.hits(&cell);
 
-                    // unlit
+                    // If the cell is unlit, ignore it.
                     if idx_opt.is_none() {
                         continue;
                     }
 
-                    // show the lit cell, check if blocking
+                    // If it is in bounds, add the lit cell to the visible
+                    // cells.
                     let idx = idx_opt.unwrap();
                     let ax = center.x + cell.x * dx;
                     let ay = center.y + cell.y * dy;
@@ -212,17 +214,22 @@ impl FieldOfView {
                     if in_bounds(&next) {
                         self.visible.insert(next);
                     } else {
-                        // Position invalid, so don't try to check cell type there.
+                        // Position is invalid, so don't try to check the cell
+                        // type there.
                         continue;
                     }
 
+                    // If the cell doesn't block light, no shadows need to be
+                    // added.
                     if !blocked(&next) {
                         continue;
                     }
 
                     // Blocking cells cast shadows.
-                    if !light.shade(idx, &cell) {
-                        return; // no more light
+                    let light_source_count = light.shade(idx, &cell);
+
+                    if light_source_count <= 0 {
+                        return;
                     }
                 }
             }
@@ -249,7 +256,7 @@ impl FieldOfView {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use testbed::make_from_str;
+    use testbed::make_grid_from_str;
     use std::cell::RefCell;
     use std::iter::FromIterator;
 
@@ -364,7 +371,7 @@ mod tests {
             board.set(&pt, cell_kind);
         };
         let make = |dim: Point| Board::new(dim.x, dim.y, POINT_ZERO, radius);
-        make_from_str(text, make, callback)
+        make_grid_from_str(text, make, callback)
     }
 
     fn test_harness(board: &str, radius: i32, expected_visible: &[(i32, i32)]) {

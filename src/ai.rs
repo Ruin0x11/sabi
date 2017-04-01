@@ -23,7 +23,7 @@ impl Ai for Simple {
 
         // Am I right next to the player?
         match Direction::from_neighbors(my_pos, player_pos) {
-            Some(_) => return Action::Dood,
+            Some(_) => return Action::Explod,
             None      => (),
         }
 

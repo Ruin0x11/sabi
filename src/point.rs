@@ -207,6 +207,33 @@ impl Iterator for CircleArea {
     }
 }
 
+pub struct PointArea {
+    pos: Point,
+    done: bool,
+}
+
+impl PointArea {
+    pub fn new<P: Into<Point>>(pos: P) -> Self {
+        PointArea {
+            pos: pos.into(),
+            done: false,
+        }
+    }
+}
+
+impl Iterator for PointArea {
+    type Item = Point;
+
+    fn next(&mut self) -> Option<Point> {
+        if self.done {
+            return None
+        }
+
+        self.done = true;
+        Some(self.pos)
+    }
+}
+
 /// A square area defined by its "half_side" or radius.
 /// A half_side of 0 means no points. Radius of 1 means the centre point.
 /// Radius of 2 means a square of 9 points, and so on.

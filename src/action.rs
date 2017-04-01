@@ -1,8 +1,10 @@
 use actor::Direction;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Action {
     Move(Direction),
     Wait,
     Dood,
+    Explod,
+    Hurt,
 }

@@ -4,8 +4,10 @@ use std::collections::{HashMap, VecDeque};
 use action::*;
 use actor::*;
 use ai::{self, Ai};
+use event;
 use keys::*;
 use point::Point;
+use logic;
 use world::{World, WorldType};
 use engine::Canvas;
 use uuid::Uuid;
@@ -21,6 +23,10 @@ impl GameState {
         GameState {
             world: World::new_empty(WorldType::Nothing, 0),
             action_queue: VecDeque::new(),
+            // logic: Logic::new().
+            // turn_order: TurnOrder::new(),
+            // actors: Actors::new(),
+            // 
         }
     }
 
@@ -42,8 +48,8 @@ impl GameState {
 
     pub fn player_action(&mut self, action: Action) {
         let id = self.world.player_id();
-        let world = self.current_world_mut();
-        world.run_action(action, &id);
+        let mut world = self.current_world_mut();
+        logic::run_action(&mut world, &id, action);
     }
 
     pub fn advance_time(&mut self, diff: i32) {
@@ -75,6 +81,9 @@ fn draw_world(world: &mut World, canvas: &mut Canvas) {
                              canvas.print_glyph(point.x, point.y, cell.tile.glyph.clone())
                          }
                      });
+}
+
+fn show_messages(world: &mut World, canvas: &mut Canvas) {
     let messages = world.pop_messages(canvas.width() as usize);
     if messages.len() != 0 {
         canvas.show_messages(messages);
@@ -148,7 +157,7 @@ fn process_player_command(command: &Command, context: &mut GameContext) {
     }
 }
 
-fn process_player(context: &mut GameContext) {
+fn process_player_input(context: &mut GameContext) {
     process_player_commands(context);
 
     while let Some(action) = context.state.action_queue.pop_front() {
@@ -156,7 +165,17 @@ fn process_player(context: &mut GameContext) {
     }
 }
 
-pub fn process_actors(world: &mut World) {
+pub fn render_all(world: &mut World, canvas: &mut Canvas) {
+    canvas.clear();
+
+    draw_world(world, canvas);
+    draw_actors(world, canvas);
+    draw_overlays(world, canvas);
+
+    canvas.present();
+}
+
+pub fn process_actors(world: &mut World, canvas: &mut Canvas) {
     while let Some(ref id) = world.next_actor() {
         let leftover_ticks = world.time_until_turn_for(id);
         if leftover_ticks > 0 {
@@ -173,21 +192,33 @@ pub fn process_actors(world: &mut World) {
             ai.choose_action(actor, world)
         };
 
-        world.run_action(action, id);
+        logic::run_action(world, id, action);
+        render_all(world, canvas);
+
+        process_events(world, canvas);
+    }
+}
+
+pub fn process_events(world: &mut World, canvas: &mut Canvas) {
+    let mut responses = event::check_all(world);
+    while responses.len() != 0 {
+        world.events.clear();
+        while let Some((action, id)) = responses.pop() {
+            logic::run_action(world, &id, action);
+        }
+        render_all(world, canvas);
+        show_messages(world, canvas);
+        canvas.get_input();
+        responses.extend(event::check_all(world));
     }
 }
 
 // TEMP: Just to bootstrap things dirtily.
 pub fn process(context: &mut GameContext) {
-    context.canvas.clear();
+    process_actors(&mut context.state.world, &mut context.canvas);
 
-    draw_world(&mut context.state.world, &mut context.canvas);
+    render_all(&mut context.state.world, &mut context.canvas);
+    show_messages(&mut context.state.world, &mut context.canvas);
 
-    process_actors(&mut context.state.world);
-    draw_actors(&mut context.state.world, &mut context.canvas);
-    draw_overlays(&mut context.state.world, &mut context.canvas);
-
-    context.canvas.present();
-
-    process_player(context);
+    process_player_input(context);
 }
