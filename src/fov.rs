@@ -15,6 +15,7 @@ impl Line {
     pub fn new(from: Point, to: Point) -> Self {
         Line { from: from, to: to }
     }
+
     pub fn is_clear_cw(&self, pt: &Point) -> bool {
         self.dtheta(pt) > 0.0
     }
@@ -185,9 +186,9 @@ impl FieldOfView {
 
     /// Updates this field of view using the Precise Permissive Field of View
     /// algorithm.
-    pub fn update<F, G>(&mut self, center: &Point, radius: i32, mut in_bounds: F, mut blocked: G)
-        where F: FnMut(&Point) -> bool,
-              G: FnMut(&Point) -> bool {
+    pub fn update<F, G>(&mut self, center: &Point, radius: i32, in_bounds: F, blocked: G)
+        where F: Fn(&Point) -> bool,
+              G: Fn(&Point) -> bool {
         self.visible.insert(center.clone());
 
         let mut quadrant = |dx, dy| {

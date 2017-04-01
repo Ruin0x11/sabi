@@ -35,6 +35,7 @@ mod drawcalls;
 mod fov;
 mod logic;
 mod event;
+mod namegen;
 
 use slog::Logger;
 

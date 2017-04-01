@@ -63,6 +63,7 @@ impl World {
 
     pub fn pop_messages(&mut self, width: usize) -> Vec<String> {
         let mes_vec = self.messages.message_lines(width);
+        debug!(self.logger, "Popped messages, length: {}", mes_vec.len());
         self.messages.clear();
         mes_vec
     }

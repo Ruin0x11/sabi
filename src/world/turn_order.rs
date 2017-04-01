@@ -54,7 +54,7 @@ impl Iterator for TurnOrder {
 
         self.times_until_turn.iter()
             .min_by_key(|a| a.1)
-            .map(|(a, b)| *a)
+            .map(|(a, _)| *a)
     }
 }
 

@@ -214,7 +214,7 @@ mod test {
         }
     }
 
-    fn test_harness(board: &str, expected_len: usize, expected_path: &[(i32, i32)]) {
+    fn get_board(board: &str) -> Board {
         let callback = |pt: &Point, c: char, board: &mut Board| {
                 if c == 's' {
                     board.start = pt.clone();
@@ -247,7 +247,11 @@ mod test {
                 level: world,
             }
         };
-        let board = make_grid_from_str(board, make, callback);
+        make_grid_from_str(board, make, callback)
+    }
+
+    fn test_harness(board: &str, expected_len: usize, expected_path: &[(i32, i32)]) {
+        let board = get_board(board);
         let path: Path = Path::find(board.start, board.destination, &board.level,
                                     Walkability::MonstersWalkable);
         assert_eq!(expected_len, path.len());

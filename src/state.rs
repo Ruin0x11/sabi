@@ -85,6 +85,7 @@ fn draw_world(world: &mut World, canvas: &mut Canvas) {
 
 fn show_messages(world: &mut World, canvas: &mut Canvas) {
     let messages = world.pop_messages(canvas.width() as usize);
+    debug!(world.logger, "Showing messages, len: {}", messages.len());
     if messages.len() != 0 {
         canvas.show_messages(messages);
     }
@@ -167,12 +168,9 @@ fn process_player_input(context: &mut GameContext) {
 
 pub fn render_all(world: &mut World, canvas: &mut Canvas) {
     canvas.clear();
-
     draw_world(world, canvas);
     draw_actors(world, canvas);
     draw_overlays(world, canvas);
-
-    canvas.present();
 }
 
 pub fn process_actors(world: &mut World, canvas: &mut Canvas) {
@@ -193,7 +191,6 @@ pub fn process_actors(world: &mut World, canvas: &mut Canvas) {
         };
 
         logic::run_action(world, id, action);
-        render_all(world, canvas);
 
         process_events(world, canvas);
     }
@@ -207,8 +204,6 @@ pub fn process_events(world: &mut World, canvas: &mut Canvas) {
             logic::run_action(world, &id, action);
         }
         render_all(world, canvas);
-        show_messages(world, canvas);
-        canvas.get_input();
         responses.extend(event::check_all(world));
     }
 }
@@ -219,6 +214,7 @@ pub fn process(context: &mut GameContext) {
 
     render_all(&mut context.state.world, &mut context.canvas);
     show_messages(&mut context.state.world, &mut context.canvas);
+    context.canvas.present();
 
     process_player_input(context);
 }

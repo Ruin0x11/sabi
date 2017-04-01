@@ -3,6 +3,7 @@ use std::cell::RefCell;
 use action::Action;
 use glyph::Glyph;
 use point::Point;
+use namegen;
 use world::{World, WorldPosition, Walkability};
 use slog::Logger;
 use uuid::Uuid;
@@ -19,14 +20,22 @@ lazy_static! {
 pub type ActorId = Uuid;
 
 pub struct Actor {
+    // TEMP: The player can name things, names can have pre/suffixes, creatures
+    // should be named by their breed, creature variations make their own
+    // pre/suffixes, things can have proper names...
+    name: String,
+
     x: i32,
     y: i32,
+
+    // TEMP
+    pub speed: u32,
+
+    // TEMP
     pub glyph: Glyph,
 
     pub logger: Logger,
     uuid: Uuid,
-
-    pub speed: u32,
 
     fov: RefCell<FieldOfView>,
 }
@@ -83,12 +92,17 @@ impl Actor {
         Actor {
             x: x,
             y: y,
+            name: namegen::gen(),
             logger: ACTOR_LOG.new(o!("id" => format!("{:.8}...", id.to_string()))),
             glyph: glyph,
             uuid: id,
             speed: 100,
             fov: RefCell::new(FieldOfView::new()),
         }
+    }
+
+    pub fn get_display_name(&self) -> String {
+        self.name.clone()
     }
 
     pub fn move_in_direction(&mut self, dir: Direction, world: &mut World) {
