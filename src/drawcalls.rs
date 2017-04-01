@@ -1,6 +1,5 @@
 use std::cell::RefCell;
 use std::collections::VecDeque;
-use std::slice;
 
 use engine::Canvas;
 use glyph::Glyph;
