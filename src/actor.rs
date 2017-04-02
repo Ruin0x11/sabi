@@ -11,6 +11,9 @@ use world::{World, WorldPosition, Walkability};
 use slog::Logger;
 use uuid::Uuid;
 use fov::FieldOfView;
+use stats::Stats;
+use stats::archetype;
+use stats::properties::Properties;
 
 const FOV_RADIUS: i32 = 5;
 
@@ -31,14 +34,16 @@ pub struct Actor {
 
     hit_points: i32,
 
-    // TEMP
-    pub speed: u32,
+    uuid: Uuid,
 
     // TEMP
     pub glyph: Glyph,
+    // TEMP
+    pub speed: u32,
 
     pub logger: Logger,
-    uuid: Uuid,
+    pub stats: Stats,
+    pub properties: Properties,
 
     fov: RefCell<FieldOfView>,
 }
@@ -103,6 +108,7 @@ impl Display for Actor {
 }
 
 impl Actor {
+    // TODO: Should never be used. Use archetypes instead.
     pub fn new(x: i32, y: i32, glyph: Glyph) -> Self {
         let id = Uuid::new_v4();
         Actor {
@@ -114,13 +120,41 @@ impl Actor {
             hit_points: 100,
             speed: 100,
 
+            stats: Stats::default(),
+            properties: Properties::new(),
+
             // Things needing instantiation.
             x: x,
             y: y,
-            logger: ACTOR_LOG.new(o!("id" => format!("{:.8}...", id.to_string()))),
+            logger: Actor::get_actor_log(&id),
             uuid: id,
             fov: RefCell::new(FieldOfView::new()),
         }
+    }
+
+    pub fn from_archetype(x: i32, y: i32, archetype_name: String) -> Self {
+        let id = Uuid::new_v4();
+        let archetype = archetype::load(&archetype_name);
+        Actor {
+            glyph: archetype.glyph,
+
+            name: namegen::gen(),
+            hit_points: archetype.stats.max_hp() as i32,
+            speed: 100,
+
+            stats: archetype.stats,
+            properties: archetype.properties,
+
+            x: x,
+            y: y,
+            logger: Actor::get_actor_log(&id),
+            uuid: id,
+            fov: RefCell::new(FieldOfView::new()),
+        }
+    }
+
+    fn get_actor_log(id: &ActorId) -> Logger {
+        ACTOR_LOG.new(o!("id" => format!("{:.8}...", id.to_string())))
     }
 
     pub fn get_display_name(&self) -> String {

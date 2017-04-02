@@ -3,10 +3,16 @@ extern crate chrono;
 #[macro_use] extern crate lazy_static;
 extern crate uuid;
 extern crate rand;
+extern crate serde;
+#[macro_use] extern crate serde_derive;
 #[macro_use] extern crate slog;
 extern crate slog_stream;
 pub extern crate tcod;
 extern crate textwrap;
+extern crate toml;
+
+#[macro_use] extern crate enum_derive;
+#[macro_use] extern crate macro_attr;
 
 #[cfg(feature = "with-rustbox")]
 extern crate rustbox;

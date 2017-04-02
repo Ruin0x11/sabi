@@ -39,7 +39,7 @@ pub fn make_grid_from_str<M, F, T>(text: &str, mut constructor: M, mut callback:
     let width = lines[0].len();
     assert!(width > 0);
     assert!(lines.iter().all(|line| line.chars().count() == width));
-    let mut thing = constructor(Point::new(height as i32, width as i32));
+    let mut thing = constructor(Point::new(width as i32, height as i32));
 
     for line in lines {
         for ch_at_point in line.chars() {
@@ -58,7 +58,7 @@ pub fn make_grid_from_str<M, F, T>(text: &str, mut constructor: M, mut callback:
 
 #[cfg(test)]
     mod tests {
-    use rand::{self, Rng};
+    use rand::{self};
     use rand::distributions::{IndependentSample, Range};
     use super::*;
     use tile;
@@ -98,7 +98,7 @@ pub fn make_grid_from_str<M, F, T>(text: &str, mut constructor: M, mut callback:
         let mut player = Actor::new(6, 6, Glyph::Player);
         player.speed = 300;
 
-        let mut other = Actor::new(10, 10, Glyph::Dood);
+        let mut other = Actor::new(10, 10, Glyph::Prinny);
         other.speed = 100;
         world.add_actor(other);
         world.draw_square(Point::new(15, 15), 10, tile::FLOOR);
@@ -116,7 +116,7 @@ pub fn make_grid_from_str<M, F, T>(text: &str, mut constructor: M, mut callback:
         let range = Range::new(1, 200);
 
         for i in 1..16 {
-            let mut other = Actor::new(10 + i, 10, Glyph::Dood);
+            let mut other = Actor::new(10 + i, 10, Glyph::Prinny);
             other.speed = range.ind_sample(&mut rng);
             world.add_actor(other);
         }

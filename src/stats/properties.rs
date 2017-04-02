@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry::*;
 use self::PropErr::*;
-
-pub use self::PropName::*;
+use self::Prop::*;
 
 // TEMP: Experiment with different stat architectures and see what works.
 //  - Static/baked in
@@ -10,19 +9,28 @@ pub use self::PropName::*;
 //    - Sets of required and optional properties?
 //  - Lua tables?
 
-enum Prop {
+enum PropType {
     Bool(bool),
-    Num(i32),
+    Num(i64),
 }
 
 // This can be refactored to have type checking later.
 // For now, Is[...] indicates bool, [...]Val indicates numeric.
 // Using an enum instead of a string forces all used properties to be listed
 // here, instead of being scattered in monster data/code.
-#[derive(Eq, PartialEq, Hash, Clone, Debug)]
-pub enum PropName {
-    Happiness,
-    Sadness,
+//
+// There is a tradeoff here between in-memory size/performance and convienience.
+// The properties that are most important can be moved into the respective
+// struct, and everything less important can live here.
+macro_attr! {
+    #[derive(Eq, PartialEq, Hash, Clone, Debug, EnumFromStr!)]
+    pub enum Prop {
+        Explosive,
+
+        // Test use only.
+        TestNum,
+        TestBool,
+    }
 }
 
 #[derive(Debug)]
@@ -35,7 +43,7 @@ pub enum PropErr {
 /// into the baked-in structs.
 pub struct Properties {
     // poor-man's polymorphism
-    props: HashMap<PropName, Prop>,
+    props: HashMap<Prop, PropType>,
 }
 
 // The issues with this system are twofold:
@@ -49,17 +57,17 @@ impl Properties {
         }
     }
 
-    pub fn get<T>(&self, key: PropName) -> Result<T, PropErr>
-        where Properties: GetProp<T, PropKey=PropName> {
+    pub fn get<T>(&self, key: Prop) -> Result<T, PropErr>
+        where Properties: GetProp<T, PropKey=Prop> {
         self.get_prop(key)
     }
 
-    pub fn set<T>(&mut self, key: PropName, val: T) -> Result<(), PropErr>
-        where Properties: GetProp<T, PropKey=PropName> {
+    pub fn set<T>(&mut self, key: Prop, val: T) -> Result<(), PropErr>
+        where Properties: GetProp<T, PropKey=Prop> {
         self.set_prop(key, val)
     }
 
-    pub fn remove(&mut self, key: PropName) -> () {
+    pub fn remove(&mut self, key: Prop) -> () {
         self.props.remove(&key);
     }
 }
@@ -82,8 +90,8 @@ pub trait GetProp<T> {
 macro_rules! make_get_set {
     ($ty:ty, $path:path) => {
         impl GetProp<$ty> for Properties {
-            type PropKey = PropName;
-            fn get_prop(&self, key: PropName) -> Result<$ty, PropErr> {
+            type PropKey = Prop;
+            fn get_prop(&self, key: Prop) -> Result<$ty, PropErr> {
                 if let Some(prop) = self.props.get(&key) {
                     if let $path(val) = *prop {
                         Ok(val)
@@ -95,7 +103,7 @@ macro_rules! make_get_set {
                 }
             }
 
-            fn set_prop(&mut self, key: PropName, val: $ty) -> Result<(), PropErr> {
+            fn set_prop(&mut self, key: Prop, val: $ty) -> Result<(), PropErr> {
                 match self.props.entry(key) {
                     Occupied(mut v) => {
                         if let $path(..) = *v.get() {
@@ -113,7 +121,7 @@ macro_rules! make_get_set {
             }
 
             // This could return T in the future, given a type annotation.
-            fn remove_prop(&mut self, key: PropName) -> Result<(), PropErr> {
+            fn remove_prop(&mut self, key: Prop) -> Result<(), PropErr> {
                 match self.props.remove(&key) {
                     Some(_) => Ok(()),
                     None      => Err(NoSuchKey)
@@ -123,8 +131,8 @@ macro_rules! make_get_set {
     }
 }
 
-make_get_set!(bool, Prop::Bool);
-make_get_set!(i32,  Prop::Num);
+make_get_set!(bool, PropType::Bool);
+make_get_set!(i64,  PropType::Num);
 
 #[cfg(test)]
 mod tests {
@@ -133,22 +141,22 @@ mod tests {
     #[test]
     fn test_set() {
         let mut props = Properties::new();
-        let res = props.set(Happiness, 32);
+        let res = props.set(TestNum, 32);
         assert!(res.is_ok());
-        let hp = props.get::<i32>(Happiness).unwrap();
+        let hp = props.get::<i64>(TestNum).unwrap();
         assert_eq!(hp, 32);
-        let res = props.set(Happiness, 128);
+        let res = props.set(TestNum, 128);
         assert!(res.is_ok());
-        let hp = props.get::<i32>(Happiness).unwrap();
+        let hp = props.get::<i64>(TestNum).unwrap();
         assert_eq!(hp, 128);
 
-        let res = props.get::<i32>(Sadness);
+        let res = props.get::<i64>(TestBool);
         assert!(res.is_err());
 
-        let res = props.set(Happiness, false);
+        let res = props.set(TestNum, false);
         assert!(res.is_err());
 
-        let res = props.get::<bool>(Happiness);
+        let res = props.get::<bool>(TestNum);
         assert!(res.is_err());
 
     }
@@ -156,12 +164,12 @@ mod tests {
     #[test]
     fn test_remove() {
         let mut props = Properties::new();
-        let res = props.set(Happiness, 128);
+        let res = props.set(TestNum, 128);
         assert!(res.is_ok());
 
-        props.remove(Happiness);
+        props.remove(TestNum);
 
-        let res = props.get::<i32>(Happiness);
+        let res = props.get::<i64>(TestNum);
         assert!(res.is_err());
     }
 
@@ -170,7 +178,7 @@ mod tests {
     fn bench_set(b: &mut Bencher) {
         let props = Properties::new();
         for i in 0..10000 {
-            props.set(Happiness, i);
+            props.set(TestNum, i);
         }
     }
 

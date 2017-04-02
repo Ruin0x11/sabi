@@ -8,22 +8,54 @@ const STAT_DEFENSE: usize = 2;
 const NUM_STATS: usize = 3;
 
 /// A collection of stats.
-pub struct Stats {
-    // The number of stats is always known exactly.
+pub struct StatsInit {
+    pub hp: u32,
+    pub strength: u32,
+    pub defense: u32,
+}
 
-    max_stats: [i32; NUM_STATS],
+pub struct Stats(StatsInit);
+
+impl Default for Stats {
+    fn default() -> Self {
+        Stats(StatsInit {
+            hp: 1,
+            strength: 1,
+            defense: 1,
+        })
+    }
 }
 
 impl Stats {
-    pub fn hp(&self) -> i32 {
-        self.max_stats[STAT_HP]
+    // It doesn't make sense to have 0 hp, so the number has to be checked. But
+    // checking means passing in arguments to 'new', and the number of arguments
+    // could grow largely.
+    pub fn new(init: StatsInit) -> Self {
+        assert!(init.hp > 0);
+        Stats(init)
     }
 
-    pub fn strength(&self) -> i32 {
-        self.max_stats[STAT_STRENGTH]
+    pub fn max_hp(&self) -> u32 {
+        self.0.hp
     }
 
-    pub fn defense(&self) -> i32 {
-        self.max_stats[STAT_DEFENSE]
+    pub fn max_strength(&self) -> u32 {
+        self.0.strength
+    }
+
+    pub fn max_defense(&self) -> u32 {
+        self.0.defense
+    }
+
+    pub fn hp(&self) -> u32 {
+        self.0.hp
+    }
+
+    pub fn strength(&self) -> u32 {
+        self.0.strength
+    }
+
+    pub fn defense(&self) -> u32 {
+        self.0.defense
     }
 }

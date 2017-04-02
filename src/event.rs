@@ -30,7 +30,9 @@ pub fn check_all(world: &World) -> Vec<(Action, ActorId)> {
         while let Some(pos) = area_iter.next() {
             world.draw_calls.push(Draw::Point(pos.x, pos.y));
             if let Some(actor) = world.actor_at(pos) {
-                reactions.push((Action::Hurt, actor.get_id()))
+                if !actor.is_dead() {
+                    reactions.push((Action::Hurt, actor.get_id()))
+                }
             }
         }
     }

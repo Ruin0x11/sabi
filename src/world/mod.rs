@@ -168,6 +168,8 @@ impl World {
         match self.type_ {
             WorldType::Instanced(size) => {
                 let is_in_boundaries = *world_pos < size;
+                debug!(self.logger, "pos: {} size: {}", world_pos, size);
+                debug!(self.logger, "in chunk, boundaries: {} {}", is_in_chunk, is_in_boundaries);
                 is_in_chunk && is_in_boundaries
             }
             _ => is_in_chunk

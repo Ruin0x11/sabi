@@ -81,12 +81,14 @@ impl Path {
         }
 
         if !world.is_walkable(to, walkability) {
+            println!("not walkable");
             return Path { path: vec![] };
         }
 
         if from.tile_distance(to) == 1 {
             return Path { path: vec![to] };
         }
+
 
         let mut frontier = BinaryHeap::new();
         frontier.push(State { position: from, cost: 0.0 });
