@@ -3,6 +3,7 @@ use action::Action;
 use world::*;
 use point::{PointArea, SquareArea};
 use drawcalls::*;
+use stats::properties::Prop::*;
 
 pub use self::EventKind::*;
 
@@ -13,9 +14,11 @@ pub struct Event {
     pub kind: EventKind,
 }
 
+#[derive(Debug)]
 pub enum EventKind {
     SayName,
     SayThing(String),
+    Explosion,
 }
 
 pub enum EventArea {
@@ -29,9 +32,13 @@ pub fn check_all(world: &World) -> Vec<(Action, ActorId)> {
         let mut area_iter = get_event_area_iter(world, &event.area);
         while let Some(pos) = area_iter.next() {
             world.draw_calls.push(Draw::Point(pos.x, pos.y));
+
             if let Some(actor) = world.actor_at(pos) {
                 if !actor.is_dead() {
-                    reactions.push((Action::Hurt, actor.get_id()))
+                    debug!(world.logger, "{} not dead, handling event {:?}", actor, event.kind);
+                    if let Some(action) = handle_event(actor, world, &event.kind) {
+                        reactions.push((action, actor.get_id()))
+                    }
                 }
             }
         }
@@ -39,16 +46,31 @@ pub fn check_all(world: &World) -> Vec<(Action, ActorId)> {
     reactions
 }
 
-fn get_event_area_iter(world: &World, area: &EventArea) -> Box<WorldIter> {
-    match *area {
-        EventArea::Square(x, y, r) => Box::new(SquareArea::new(WorldPosition::new(x, y), r)),
-        EventArea::Actor(id)       => Box::new(PointArea::new(world.actor(&id).get_pos())),
+fn handle_event(actor: &Actor,
+                _world: &World,
+                event: &EventKind) -> Option<(Action)> {
+    // Oh god.
+    match *event {
+        EventKind::Explosion => {
+            if actor.properties.check_bool(Explosive) {
+                Some(Action::Explod)
+            } else {
+                Some(Action::Hurt(10))
+            }
+        }
+        _ => {
+            warn!(actor.logger, "{} can't handle event {:?}!", actor, event);
+            None
+        }
     }
 }
 
-fn say_thing(actor: &mut Actor, world: &mut World, event: &Event) {
-    if let SayThing(ref s) = event.kind {
-        world.message(s.clone());
+fn get_event_area_iter(world: &World, area: &EventArea) -> Box<WorldIter> {
+    match *area {
+        EventArea::Square(x, y, r) => Box::new(SquareArea::new(WorldPosition::new(x, y), r)),
+        EventArea::Actor(id)       => Box::new(PointArea::new(world.actor(&id)
+                                                              .expect("Actor is dead!").get_pos())),
+
     }
 }
 

@@ -83,6 +83,7 @@ pub fn run() {
     init();
     let mut context = get_context();
     game_loop(&mut context);
+    info!(context.logger, "Exited cleanly.");
 }
 
 fn game_loop(mut ctxt: &mut GameContext) {

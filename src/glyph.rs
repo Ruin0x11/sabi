@@ -11,6 +11,7 @@ macro_attr!(
 pub enum Glyph {
     Player,
 
+    Putit,
     Prinny,
 
     Floor,
@@ -28,6 +29,9 @@ impl From<Glyph> for RenderableGlyph {
                                                color_bg: color::BLACK },
             Glyph::Prinny => RenderableGlyph { ch: 'p',
                                                color_fg: color::BLUE,
+                                               color_bg: color::BLACK },
+            Glyph::Putit => RenderableGlyph { ch: 'p',
+                                               color_fg: color::WHITE,
                                                color_bg: color::BLACK },
             Glyph::Floor => RenderableGlyph  { ch: '.',
                                                color_fg: color::WHITE,

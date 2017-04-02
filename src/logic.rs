@@ -13,8 +13,14 @@ fn pre_tick_actor(_world: &mut World, _actor: &Actor) {
 }
 
 pub fn run_action(world: &mut World, id: &ActorId, action: Action) {
+    // Events are gathered up all at once. If an actor has already died in the
+    // process of handling the previous events, it shouldn't get to run its
+    // action.
+    if world.was_killed(id) {
+        return;
+    }
     pre_tick(world);
-    world.with_actor(id, |mut world, mut actor| {
+    world.with_moved_actor(id, |mut world, mut actor| {
         debug!(actor.logger, "Action: {:?}", action);
 
         pre_tick_actor(world, &actor);
@@ -26,20 +32,24 @@ pub fn run_action(world: &mut World, id: &ActorId, action: Action) {
 }
 
 fn post_tick_actor(world: &mut World, actor: &Actor) {
-    // TEMP: speed algorithm is needed.
-    let delay = stats::formulas::calculate_delay(actor, 100);
-    let name = if actor.is_player(world) {
-        "[Player]"
-    } else {
-        "actor"
-    };
-    debug!(actor.logger, "{}: delay {}, speed {}", name, delay, actor.speed);
-    world.add_delay_for(&actor.get_id(), delay);
-    actor.update_fov(world);
+    if !actor.is_dead() {
+        let delay = stats::formulas::calculate_delay(actor, 100);
+        let name = if actor.is_player(world) {
+            "[Player]"
+        } else {
+            "actor"
+        };
+        debug!(actor.logger, "{} {}: delay {}, speed {}", actor.name(), name, delay, actor.speed);
+        world.add_delay_for(&actor.get_id(), delay);
+        actor.update_fov(world);
+    }
 }
 
-fn post_tick(_world: &mut World) {
-
+fn post_tick(world: &mut World) {
+    // This has to go here because the actor's id hasn't been reinserted into
+    // the world during the actor's post tick, meaning it can't be found when
+    // it's attempted to be deleted.
+    world.purge_dead();
 }
 
 fn try_move(world: &mut World, actor: &mut Actor, dir: Direction) {
@@ -56,7 +66,7 @@ fn swing_at(world: &mut World, attacker: &mut Actor, other_id: ActorId) {
     let damage;
     let evaded;
     {
-        let other = world.actor(&other_id);
+        let other = world.actor(&other_id).expect("Tried swinging at dead actor!");
         assert!(attacker.get_pos().next_to(other.get_pos()), "Tried swinging from out of range! (could be implemented)");
         evaded = stats::formulas::check_evasion(attacker, other);
         if evaded {
@@ -65,8 +75,8 @@ fn swing_at(world: &mut World, attacker: &mut Actor, other_id: ActorId) {
         }
         damage = stats::formulas::calculate_damage(attacker, other);
     }
-    world.with_actor(&other_id, |world, other| {
-        world.message(format!("{} hits {}! {} damage!", attacker, other, damage));
+    world.with_moved_actor(&other_id, |world, other| {
+        world.message(format!("{} hits {}! {} damage!", attacker.name(), other.name(), damage));
         other.hurt(damage)
     })
 }
@@ -74,16 +84,20 @@ fn swing_at(world: &mut World, attacker: &mut Actor, other_id: ActorId) {
 fn run_actor_action(world: &mut World, actor: &mut Actor, action: Action) {
     match action {
         Action::Move(dir) => try_move(world, actor, dir),
-        Action::Dood => world.message(format!("{}: \"Dood!\"", actor.get_display_name())),
+        Action::Dood => world.message(format!("{}: \"Dood!\"", actor.name())),
         Action::Wait => (),
         Action::Explod => {
             let pos = actor.get_pos();
-            world.message(format!("{} explodes!", actor.get_display_name()));
+            world.message(format!("{} explodes!", actor.name()));
             world.events.push(Event {
                 area: EventArea::Square(pos.x, pos.y, 5),
-                kind: EventKind::SayName,
-            })
+                kind: EventKind::Explosion,
+            });
+            actor.kill();
         },
-        Action::Hurt => world.message(format!("{}: \"Oof\"!", actor.get_display_name()))
+        Action::Hurt(amount) => {
+            world.message(format!("{}: \"Oof\"!", actor.name()));
+            actor.hurt(amount);
+        }
     }
 }

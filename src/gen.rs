@@ -63,7 +63,7 @@ impl World {
     }
 
     pub fn set_tile(&mut self, pos: WorldPosition, tile: Tile) {
-        self.debug_cell(&pos);
+        // self.debug_cell(&pos);
         if let Some(cell_mut) = self.cell_mut(&pos) {
             cell_mut.tile = tile.clone();
         }
@@ -81,7 +81,7 @@ impl World {
                        tile: Tile) {
         let circle = CircleArea::new(center, radius);
         for pos in circle {
-            debug!(self.logger, "Position: {}", pos);
+            // debug!(self.logger, "Position: {}", pos);
             self.set_tile(pos, tile);
         }
     }
@@ -92,7 +92,7 @@ impl World {
                        tile: Tile) {
         let square = SquareArea::new(center, radius);
         for pos in square {
-            debug!(self.logger, "Position: {}", pos);
+            // debug!(self.logger, "Position: {}", pos);
             self.set_tile(pos, tile);
         }
     }
@@ -103,7 +103,7 @@ impl World {
                      tile: Tile) {
         let border = Border::new(top_left, bottom_right);
         for pos in border {
-            debug!(self.logger, "Position: {}", pos);
+            // debug!(self.logger, "Position: {}", pos);
             self.set_tile(pos, tile);
         }
     }

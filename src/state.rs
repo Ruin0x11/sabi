@@ -71,6 +71,7 @@ pub enum NextState {
 
 fn draw_overlays(world: &mut World, canvas: &mut Canvas) {
     world.draw_calls.draw_all(canvas);
+    world.draw_calls.clear();
 }
 
 fn draw_world(world: &mut World, canvas: &mut Canvas) {
@@ -186,7 +187,7 @@ pub fn process_actors(world: &mut World, canvas: &mut Canvas) {
 
         let action = {
             let ai = ai::Simple;
-            let actor = world.actor(id);
+            let actor = world.actor(id).expect("Actor trying to move is dead!");
             ai.choose_action(actor, world)
         };
 
@@ -201,6 +202,7 @@ pub fn process_events(world: &mut World, canvas: &mut Canvas) {
     while responses.len() != 0 {
         world.events.clear();
         while let Some((action, id)) = responses.pop() {
+            // FIXME: don't delay actors here.
             logic::run_action(world, &id, action);
         }
         render_all(world, canvas);

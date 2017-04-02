@@ -70,6 +70,15 @@ impl Properties {
     pub fn remove(&mut self, key: Prop) -> () {
         self.props.remove(&key);
     }
+
+    /// Convenience function to either get the value of a boolean property or
+    /// return `false` if it doesn't exist.
+    pub fn check_bool(&self, key: Prop) -> bool {
+        match self.get::<bool>(key) {
+            Ok(val) => val,
+            Err(..) => false,
+        }
+    }
 }
 
 // Trying to create a HashMap with multiple types is harder than in an OO

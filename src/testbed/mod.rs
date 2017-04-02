@@ -98,7 +98,7 @@ pub fn make_grid_from_str<M, F, T>(text: &str, mut constructor: M, mut callback:
         let mut player = Actor::new(6, 6, Glyph::Player);
         player.speed = 300;
 
-        let mut other = Actor::new(10, 10, Glyph::Prinny);
+        let mut other = Actor::from_archetype(10, 10, "prinny");
         other.speed = 100;
         world.add_actor(other);
         world.draw_square(Point::new(15, 15), 10, tile::FLOOR);
@@ -115,8 +115,14 @@ pub fn make_grid_from_str<M, F, T>(text: &str, mut constructor: M, mut callback:
         world.draw_square(Point::new(15, 15), 10, tile::FLOOR);
         let range = Range::new(1, 200);
 
-        for i in 1..16 {
-            let mut other = Actor::new(10 + i, 10, Glyph::Prinny);
+        for i in 0..8 {
+            let mut other = Actor::from_archetype(10 + i, 10, "prinny");
+            other.speed = range.ind_sample(&mut rng);
+            world.add_actor(other);
+        }
+
+        for i in 0..8 {
+            let mut other = Actor::from_archetype(10 + i, 11, "putit");
             other.speed = range.ind_sample(&mut rng);
             world.add_actor(other);
         }

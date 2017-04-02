@@ -19,12 +19,12 @@ impl DrawCalls {
         self.draw_calls.borrow_mut().push_back(draw_call);
     }
 
-    fn pop(&self) -> Option<Draw> {
-        self.draw_calls.borrow_mut().pop_front()
+    pub fn clear(&self) {
+        self.draw_calls.borrow_mut().clear();
     }
 
-    pub fn draw_all(&mut self, canvas: &mut Canvas) {
-        while let Some(draw_call) = self.pop() {
+    pub fn draw_all(&self, canvas: &mut Canvas) {
+        for draw_call in self.draw_calls.borrow().iter() {
             draw_call.draw(canvas);
         }
     }

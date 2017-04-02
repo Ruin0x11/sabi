@@ -61,12 +61,11 @@ pub fn init_panic_hook() {
 
         match info.location() {
             Some(location) => {
-                error!(logger, "thread '{}' panicked at '{}': {}:{}{:?}",
+                error!(logger, "thread '{}' panicked at '{}': {}:{}",
                        thread,
                        msg,
                        location.file(),
-                       location.line(),
-                       Shim(backtrace));
+                       location.line());
             }
             None => error!(logger, "thread '{}' panicked at '{}'{:?}", thread, msg, Shim(backtrace)),
         }

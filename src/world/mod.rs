@@ -3,7 +3,7 @@ mod message;
 mod turn_order;
 
 use std::cell::RefCell;
-use std::collections::{VecDeque, HashMap, hash_map};
+use std::collections::{VecDeque, HashMap, HashSet, hash_map};
 use std::fmt;
 
 use actor::{Actor, ActorId};
@@ -47,6 +47,8 @@ pub struct World {
     // NOTE: could also implement by putting each in its own Chunk
     actors: HashMap<ActorId, Actor>,
     actor_ids_by_pos: HashMap<WorldPosition, ActorId>,
+    // Actors that were killed during the current actor's turn, by events, etc.
+    killed_actors: HashSet<ActorId>,
 
     // NOTE: I'm not sure it makes sense for a player to be tied to an existing
     // world, but it works for now.
@@ -69,6 +71,7 @@ impl World {
             type_: type_,
             actors: HashMap::new(),
             actor_ids_by_pos: HashMap::new(),
+            killed_actors: HashSet::new(),
             player_id: None,
             turn_order: TurnOrder::new(),
             draw_calls: DrawCalls::new(),
@@ -168,8 +171,8 @@ impl World {
         match self.type_ {
             WorldType::Instanced(size) => {
                 let is_in_boundaries = *world_pos < size;
-                debug!(self.logger, "pos: {} size: {}", world_pos, size);
-                debug!(self.logger, "in chunk, boundaries: {} {}", is_in_chunk, is_in_boundaries);
+                // debug!(self.logger, "pos: {} size: {}", world_pos, size);
+                // debug!(self.logger, "in chunk, boundaries: {} {}", is_in_chunk, is_in_boundaries);
                 is_in_chunk && is_in_boundaries
             }
             _ => is_in_chunk

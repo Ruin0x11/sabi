@@ -7,12 +7,25 @@ impl World {
         self.actors.values()
     }
 
-    pub fn actor(&self, id: &ActorId) -> &Actor {
-        self.actors.get(id).expect("Actor not found!")
+    // FIXME: This should be okay to return just &Actor, because the only
+    // invalid cases are dead actors, and by the time this is called they should
+    // be cleaned up.
+    pub fn actor(&self, id: &ActorId) -> Option<&Actor> {
+        if self.killed_actors.contains(id) {
+            debug!(self.logger, "{} is dead.", id);
+            None
+        } else {
+            self.actors.get(id)
+        }
     }
 
-    pub fn actor_mut(&mut self, id: &ActorId) -> &mut Actor {
-        self.actors.get_mut(id).expect("Actor not found!")
+    pub fn actor_mut(&mut self, id: &ActorId) -> Option<&mut Actor> {
+        if self.killed_actors.contains(id) {
+            debug!(self.logger, "{} is dead.", id);
+            None
+        } else {
+            self.actors.get_mut(id)
+        }
     }
 
     /// Returns a copy of the ID of the actor at point.
@@ -57,7 +70,8 @@ impl World {
     }
 
     pub fn remove_actor(&mut self, id: &ActorId) -> Actor {
-        let pos = self.actor(id).get_pos();
+        debug!(self.logger, "removing {:8}", id);
+        let pos = self.actor(id).expect("Can't find actor to remove").get_pos();
         self.turn_order.remove_actor(id);
         self.actor_ids_by_pos.remove(&pos);
         let actor = self.actors.remove(id);
@@ -67,8 +81,9 @@ impl World {
 
     /// Wrapper to move an actor out of the world's actor hashmap, so it can be
     /// mutated, then putting it back into the hashmap after.
-    pub fn with_actor<F>(&mut self, id: &ActorId, mut callback: F)
+    pub fn with_moved_actor<F>(&mut self, id: &ActorId, mut callback: F)
         where F: FnMut(&mut World, &mut Actor) {
+        assert!(!self.killed_actors.contains(id), "Actor {} is dead!", id);
         let mut actor = self.actors.remove(id).expect("Actor not found!");
         callback(self, &mut actor);
         self.actors.insert(id.clone(), actor);
@@ -92,5 +107,29 @@ impl World {
 
     pub fn next_actor(&mut self) -> Option<ActorId> {
         self.turn_order.next()
+    }
+
+    pub fn actor_killed(&mut self, id: ActorId) {
+        debug!(self.logger, "Killing: {}", id);
+
+        // FIXME: Since the player should be able to hang around after death,
+        // this shouldn't be done.
+        self.remove_actor(&id);
+
+        self.killed_actors.insert(id);
+    }
+
+    pub fn was_killed(&self, id: &ActorId) -> bool {
+        self.killed_actors.contains(id)
+    }
+
+    pub fn purge_dead(&mut self) {
+        let dead_ids = self.actors.iter()
+            .filter(|&(_, actor)| actor.is_dead())
+            .map(|(k, _)| k).cloned().collect::<Vec<ActorId>>();
+        for id in dead_ids {
+            debug!(self.logger, "{} was killed, purging.", id);
+            self.actor_killed(id);
+        }
     }
 }

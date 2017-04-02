@@ -103,7 +103,7 @@ impl Direction {
 
 impl Display for Actor {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.get_display_name())
+        write!(f, "{} ({:8})...", self.name(), self.get_id())
     }
 }
 
@@ -132,9 +132,9 @@ impl Actor {
         }
     }
 
-    pub fn from_archetype(x: i32, y: i32, archetype_name: String) -> Self {
+    pub fn from_archetype(x: i32, y: i32, archetype_name: &str) -> Self {
         let id = Uuid::new_v4();
-        let archetype = archetype::load(&archetype_name);
+        let archetype = archetype::load(archetype_name);
         Actor {
             glyph: archetype.glyph,
 
@@ -157,7 +157,7 @@ impl Actor {
         ACTOR_LOG.new(o!("id" => format!("{:.8}...", id.to_string())))
     }
 
-    pub fn get_display_name(&self) -> String {
+    pub fn name(&self) -> String {
         self.name.clone()
     }
 
@@ -217,5 +217,10 @@ impl Actor {
         if self.hit_points <= 0 {
             // TODO: Death.
         }
+    }
+
+    pub fn kill(&mut self) {
+        let mhp = self.stats.max_hp();
+        self.hurt(mhp);
     }
 }
