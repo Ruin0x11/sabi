@@ -61,13 +61,14 @@ pub fn init_panic_hook() {
 
         match info.location() {
             Some(location) => {
-                error!(logger, "thread '{}' panicked at '{}': {}:{}",
+                error!(logger, "traceback: {:?}\nthread '{}' panicked at '{}': {}:{}",
+                       Shim(backtrace),
                        thread,
                        msg,
                        location.file(),
                        location.line());
             }
-            None => error!(logger, "thread '{}' panicked at '{}'{:?}", thread, msg, Shim(backtrace)),
+            None => error!(logger, "traceback: {:?}\nthread '{}' panicked at '{}'", Shim(backtrace), thread, msg),
         }
     }));
 }

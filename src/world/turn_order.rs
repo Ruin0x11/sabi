@@ -58,6 +58,34 @@ impl Iterator for TurnOrder {
     }
 }
 
+impl World {
+    /// Update the time-to-action for every actor in the world.
+    /// The actor with the lowest time-to-action is the next one to act.
+    pub fn advance_time(&mut self, amount: i32) {
+        for id in self.actors.keys() {
+            self.turn_order.advance_time_for(id, amount);
+        }
+
+        // The player is the only actor we might want to advance time for after
+        // dying, and that's only for a single turn so that control returns to
+        // the player and the death check can run instead of looping infinitely.
+        let pid = self.player_id();
+        if self.was_killed(&pid) {
+            self.turn_order.advance_time_for(&pid, amount);
+        }
+
+        info!(self.logger, "world time advanced by {}", amount);
+    }
+
+    pub fn add_delay_for(&mut self, id: &ActorId, amount: i32) {
+        self.turn_order.add_delay_for(id, amount);
+    }
+
+    pub fn time_until_turn_for(&self, id: &ActorId) -> i32 {
+        *self.turn_order.get_time_for(id)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -119,24 +147,5 @@ mod tests {
         other.speed = 100;
         world.add_actor(other);
         world.draw_square(Point::new(15, 15), 10, tile::FLOOR);
-    }
-}
-
-impl World {
-    /// Update the time-to-action for every actor in the world.
-    /// The actor with the lowest time-to-action is the next one to act.
-    pub fn advance_time(&mut self, amount: i32) {
-        for id in self.actors.keys() {
-            self.turn_order.advance_time_for(id, amount);
-        }
-        info!(self.logger, "world time advanced by {}", amount);
-    }
-
-    pub fn add_delay_for(&mut self, id: &ActorId, amount: i32) {
-        self.turn_order.add_delay_for(id, amount);
-    }
-
-    pub fn time_until_turn_for(&self, id: &ActorId) -> i32 {
-        *self.turn_order.get_time_for(id)
     }
 }

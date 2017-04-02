@@ -1,5 +1,25 @@
 use world::*;
 
+enum Either {
+    Alive(ActorId),
+    Dead(ActorId),
+}
+
+impl Either {
+    pub fn alive(&self) -> ActorId {
+        match *self {
+            Either::Alive(id) => id,
+            Either::Dead(..)  => panic!("Expected alive, but actor was dead."),
+        }
+    }
+    pub fn dead(&self) -> ActorId {
+        match *self {
+            Either::Dead(id) => id,
+            Either::Alive(..)  => panic!("Expected dead, but actor was alive."),
+        }
+    }
+}
+
 impl World {
     /// Return an iterator over the currently loaded set of Actors in this
     /// world across all chunks.
@@ -10,21 +30,21 @@ impl World {
     // FIXME: This should be okay to return just &Actor, because the only
     // invalid cases are dead actors, and by the time this is called they should
     // be cleaned up.
-    pub fn actor(&self, id: &ActorId) -> Option<&Actor> {
-        if self.killed_actors.contains(id) {
+    pub fn actor(&self, id: &ActorId) -> &Actor {
+        if self.was_killed(id) {
             debug!(self.logger, "{} is dead.", id);
-            None
+            self.killed_actors.get(id).expect("No such actor!")
         } else {
-            self.actors.get(id)
+            self.actors.get(id).expect("No such actor!")
         }
     }
 
-    pub fn actor_mut(&mut self, id: &ActorId) -> Option<&mut Actor> {
-        if self.killed_actors.contains(id) {
+    pub fn actor_mut(&mut self, id: &ActorId) -> &mut Actor {
+        if self.was_killed(id) {
             debug!(self.logger, "{} is dead.", id);
-            None
+            self.killed_actors.get_mut(id).expect("No such actor!")
         } else {
-            self.actors.get_mut(id)
+            self.actors.get_mut(id).expect("No such actor!")
         }
     }
 
@@ -69,11 +89,21 @@ impl World {
         self.actors.insert(actor.get_id(), actor);
     }
 
-    pub fn remove_actor(&mut self, id: &ActorId) -> Actor {
+    /// Removes the actor from the position map and turn order, but doesn't
+    /// delete it.
+    pub fn make_actor_inactive(&mut self, id: &ActorId) {
         debug!(self.logger, "removing {:8}", id);
-        let pos = self.actor(id).expect("Can't find actor to remove").get_pos();
-        self.turn_order.remove_actor(id);
+        let pos = self.actor(id).get_pos();
+
+        if !self.is_player(id) {
+            self.turn_order.remove_actor(id);
+        }
+
         self.actor_ids_by_pos.remove(&pos);
+    }
+
+    pub fn remove_actor(&mut self, id: &ActorId) -> Actor {
+        self.make_actor_inactive(id);
         let actor = self.actors.remove(id);
         assert!(actor.is_some(), "Tried removing nonexistent actor from world!");
         actor.unwrap()
@@ -83,18 +113,18 @@ impl World {
     /// mutated, then putting it back into the hashmap after.
     pub fn with_moved_actor<F>(&mut self, id: &ActorId, mut callback: F)
         where F: FnMut(&mut World, &mut Actor) {
-        assert!(!self.killed_actors.contains(id), "Actor {} is dead!", id);
+        assert!(!self.killed_actors.contains_key(id), "Actor {} is dead!", id);
         let mut actor = self.actors.remove(id).expect("Actor not found!");
         callback(self, &mut actor);
         self.actors.insert(id.clone(), actor);
     }
 
     pub fn player(&self) -> &Actor {
-        self.actors.get(&self.player_id()).expect("Player not found!")
+        self.actor(&self.player_id())
     }
 
     pub fn player_id(&self) -> ActorId {
-        self.player_id.expect("No player in this world!")
+        self.player_id.expect("No player has been set!")
     }
 
     pub fn set_player_id(&mut self, id: ActorId) {
@@ -102,7 +132,7 @@ impl World {
     }
 
     pub fn is_player(&self, id: &ActorId) -> bool {
-        &self.player_id() == id
+        self.player_id() == *id
     }
 
     pub fn next_actor(&mut self) -> Option<ActorId> {
@@ -110,17 +140,20 @@ impl World {
     }
 
     pub fn actor_killed(&mut self, id: ActorId) {
+        if self.was_killed(&id) {
+            warn!(self.logger, "Attempt to kill twice! {}", id);
+            return;
+        }
         debug!(self.logger, "Killing: {}", id);
 
         // FIXME: Since the player should be able to hang around after death,
         // this shouldn't be done.
-        self.remove_actor(&id);
-
-        self.killed_actors.insert(id);
+        let actor = self.remove_actor(&id);
+        self.killed_actors.insert(id, actor);
     }
 
     pub fn was_killed(&self, id: &ActorId) -> bool {
-        self.killed_actors.contains(id)
+        self.killed_actors.contains_key(id)
     }
 
     pub fn purge_dead(&mut self) {

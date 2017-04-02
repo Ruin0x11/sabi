@@ -9,12 +9,14 @@ pub fn start_with_params(player: Actor, world: World) {
     context.state.set_world(world);
     context.state.current_world_mut().set_player_id(player.get_id());
     context.state.current_world_mut().add_actor(player);
+    {
+        let context_mut = &mut context;
 
-    let context_mut = &mut context;
-
-    while !context_mut.canvas.window_closed() {
-        state::process(context_mut);
+        while !context_mut.canvas.window_closed() {
+            state::process(context_mut);
+        }
     }
+    info!(context.logger, "Testbed exited cleanly.");
 }
 
 /// Creates an object of the specified type from a grid string using constructor
@@ -66,7 +68,7 @@ pub fn make_grid_from_str<M, F, T>(text: &str, mut constructor: M, mut callback:
 
     fn get_world() -> World {
         let mut world = World::generate(WorldType::Instanced(WorldPosition::new(32, 32)),
-                            16, tile::WALL);
+                                        16, tile::WALL);
         world.draw_square(WorldPosition::new(15, 15), 10, tile::FLOOR);
         world
     }
@@ -113,7 +115,7 @@ pub fn make_grid_from_str<M, F, T>(text: &str, mut constructor: M, mut callback:
         let player = Actor::new(6, 6, Glyph::Player);
 
         world.draw_square(Point::new(15, 15), 10, tile::FLOOR);
-        let range = Range::new(1, 200);
+        let range = Range::new(30, 200);
 
         for i in 0..8 {
             let mut other = Actor::from_archetype(10 + i, 10, "prinny");

@@ -174,7 +174,7 @@ impl Actor {
             self.x = pos.x;
             self.y = pos.y;
         } else {
-            warn!(self.logger, "Actor tried to move outside of loaded world! {}", pos);
+            warn!(self.logger, "Actor tried moving to blocked pos: {}", pos);
         }
     }
 

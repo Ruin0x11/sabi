@@ -68,8 +68,7 @@ fn handle_event(actor: &Actor,
 fn get_event_area_iter(world: &World, area: &EventArea) -> Box<WorldIter> {
     match *area {
         EventArea::Square(x, y, r) => Box::new(SquareArea::new(WorldPosition::new(x, y), r)),
-        EventArea::Actor(id)       => Box::new(PointArea::new(world.actor(&id)
-                                                              .expect("Actor is dead!").get_pos())),
+        EventArea::Actor(id)       => Box::new(PointArea::new(world.actor(&id).get_pos())),
 
     }
 }

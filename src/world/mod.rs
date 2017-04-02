@@ -1,4 +1,5 @@
 mod actors;
+mod iterators;
 mod message;
 mod turn_order;
 
@@ -48,7 +49,7 @@ pub struct World {
     actors: HashMap<ActorId, Actor>,
     actor_ids_by_pos: HashMap<WorldPosition, ActorId>,
     // Actors that were killed during the current actor's turn, by events, etc.
-    killed_actors: HashSet<ActorId>,
+    killed_actors: HashMap<ActorId, Actor>,
 
     // NOTE: I'm not sure it makes sense for a player to be tied to an existing
     // world, but it works for now.
@@ -71,7 +72,7 @@ impl World {
             type_: type_,
             actors: HashMap::new(),
             actor_ids_by_pos: HashMap::new(),
-            killed_actors: HashSet::new(),
+            killed_actors: HashMap::new(),
             player_id: None,
             turn_order: TurnOrder::new(),
             draw_calls: DrawCalls::new(),
