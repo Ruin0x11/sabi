@@ -1,4 +1,4 @@
-use glyph::Glyph;
+use glyph::{Glyph};
 
 #[derive(Debug, Copy, Clone)]
 pub enum TileType {

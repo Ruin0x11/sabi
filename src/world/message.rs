@@ -56,15 +56,15 @@ impl Messages {
 }
 
 impl World {
-    pub fn message(&mut self, mes: String) {
+    pub fn message(&self, mes: String) {
         let true_mes = format!("{} ", mes);
-        self.messages.add(true_mes);
+        self.messages.borrow_mut().add(true_mes);
     }
 
-    pub fn pop_messages(&mut self, width: usize) -> Vec<String> {
-        let mes_vec = self.messages.message_lines(width);
+    pub fn pop_messages(&self, width: usize) -> Vec<String> {
+        let mes_vec = self.messages.borrow_mut().message_lines(width);
         debug!(self.logger, "Popped messages, length: {}", mes_vec.len());
-        self.messages.clear();
+        self.messages.borrow_mut().clear();
         mes_vec
     }
 }

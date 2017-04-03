@@ -6,5 +6,5 @@ pub enum Action {
     Wait,
     Dood,
     Explod,
-    Hurt,
+    Hurt(u32),
 }

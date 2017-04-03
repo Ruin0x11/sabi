@@ -13,6 +13,9 @@ pub trait Ai {
 impl Ai for Simple {
     fn choose_action(&self, actor: &Actor, world: &World) -> Action {
         let player = world.player();
+        if player.is_dead() {
+            return Action::Wait;
+        }
 
         let my_pos = actor.get_pos();
         let player_pos = player.get_pos();

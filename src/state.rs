@@ -48,8 +48,10 @@ impl GameState {
 
     pub fn player_action(&mut self, action: Action) {
         let id = self.world.player_id();
-        let mut world = self.current_world_mut();
-        logic::run_action(&mut world, &id, action);
+        if !self.world.was_killed(&id) {
+            let mut world = self.current_world_mut();
+            logic::run_action(&mut world, &id, action);
+        }
     }
 
     pub fn advance_time(&mut self, diff: i32) {
@@ -71,9 +73,11 @@ pub enum NextState {
 
 fn draw_overlays(world: &mut World, canvas: &mut Canvas) {
     world.draw_calls.draw_all(canvas);
+    world.draw_calls.clear();
 }
 
 fn draw_world(world: &mut World, canvas: &mut Canvas) {
+    // FIXME: Let the player actor not be deleted, to get its fov.
     let fov = world.player().fov();
     world.with_cells(Point::new(0, 0), Point::new(128, 128),
                      |point, ref cell| {
@@ -92,6 +96,7 @@ fn show_messages(world: &mut World, canvas: &mut Canvas) {
 }
 
 fn draw_actors(world: &mut World, canvas: &mut Canvas) {
+    // FIXME: Let the player actor not be deleted, to get its fov.
     let fov = world.player().fov();
     for actor in world.actors() {
         let pos = actor.get_pos();
@@ -196,11 +201,25 @@ pub fn process_actors(world: &mut World, canvas: &mut Canvas) {
     }
 }
 
+pub fn check_player_dead(world: &mut World, canvas: &mut Canvas) -> bool {
+    let id = world.player_id();
+    let res = world.was_killed(&id);
+    if res {
+        info!(world.logger, "Player has died.");
+        world.message("You're dead!".to_string());
+        show_messages(world, canvas);
+        canvas.present();
+        canvas.get_input();
+    }
+    res
+}
+
 pub fn process_events(world: &mut World, canvas: &mut Canvas) {
     let mut responses = event::check_all(world);
     while responses.len() != 0 {
         world.events.clear();
         while let Some((action, id)) = responses.pop() {
+            // FIXME: don't delay actors here.
             logic::run_action(world, &id, action);
         }
         render_all(world, canvas);
@@ -211,6 +230,12 @@ pub fn process_events(world: &mut World, canvas: &mut Canvas) {
 // TEMP: Just to bootstrap things dirtily.
 pub fn process(context: &mut GameContext) {
     process_actors(&mut context.state.world, &mut context.canvas);
+
+    let dead = check_player_dead(&mut context.state.world, &mut context.canvas);
+    if dead {
+        context.canvas.close_window();
+        return;
+    }
 
     render_all(&mut context.state.world, &mut context.canvas);
     show_messages(&mut context.state.world, &mut context.canvas);

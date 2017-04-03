@@ -1,0 +1,8 @@
+[stats]
+hp=100
+strength=10
+defense=10
+glyph="Prinny"
+
+[properties]
+Explosive=true
