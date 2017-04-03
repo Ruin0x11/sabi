@@ -67,6 +67,9 @@ fn swing_at(world: &mut World, attacker: &mut Actor, other_id: ActorId) {
     let evaded;
     {
         let other = world.actor(&other_id);
+        if attacker.disposition == other.disposition {
+            return;
+        }
         assert!(attacker.get_pos().next_to(other.get_pos()), "Tried swinging from out of range! (could be implemented)");
         evaded = stats::formulas::check_evasion(attacker, other);
         if evaded {

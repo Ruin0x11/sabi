@@ -22,6 +22,9 @@ pub trait Canvas_ {
     fn close_window(&mut self);
     fn window_closed(&self) -> bool;
 
+    fn set_camera(&mut self, x: i32, y: i32);
+    fn translate_pos(&self, world_x: i32, world_y: i32) -> (i32, i32);
+
     fn print_str(&mut self, x: i32, y: i32, s: &str);
 
     // NOTE: The intention is that this may or may not block depending on the

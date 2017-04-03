@@ -1,4 +1,3 @@
-extern crate backtrace;
 extern crate chrono;
 #[macro_use] extern crate lazy_static;
 extern crate uuid;
@@ -82,13 +81,44 @@ pub fn get_context() -> GameContext {
 
 pub fn run() {
     init();
-    let mut context = get_context();
-    game_loop(&mut context);
-    info!(context.logger, "Exited cleanly.");
+    setup();
+    // let mut context = get_context();
+    // game_loop(&mut context);
+    // info!(context.logger, "Exited cleanly.");
 }
 
 fn game_loop(mut ctxt: &mut GameContext) {
     while !ctxt.canvas.window_closed() {
         state::process(ctxt);
     }
+}
+
+
+use world::*;
+use rand::distributions::{Range, IndependentSample};
+use testbed::start_with_params;
+
+fn get_world() -> World {
+    let mut world = World::generate(WorldType::Instanced(WorldPosition::new(64, 64)),
+                                    16, tile::WALL);
+    world.draw_square(WorldPosition::new(32, 32), 30, tile::FLOOR);
+    world
+}
+
+fn setup() {
+    let mut rng = rand::thread_rng();
+    let mut world = get_world();
+
+    let mut player = Actor::from_archetype(6, 6, "test_player");
+    player.disposition = Disposition::Friendly;
+
+    let range = Range::new(30, 200);
+
+    for i in 0..16 {
+        let mut other = Actor::from_archetype(10 + i, 16, "putit");
+        other.speed = range.ind_sample(&mut rng);
+        world.add_actor(other);
+    }
+
+    start_with_params(player, world);
 }

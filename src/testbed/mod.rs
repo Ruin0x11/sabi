@@ -67,9 +67,9 @@ pub fn make_grid_from_str<M, F, T>(text: &str, mut constructor: M, mut callback:
     use glyph::Glyph;
 
     fn get_world() -> World {
-        let mut world = World::generate(WorldType::Instanced(WorldPosition::new(32, 32)),
+        let mut world = World::generate(WorldType::Instanced(WorldPosition::new(64, 64)),
                                         16, tile::WALL);
-        world.draw_square(WorldPosition::new(15, 15), 10, tile::FLOOR);
+        world.draw_square(WorldPosition::new(32, 32), 30, tile::FLOOR);
         world
     }
 
@@ -99,6 +99,7 @@ pub fn make_grid_from_str<M, F, T>(text: &str, mut constructor: M, mut callback:
 
         let mut player = Actor::from_archetype(6, 6, "test_player");
         player.speed = 300;
+        player.disposition = Disposition::Friendly;
 
         let mut other = Actor::from_archetype(10, 10, "prinny");
         other.speed = 100;
@@ -112,19 +113,13 @@ pub fn make_grid_from_str<M, F, T>(text: &str, mut constructor: M, mut callback:
         let mut rng = rand::thread_rng();
         let mut world = get_world();
 
-        let player = Actor::from_archetype(6, 6, "test_player");
+        let mut player = Actor::from_archetype(6, 6, "test_player");
+        player.disposition = Disposition::Friendly;
 
-        world.draw_square(Point::new(15, 15), 10, tile::FLOOR);
         let range = Range::new(30, 200);
 
-        for i in 0..8 {
-            let mut other = Actor::from_archetype(10 + i, 10, "prinny");
-            other.speed = range.ind_sample(&mut rng);
-            world.add_actor(other);
-        }
-
-        for i in 0..8 {
-            let mut other = Actor::from_archetype(10 + i, 11, "putit");
+        for i in 0..16 {
+            let mut other = Actor::from_archetype(10 + i, 16, "putit");
             other.speed = range.ind_sample(&mut rng);
             world.add_actor(other);
         }
