@@ -1,4 +1,4 @@
-use actor::Direction;
+use direction::Direction;
 
 #[derive(Clone, Debug)]
 pub enum Action {

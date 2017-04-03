@@ -12,7 +12,7 @@ use slog_stream;
 
 const VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
 
-const DISABLE: bool = true;
+const DISABLE: bool = false;
 
 macro_rules! now {
     () => ( Local::now().format("%m-%d %H:%M:%S%.3f") )

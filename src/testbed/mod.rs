@@ -115,11 +115,12 @@ pub fn make_grid_from_str<M, F, T>(text: &str, mut constructor: M, mut callback:
 
         let mut player = Actor::from_archetype(6, 6, "test_player");
         player.disposition = Disposition::Friendly;
+        player.name = String::from("You");
 
         let range = Range::new(30, 200);
 
-        for i in 0..16 {
-            let mut other = Actor::from_archetype(10 + i, 16, "putit");
+        for i in 0..32 {
+            let mut other = Actor::from_archetype(10 + i, 48, "putit");
             other.speed = range.ind_sample(&mut rng);
             world.add_actor(other);
         }

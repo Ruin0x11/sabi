@@ -2,9 +2,9 @@ use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 use std::f32;
 
+use drawcalls::Draw;
 use point::Point;
 use world::{World, Walkability};
-
 
 const CALCULATION_LIMIT: u32 = 50;
 
@@ -80,15 +80,19 @@ impl Path {
             return Path { path: vec![] };
         }
 
-        if !world.is_walkable(to, walkability) {
-            println!("not walkable");
+        // If we set walkability to monsters blocking and try to pathfind to a
+        // monster, it counts the destination as unwalkable. In that case, just
+        // stop when right next to the destination.
+        let stop_when_neighboring = walkability == Walkability::MonstersBlocking
+            && world.actor_at(to).is_some();
+
+        if !stop_when_neighboring && !world.is_walkable(to, walkability) {
             return Path { path: vec![] };
         }
 
         if from.tile_distance(to) == 1 {
             return Path { path: vec![to] };
         }
-
 
         let mut frontier = BinaryHeap::new();
         frontier.push(State { position: from, cost: 0.0 });
@@ -104,9 +108,13 @@ impl Path {
         let mut calculation_steps = 0;
 
         while let Some(current) = frontier.pop() {
-            if current.position == to {
+            if stop_when_neighboring && Point::next_to(&current.position, to) {
+                came_from.insert(to, Some(current.position));
+                break
+            } else if current.position == to {
                 break
             }
+
             if calculation_steps >= CALCULATION_LIMIT {
                 break
             } else {
@@ -115,6 +123,9 @@ impl Path {
             let neigh = Path::neighbors(current.position, world, walkability);
 
             for &next in neigh.iter() {
+                // Make this an in-game property toggle?
+                // world.draw_calls.push(Draw::Point(next.x, next.y));
+
                 let new_cost = cost_so_far[&current.position] + Path::cost_heuristic(current.position, next);
                 let val = cost_so_far.entry(next).or_insert(f32::MAX);
                 if new_cost < *val {

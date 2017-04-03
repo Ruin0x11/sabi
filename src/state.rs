@@ -3,6 +3,7 @@ use std::collections::{HashMap, VecDeque};
 
 use action::*;
 use actor::*;
+use direction::Direction;
 use ai::{self, Ai};
 use event;
 use keys::*;
@@ -177,7 +178,7 @@ pub fn render_all(world: &mut World, canvas: &mut Canvas) {
     canvas.set_camera(camera_pos.x, camera_pos.y);
     draw_world(world, canvas);
     draw_actors(world, canvas);
-    //draw_overlays(world, canvas);
+    draw_overlays(world, canvas);
 }
 
 pub fn process_actors(world: &mut World, canvas: &mut Canvas) {

@@ -23,7 +23,7 @@ use self::message::Messages;
 
 pub type WorldIter = Iterator<Item=WorldPosition>;
 
-#[derive(Copy, Clone)]
+#[derive(Eq, PartialEq, Copy, Clone)]
 pub enum Walkability {
     MonstersWalkable,
     MonstersBlocking,
@@ -326,8 +326,27 @@ impl fmt::Display for ChunkIndex {
 mod tests {
     use super::*;
     use tile::{self, FLOOR};
-    use actor::Direction;
+    use direction::Direction;
     use logic;
+    use testbed::make_grid_from_str;
+
+    fn world_from_str(text: &str) -> World {
+        let callback = |pt: &Point, c: char, world: &mut World| {
+            if c == '@' {
+                let actor = Actor::from_archetype(pt.x, pt.y, "putit");
+                world.add_actor(actor);
+            }
+
+            let cell_kind = match c {
+                '.' => tile::FLOOR,
+                '#' => tile::WALL,
+                _   => unreachable!(),
+            };
+            world.set_tile(pt.clone(), cell_kind);
+        };
+        let make = |dim: Point| World::generate(WorldType::Instanced(dim), 64, tile::FLOOR);
+        make_grid_from_str(text, make, callback)
+    }
 
     fn get_world(size: Point) -> World {
         World::generate(WorldType::Instanced(size), 16, tile::FLOOR)
@@ -446,30 +465,15 @@ mod tests {
 
     #[test]
     fn test_is_walkable() {
-        let mut world = get_world(Point::new(1, 1));
+        let world = world_from_str(".");
 
         assert_eq!(world.is_walkable(Point::new(-1, -1), Walkability::MonstersWalkable), false);
         assert_eq!(world.is_walkable(Point::new(1, 1), Walkability::MonstersWalkable), false);
 
-        let pos = Point::new(0, 0);
-
-        world.set_tile(pos, Tile {
-            type_: TileType::Wall,
-            glyph: Glyph::Wall,
-            feature: None,
-        });
-        assert_eq!(world.is_walkable(pos, Walkability::MonstersBlocking), false);
-
-        world.set_tile(pos, Tile {
-            type_: TileType::Floor,
-            glyph: Glyph::Floor,
-            feature: None,
-        });
-        assert_eq!(world.is_walkable(pos, Walkability::MonstersBlocking), true);
-
-        let actor = Actor::new(0, 0, Glyph::Player);
-        world.add_actor(actor);
-        assert_eq!(world.is_walkable(pos, Walkability::MonstersBlocking), false);
-        assert_eq!(world.is_walkable(pos, Walkability::MonstersWalkable), true);
+        let world = world_from_str("
+@.
+..");
+        assert_eq!(world.is_walkable(Point::new(0, 0), Walkability::MonstersBlocking), false);
+        assert_eq!(world.is_walkable(Point::new(0, 0), Walkability::MonstersWalkable), true);
     }
 }

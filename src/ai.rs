@@ -1,4 +1,5 @@
-use actor::{Actor, Direction};
+use actor::{Actor};
+use direction::Direction;
 use action::Action;
 use world::{World, Walkability};
 use pathfinding::Path;
@@ -10,6 +11,7 @@ pub trait Ai {
     fn choose_action(&self, action: &Actor, world: &World) -> Action;
 }
 
+// TEMP: This should be the behavior of pursuing the player, not the entire AI
 impl Ai for Simple {
     fn choose_action(&self, actor: &Actor, world: &World) -> Action {
         let player = world.player();
@@ -26,11 +28,11 @@ impl Ai for Simple {
 
         // Am I right next to the player?
         match Direction::from_neighbors(my_pos, player_pos) {
-            Some(_) => return Action::Explod,
+            Some(dir) => return Action::Move(dir),
             None      => (),
         }
 
-        let mut path = Path::find(my_pos, player_pos, &world, Walkability::MonstersWalkable);
+        let mut path = Path::find(my_pos, player_pos, &world, Walkability::MonstersBlocking);
 
         debug!(actor.logger, "My: {} player: {}, path: {:?}", my_pos, player_pos, path);
 
@@ -49,4 +51,9 @@ impl Ai for Simple {
             None      => panic!("Can't traverse path: {} {}", my_pos, next_pos),
         }
     }
+}
+
+// TEMP: should be a behaviour
+fn wander() -> Action {
+    Action::Move(Direction::choose8())
 }

@@ -43,6 +43,7 @@ mod event;
 mod namegen;
 mod stats;
 mod util;
+mod direction;
 
 use slog::Logger;
 
