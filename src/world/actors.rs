@@ -1,38 +1,14 @@
 use world::*;
 
-enum Either {
-    Alive(ActorId),
-    Dead(ActorId),
-}
-
-impl Either {
-    pub fn alive(&self) -> ActorId {
-        match *self {
-            Either::Alive(id) => id,
-            Either::Dead(..)  => panic!("Expected alive, but actor was dead."),
-        }
-    }
-    pub fn dead(&self) -> ActorId {
-        match *self {
-            Either::Dead(id) => id,
-            Either::Alive(..)  => panic!("Expected dead, but actor was alive."),
-        }
-    }
-}
-
 impl World {
-    /// Return an iterator over the currently loaded set of Actors in this
-    /// world across all chunks.
+    /// Return an iterator over the currently loaded set of living Actors in
+    /// this world across all chunks.
     pub fn actors(&mut self) -> hash_map::Values<ActorId, Actor> {
         self.actors.values()
     }
 
-    // FIXME: This should be okay to return just &Actor, because the only
-    // invalid cases are dead actors, and by the time this is called they should
-    // be cleaned up.
     pub fn actor(&self, id: &ActorId) -> &Actor {
         if self.was_killed(id) {
-            debug!(self.logger, "{} is dead.", id);
             self.killed_actors.get(id).expect("No such actor!")
         } else {
             self.actors.get(id).expect("No such actor!")
@@ -41,7 +17,6 @@ impl World {
 
     pub fn actor_mut(&mut self, id: &ActorId) -> &mut Actor {
         if self.was_killed(id) {
-            debug!(self.logger, "{} is dead.", id);
             self.killed_actors.get_mut(id).expect("No such actor!")
         } else {
             self.actors.get_mut(id).expect("No such actor!")
@@ -85,16 +60,19 @@ impl World {
         assert!(!self.actors.contains_key(&actor.get_id()), "Actor with same id already exists!");
         self.turn_order.add_actor(actor.get_id(), 0);
         self.actor_ids_by_pos.insert(actor.get_pos(), actor.get_id());
-        debug!(self.logger, "add: Actor {:8}", actor.get_id());
+        debug!(self.logger, "adding: {:8}", actor.get_id());
         self.actors.insert(actor.get_id(), actor);
     }
 
     /// Removes the actor from the position map and turn order, but doesn't
     /// delete it.
-    pub fn make_actor_inactive(&mut self, id: &ActorId) {
-        debug!(self.logger, "removing {:8}", id);
+    // NOTE: Pointless?
+    fn make_actor_inactive(&mut self, id: &ActorId) {
+        debug!(self.logger, "removing: {:8}", id);
         let pos = self.actor(id).get_pos();
 
+        // The player (and only the player) should still receive one last turn
+        // update if dead.
         if !self.is_player(id) {
             self.turn_order.remove_actor(id);
         }
@@ -110,10 +88,11 @@ impl World {
     }
 
     /// Wrapper to move an actor out of the world's actor hashmap, so it can be
-    /// mutated, then putting it back into the hashmap after.
+    /// mutated, then putting it back into the hashmap afterwards.
     pub fn with_moved_actor<F>(&mut self, id: &ActorId, mut callback: F)
         where F: FnMut(&mut World, &mut Actor) {
         assert!(!self.killed_actors.contains_key(id), "Actor {} is dead!", id);
+
         let mut actor = self.actors.remove(id).expect("Actor not found!");
         callback(self, &mut actor);
         self.actors.insert(id.clone(), actor);
@@ -146,8 +125,6 @@ impl World {
         }
         debug!(self.logger, "Killing: {}", id);
 
-        // FIXME: Since the player should be able to hang around after death,
-        // this shouldn't be done.
         let actor = self.remove_actor(&id);
         self.killed_actors.insert(id, actor);
     }
@@ -159,7 +136,8 @@ impl World {
     pub fn purge_dead(&mut self) {
         let dead_ids = self.actors.iter()
             .filter(|&(_, actor)| actor.is_dead())
-            .map(|(k, _)| k).cloned().collect::<Vec<ActorId>>();
+            .map(|(id, _)| id).cloned().collect::<Vec<ActorId>>();
+
         for id in dead_ids {
             debug!(self.logger, "{} was killed, purging.", id);
             self.actor_killed(id);

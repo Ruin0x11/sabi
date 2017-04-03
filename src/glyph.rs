@@ -1,51 +1,80 @@
-use color::{self, Color};
+use std::collections::HashMap;
 
-pub struct RenderableGlyph {
-    pub ch: char,
-    pub color_fg: Color,
-    pub color_bg: Color,
+use color::{self, Color};
+use toml::Value;
+use util::toml::*;
+
+fn char_from_string(s: String) -> char {
+    s.chars().nth(0).unwrap()
 }
 
-macro_attr!(
-#[derive(Eq, PartialEq, Debug, Copy, Clone, EnumFromStr!)]
-pub enum Glyph {
-    Player,
+fn make_glyph_table() -> HashMap<Glyph, RenderGlyph> {
+    let mut glyphs = HashMap::new();
+    let val = toml_value_from_file("./data/glyphs.toml");
 
-    Putit,
-    Prinny,
+    let glyph_names = match val {
+        Value::Table(ref table) => table.keys().cloned(),
+        _           => panic!("Glyph table wasn't a table."),
+    };
 
-    Floor,
-    Wall,
-    DebugDraw,
+    for name in glyph_names {
+        let glyph_name = match name.parse::<Glyph>() {
+            Ok(n)   => n,
+            Err(..) => panic!("Glyph name \"{}\" not found", name)
+        };
 
-    None,
-});
+        let make_color = |rgb: Vec<u8>| Color::new(rgb[0], rgb[1], rgb[2]);
 
-impl From<Glyph> for RenderableGlyph {
-    fn from(glyph: Glyph) -> RenderableGlyph {
-        match glyph {
-            Glyph::Player => RenderableGlyph { ch: '@',
-                                               color_fg: color::RED,
-                                               color_bg: color::BLACK },
-            Glyph::Prinny => RenderableGlyph { ch: 'p',
-                                               color_fg: color::BLUE,
-                                               color_bg: color::BLACK },
-            Glyph::Putit => RenderableGlyph { ch: 'p',
-                                               color_fg: color::WHITE,
-                                               color_bg: color::BLACK },
-            Glyph::Floor => RenderableGlyph  { ch: '.',
-                                               color_fg: color::WHITE,
-                                               color_bg: color::BLACK },
-            Glyph::Wall  => RenderableGlyph  { ch: '#',
-                                               color_fg: color::WHITE,
-                                               color_bg: color::BLACK },
-            Glyph::DebugDraw  => RenderableGlyph  { ch: 'X',
-                                                    color_fg: color::WHITE,
-                                                    color_bg: color::RED },
-            Glyph::None  => RenderableGlyph  { ch: ' ',
-                                               color_fg: color::BLACK,
-                                               color_bg: color::BLACK },
-        }
+        let ch_string: String = expect_toml_value(&val, &name, "ch");
+        let color = make_color(expect_toml_value(&val, &name, "color"));
+        let color_bg = match get_toml_value(&val, &name, "color_bg") {
+            Some(c) => make_color(c),
+            None    => color::BLACK,
+        };
+
+        let glyph = RenderGlyph {
+            ch: char_from_string(ch_string),
+            color_fg: color,
+            color_bg: color_bg,
+        };
+        glyphs.insert(glyph_name, glyph);
+    }
+    glyphs
+}
+
+pub fn lookup_ascii<'a>(glyph: Glyph) -> &'a RenderGlyph {
+    match GLYPH_TABLE.get(&glyph) {
+        Some(rg) => rg,
+        None     => panic!("Glyph name {:?} is specified, but no corresponding glyph was found!", glyph)
     }
 }
 
+lazy_static! {
+    static ref GLYPH_TABLE: HashMap<Glyph, RenderGlyph> = make_glyph_table();
+}
+
+pub struct RenderGlyph {
+    pub ch: char,
+    pub color_fg: Color,
+    pub color_bg: Color,
+
+
+    // In the future, could hold information on how to draw the character in
+    // graphically based rendering tagets.
+    //pub graphical_data: Option<char>,
+}
+
+macro_attr!(
+    #[derive(Hash, Eq, PartialEq, Debug, Copy, Clone, EnumFromStr!)]
+    pub enum Glyph {
+        Player,
+
+        Putit,
+        Prinny,
+
+        Floor,
+        Wall,
+        DebugDraw,
+
+        None,
+    });

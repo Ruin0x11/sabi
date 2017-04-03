@@ -77,7 +77,7 @@ pub fn make_grid_from_str<M, F, T>(text: &str, mut constructor: M, mut callback:
     fn test_chunked_world() {
         let world = get_world();
 
-        let player = Actor::new(0, 0, Glyph::Player);
+        let player = Actor::from_archetype(0, 0, "test_player");
         start_with_params(player, world);
     }
 
@@ -86,7 +86,7 @@ pub fn make_grid_from_str<M, F, T>(text: &str, mut constructor: M, mut callback:
     fn test_no_actors() {
         let mut world = get_world();
 
-        let mut player = Actor::new(6, 6, Glyph::Player);
+        let mut player = Actor::from_archetype(6, 6, "test_player");
         player.speed = 300;
 
         world.draw_square(Point::new(15, 15), 10, tile::FLOOR);
@@ -97,7 +97,7 @@ pub fn make_grid_from_str<M, F, T>(text: &str, mut constructor: M, mut callback:
     fn test_one_actor() {
         let mut world = get_world();
 
-        let mut player = Actor::new(6, 6, Glyph::Player);
+        let mut player = Actor::from_archetype(6, 6, "test_player");
         player.speed = 300;
 
         let mut other = Actor::from_archetype(10, 10, "prinny");
@@ -112,7 +112,7 @@ pub fn make_grid_from_str<M, F, T>(text: &str, mut constructor: M, mut callback:
         let mut rng = rand::thread_rng();
         let mut world = get_world();
 
-        let player = Actor::new(6, 6, Glyph::Player);
+        let player = Actor::from_archetype(6, 6, "test_player");
 
         world.draw_square(Point::new(15, 15), 10, tile::FLOOR);
         let range = Range::new(30, 200);

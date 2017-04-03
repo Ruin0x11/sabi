@@ -24,7 +24,6 @@ pub trait Canvas_ {
 
     fn print_str(&mut self, x: i32, y: i32, s: &str);
 
-
     // NOTE: The intention is that this may or may not block depending on the
     // backend, but that might not be a good idea...
     fn get_input(&self) -> Vec<Key>;

@@ -205,6 +205,7 @@ pub fn check_player_dead(world: &mut World, canvas: &mut Canvas) -> bool {
     let id = world.player_id();
     let res = world.was_killed(&id);
     if res {
+        info!(world.logger, "Player has died.");
         world.message("You're dead!".to_string());
         show_messages(world, canvas);
         canvas.present();

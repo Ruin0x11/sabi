@@ -1,5 +1,3 @@
-use glyph::{RenderableGlyph, Glyph};
-
 use std::error::Error;
 use std::default::Default;
 
@@ -11,6 +9,7 @@ use slog::Logger;
 
 use color::{Color, Color216, Color16};
 use engine::Canvas_;
+use glyph::{self, Glyph};
 use keys::{self, Key, KeyCode, NumkeyType};
 use log;
 
@@ -143,9 +142,9 @@ impl Canvas_ for RustboxCanvas {
     }
 
     fn print_glyph(&mut self, x: i32, y: i32, glyph: Glyph) {
-        let rend_glyph = RenderableGlyph::from(glyph);
-        let color_fg = Color16::from(rend_glyph.color_fg).into();
-        let color_bg = Color16::from(rend_glyph.color_bg).into();
+        let rend_glyph = glyph::lookup_ascii(glyph);
+        let color_fg = Color16::from(rend_glyph.color_fg.clone()).into();
+        let color_bg = Color16::from(rend_glyph.color_bg.clone()).into();
         self.root.print_char(x as usize,
                              y as usize,
                              rustbox::RB_NORMAL,

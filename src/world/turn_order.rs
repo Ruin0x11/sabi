@@ -18,6 +18,8 @@ impl TurnOrder {
     }
 
     pub fn add_actor(&mut self, id: ActorId, time: i32) {
+        assert!(!self.times_until_turn.contains_key(&id),
+                "Actor {} already exists in turn order!", id);
         self.times_until_turn.insert(id, time);
     }
 

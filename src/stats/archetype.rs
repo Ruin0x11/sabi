@@ -1,13 +1,11 @@
-use std::fs::File;
-use std::io::Read;
-use std::path::PathBuf;
+use std::collections::BTreeMap;
 
-use serde::Deserialize;
 use toml::Value;
 
 use glyph::Glyph;
 use stats::*;
 use stats::properties::*;
+use util::toml::*;
 
 const STATS_TABLE: &'static str = "stats";
 const PROPERTIES_TABLE: &'static str = "properties";
@@ -19,50 +17,52 @@ pub struct Archetype {
 }
 
 pub fn load(name: &str) -> Archetype {
-    let data_str = parse_file(name);
-    let archetype = make_archetype(data_str);
+    let value = toml_value_from_file(&format!("./data/monster/{}.toml", name));
+    let archetype = make_archetype(value);
     archetype
 }
 
-fn parse_file(name: &str) -> String {
-    let path = PathBuf::from(format!("./data/{}.toml", name));
-    let mut file = File::open(&path).expect("No open file!");
-    let mut data = String::new();
-    file.read_to_string(&mut data).expect("Can't read file!");
-    data
-}
+fn make_archetype(value: Value) -> Archetype {
+    let stats = make_stats(&value);
+    let glyph = make_glyph(&value);
+    let props = make_properties(&value);
 
-fn get_toml_value<T: Deserialize>(value: &Value, table: &str, key: &str) -> T {
-    match value[table][key].clone().try_into::<T>() {
-        Ok(v) => v,
-        Err(..) => panic!("Required value \"{}.{}\" not found!", table, key),
+    Archetype {
+        stats: stats,
+        glyph: glyph,
+        properties: props,
     }
 }
 
-fn make_archetype(data_str: String) -> Archetype {
-    let value = data_str.parse::<Value>().expect("Invalid TOML!");
-
-    // TEMP: Specify what fields are required based on the thing being instantiated.
-    let stats = StatsInit {
-        hp:        get_toml_value(&value, STATS_TABLE, "hp"),
-        strength:  get_toml_value(&value, STATS_TABLE, "strength"),
-        defense:   get_toml_value(&value, STATS_TABLE, "defense"),
+fn make_stats(value: &Value) -> Stats {
+    // TEMP: Specify what stats are required based on the thing being instantiated.
+    let init = StatsInit {
+        hp:        expect_toml_value(value, STATS_TABLE, "hp"),
+        strength:  expect_toml_value(value, STATS_TABLE, "strength"),
+        defense:   expect_toml_value(value, STATS_TABLE, "defense"),
     };
+    Stats::new(init)
+}
 
-    let glyph_name: String = get_toml_value(&value, STATS_TABLE, "glyph");
+fn make_glyph(value: &Value) -> Glyph {
+    let glyph_str: String = expect_toml_value(value, STATS_TABLE, "glyph");
 
-    let glyph = match glyph_name.parse::<Glyph>() {
+    match glyph_str.parse::<Glyph>() {
         Ok(g) => g,
-        Err(..) => panic!("Glyph {} not found.", glyph_name),
-    };
+        Err(..) => panic!("Glyph {} not found.", glyph_str),
+    }
+}
 
-    let props_table = match value[PROPERTIES_TABLE] {
-        Value::Table(ref t) => t,
-        _               => panic!("[properties] was not a table!"),
-    };
+fn make_properties(value: &Value) -> Properties {
+    match get_value_in_table(value, PROPERTIES_TABLE) {
+        Some(&Value::Table(ref t)) => properties_from_table(t),
+        Some(_)                    => panic!("[properties] was not a table!"),
+        _                          => Properties::new(),
+    }
+}
 
+fn properties_from_table(props_table: &BTreeMap<String, Value>) -> Properties {
     let mut props = Properties::new();
-
     for (key, val) in props_table.iter() {
         let prop_name = match key.parse::<Prop>() {
             Ok(name) => name,
@@ -74,12 +74,7 @@ fn make_archetype(data_str: String) -> Archetype {
             _                 => panic!("Type {:?} isn't supported as a property.", val)
         };
     }
-
-    Archetype {
-        stats: Stats::new(stats),
-        glyph: glyph,
-        properties: props,
-    }
+    props
 }
 
 #[cfg(test)]
@@ -88,7 +83,8 @@ mod tests {
     use stats::properties::Prop::*;
 
     fn test_archetype(s: &str) -> Archetype {
-        make_archetype(s.to_string())
+        let value = toml_value_from_string(s);
+        make_archetype(value)
     }
 
     #[test]
@@ -139,7 +135,8 @@ hp=10
 strength=10
 defense=10
 glyph=\"Prinny\"
-properties=42
+
+[[properties]]
 ");
     }
 
