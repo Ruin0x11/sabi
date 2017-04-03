@@ -76,6 +76,9 @@ pub struct RustboxCanvas {
     root: RustBox,
     wants_close: bool,
     output_mode: rustbox::OutputMode,
+
+    camera_x: i32,
+    camera_y: i32,
 }
 
 impl RustboxCanvas {
@@ -96,6 +99,8 @@ impl RustboxCanvas {
             root: root,
             wants_close: false,
             output_mode: output_mode,
+            camera_x: 0,
+            camera_y: 0,
         };
 
         info!(canvas.logger, "Rustbox canvas initialized, output mode: {:?}", output_mode);
@@ -125,6 +130,17 @@ impl Canvas_ for RustboxCanvas {
         self.root.present();
     }
 
+    fn set_camera(&mut self, x: i32, y: i32) {
+        self.camera_x = x;
+        self.camera_y = y;
+    }
+
+    fn translate_pos(&self, world_x: i32, world_y: i32) -> (i32, i32) {
+        let w = self.width();
+        let h = self.height();
+        (world_x - self.camera_x + (w / 2), world_y - self.camera_y + (h / 2))
+    }
+
     fn get_input(&self) -> Vec<Key> {
         let mut keys = Vec::new();
         // NOTE: If it gets bad, switch to peek_event
@@ -142,6 +158,7 @@ impl Canvas_ for RustboxCanvas {
     }
 
     fn print_glyph(&mut self, x: i32, y: i32, glyph: Glyph) {
+        let (x, y) = self.translate_pos(x, y);
         let rend_glyph = glyph::lookup_ascii(glyph);
         let color_fg = Color16::from(rend_glyph.color_fg.clone()).into();
         let color_bg = Color16::from(rend_glyph.color_bg.clone()).into();

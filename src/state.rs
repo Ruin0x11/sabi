@@ -173,9 +173,11 @@ fn process_player_input(context: &mut GameContext) {
 
 pub fn render_all(world: &mut World, canvas: &mut Canvas) {
     canvas.clear();
+    let camera_pos = world.player().get_pos();
+    canvas.set_camera(camera_pos.x, camera_pos.y);
     draw_world(world, canvas);
     draw_actors(world, canvas);
-    draw_overlays(world, canvas);
+    //draw_overlays(world, canvas);
 }
 
 pub fn process_actors(world: &mut World, canvas: &mut Canvas) {
@@ -222,7 +224,7 @@ pub fn process_events(world: &mut World, canvas: &mut Canvas) {
             // FIXME: don't delay actors here.
             logic::run_action(world, &id, action);
         }
-        render_all(world, canvas);
+        //render_all(world, canvas);
         responses.extend(event::check_all(world));
     }
 }

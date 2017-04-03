@@ -23,6 +23,12 @@ lazy_static! {
 
 pub type ActorId = Uuid;
 
+#[derive(Eq, PartialEq)]
+pub enum Disposition {
+    Friendly,
+    Enemy,
+}
+
 pub struct Actor {
     // TEMP: The player can name things, names can have pre/suffixes, creatures
     // should be named by their breed, creature variations make their own
@@ -41,6 +47,7 @@ pub struct Actor {
     // TEMP
     pub speed: u32,
 
+    pub disposition: Disposition,
     pub logger: Logger,
     pub stats: Stats,
     pub properties: Properties,
@@ -122,6 +129,7 @@ impl Actor {
 
             stats: Stats::default(),
             properties: Properties::new(),
+            disposition: Disposition::Enemy,
 
             // Things needing instantiation.
             x: x,
@@ -144,6 +152,7 @@ impl Actor {
 
             stats: archetype.stats,
             properties: archetype.properties,
+            disposition: Disposition::Enemy,
 
             x: x,
             y: y,

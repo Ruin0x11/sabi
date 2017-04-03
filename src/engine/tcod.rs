@@ -7,19 +7,19 @@ use tcod::input::Key as TcodKey;
 use tcod::input::KeyCode as TcodCode;
 
 use engine::{self, Canvas_};
-use glyph::{RenderableGlyph, Glyph};
+use glyph::{self, Glyph};
 use keys::{self, Key, KeyCode};
 use log;
 
 use color::Color;
 
-bitflags! {
-    pub flags Attrs: u8 {
-        const ATTR_BOLD      = 0b00000001,
-        const ATTR_UNDERLINE = 0b00000010,
-        const ATTR_REVERSE   = 0b00000100,
-    }
-}
+// bitflags! {
+//     pub flags Attrs: u8 {
+//         const ATTR_BOLD      = 0b00000001,
+//         const ATTR_UNDERLINE = 0b00000010,
+//         const ATTR_REVERSE   = 0b00000100,
+//     }
+// }
 
 impl Into<tcod::Color> for Color {
     fn into(self) -> tcod::Color {
@@ -35,6 +35,9 @@ pub struct TcodCanvas {
     logger: Logger,
     root: RootConsole,
     wants_close: bool,
+
+    camera_x: i32,
+    camera_y: i32,
 }
 
 impl TcodCanvas {
@@ -55,6 +58,9 @@ impl TcodCanvas {
             logger: log::make_logger("graphics").unwrap(),
             root: root,
             wants_close: false,
+
+            camera_x: 0,
+            camera_y: 0,
         }
     }
 }
@@ -115,7 +121,7 @@ fn key_from_tcod(tcod_key: TcodKey) -> Option<Key> {
         TcodCode::F11       => Some(KeyCode::F11),
         TcodCode::F12       => Some(KeyCode::F12),
 
-        TcodCode::Char      => keys::keycode_from_char(tcod_key.printable),
+        TcodCode::Char      => Some(KeyCode::from(tcod_key.printable)),
 
         _ => None,
     };
@@ -143,6 +149,17 @@ impl Canvas_ for TcodCanvas {
         self.root.flush();
     }
 
+    fn set_camera(&mut self, x: i32, y: i32) {
+        self.camera_x = x;
+        self.camera_y = y;
+    }
+
+    fn translate_pos(&self, world_x: i32, world_y: i32) -> (i32, i32) {
+        let w = self.width();
+        let h = self.height();
+        (world_x - self.camera_x + (w / 2), world_y - self.camera_y + (h / 2))
+    }
+
     fn get_input(&self) -> Vec<Key> {
         let mut keys = Vec::new();
         while let Some(keycode) = self.root.check_for_keypress(tcod::input::KEY_PRESSED) {
@@ -153,13 +170,19 @@ impl Canvas_ for TcodCanvas {
         keys
     }
 
+
+    fn print_str(&mut self, x: i32, y: i32, s: &str) {
+        self.root.print(x, y, s);
+    }
+
     fn print_glyph(&mut self, x: i32, y: i32, glyph: Glyph) {
+        let (x, y) = self.translate_pos(x, y);
         if !engine::point_inside_canvas(self, Point::new(x, y)) {
             return;
         }
-        let rend_glyph = RenderableGlyph::from(glyph);
-        let color_fg = rend_glyph.color_fg.into();
-        let color_bg = rend_glyph.color_bg.into();
+        let rend_glyph = glyph::lookup_ascii(glyph);
+        let color_fg = rend_glyph.color_fg.clone().into();
+        let color_bg = rend_glyph.color_bg.clone().into();
 
         self.root.set_char(x, y, rend_glyph.ch);
         self.root.set_char_foreground(x, y, color_fg);
@@ -180,5 +203,23 @@ impl Canvas_ for TcodCanvas {
 
     fn window_closed(&self) -> bool {
         self.wants_close || self.root.window_closed()
+    }
+
+    fn print_message(&mut self, message: &str) {
+        let h = self.height() - 1;
+        self.print_str(0, h, message);
+    }
+
+    fn show_messages(&mut self, messages: Vec<String>) {
+        for (i, mes) in messages.iter().enumerate() {
+            self.print_message(&mes);
+            if i != messages.len() - 1 {
+                self.present();
+                self.get_input();
+                let w = self.width();
+                let h = self.height() - 1;
+                self.print_str(0, h, " ".repeat(w as usize).as_str());
+            }
+        }
     }
 }
