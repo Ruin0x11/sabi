@@ -1,7 +1,25 @@
+mod goap_test;
+
 use actor::*;
 use world::*;
 use state;
 use ::*;
+
+fn get_world() -> World {
+    let mut world = World::generate(WorldType::Instanced(WorldPosition::new(64, 64)),
+                                    16, tile::WALL);
+    world.draw_square(WorldPosition::new(32, 32), 30, tile::FLOOR);
+    world
+}
+
+pub fn step_once(player: Actor, world: World) {
+    init();
+    let mut context = get_context();
+    context.state.set_world(world);
+    context.state.current_world_mut().set_player_id(player.get_id());
+    context.state.current_world_mut().add_actor(player);
+    state::step(&mut context);
+}
 
 pub fn start_with_params(player: Actor, world: World) {
     init();
@@ -9,12 +27,8 @@ pub fn start_with_params(player: Actor, world: World) {
     context.state.set_world(world);
     context.state.current_world_mut().set_player_id(player.get_id());
     context.state.current_world_mut().add_actor(player);
-    {
-        let context_mut = &mut context;
-
-        while !context_mut.canvas.window_closed() {
-            state::process(context_mut);
-        }
+    while !canvas::window_closed() {
+        state::process(&mut context);
     }
     info!(context.logger, "Testbed exited cleanly.");
 }
@@ -65,13 +79,6 @@ pub fn make_grid_from_str<M, F, T>(text: &str, mut constructor: M, mut callback:
     use super::*;
     use tile;
     use glyph::Glyph;
-
-    fn get_world() -> World {
-        let mut world = World::generate(WorldType::Instanced(WorldPosition::new(64, 64)),
-                                        16, tile::WALL);
-        world.draw_square(WorldPosition::new(32, 32), 30, tile::FLOOR);
-        world
-    }
 
     #[test]
     fn test_chunked_world() {

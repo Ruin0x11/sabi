@@ -68,9 +68,9 @@ fn swing_at(world: &mut World, attacker: &mut Actor, other_id: ActorId) {
     let evaded;
     {
         let other = world.actor(&other_id);
-        if attacker.disposition == other.disposition {
-            return;
-        }
+        // if attacker.disposition == other.disposition {
+        //     return;
+        // }
         assert!(attacker.get_pos().next_to(other.get_pos()), "Tried swinging from out of range! (could be implemented)");
         evaded = stats::formulas::check_evasion(attacker, other);
         if evaded {
@@ -99,6 +99,7 @@ fn run_actor_action(world: &mut World, actor: &mut Actor, action: Action) {
             });
             actor.kill();
         },
+        Action::SwingAt(id) => swing_at(world, actor, id),
         Action::Hurt(amount) => {
             world.message(format!("{}: \"Oof\"!", actor.name()));
             actor.hurt(amount);

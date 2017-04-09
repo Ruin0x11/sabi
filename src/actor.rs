@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::cmp;
 use std::fmt::{self, Display};
 
+use ai::{self, AiState};
 use action::Action;
 use direction::Direction;
 use glyph::Glyph;
@@ -52,13 +53,14 @@ pub struct Actor {
     pub logger: Logger,
     pub stats: Stats,
     pub properties: Properties,
+    pub ai: AiState,
 
     fov: RefCell<FieldOfView>,
 }
 
 impl Display for Actor {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} ({:8})...", self.name(), self.get_id())
+        write!(f, "{} ({:.8}...)", self.name(), self.get_id().to_string())
     }
 }
 
@@ -78,6 +80,8 @@ impl Actor {
             stats: Stats::default(),
             properties: Properties::new(),
             disposition: Disposition::Enemy,
+
+            ai: AiState::new(),
 
             // Things needing instantiation.
             x: x,
@@ -102,12 +106,26 @@ impl Actor {
             properties: archetype.properties,
             disposition: Disposition::Enemy,
 
+            ai: AiState::new(),
+
             x: x,
             y: y,
             logger: Actor::get_actor_log(&id),
             uuid: id,
             fov: RefCell::new(FieldOfView::new()),
         }
+    }
+
+    pub fn seen_actors(&self, world: &World) -> Vec<ActorId> {
+        let mut ids = Vec::new();
+        for point in self.fov.borrow().iter() {
+            if let Some(id) = world.actor_id_at(*point) {
+                if id != self.uuid {
+                    ids.push(id);
+                }
+            }
+        }
+        ids
     }
 
     fn get_actor_log(id: &ActorId) -> Logger {
@@ -133,6 +151,10 @@ impl Actor {
         } else {
             warn!(self.logger, "Actor tried moving to blocked pos: {}", pos);
         }
+    }
+
+    pub fn hp(&self) -> i32 {
+        self.hit_points
     }
 
     pub fn get_pos(&self) -> Point {

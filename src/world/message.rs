@@ -31,25 +31,14 @@ impl Messages {
         combined
     }
 
-    /// Returns the lines to be printed by the canvas, separated by "--More--",
-    /// based on the canvas width. Used for graphics backends with a small
-    /// canvas size.
     pub fn message_lines(&self, canvas_width: usize) -> Vec<String> {
-        let line_length = canvas_width - MORE.len() - 1;
         let more_str = format!(" {}", MORE);
         let combined = self.combined_message();
-        let mut wrapped_lines = textwrap::wrap(combined.as_str(), line_length as usize);
+        let mut wrapped_lines = textwrap::wrap(combined.as_str(), canvas_width);
         for line in wrapped_lines.iter_mut() {
             // TODO: Truncate with '...' instead, if the line is a single block
             // greater than the canvas width.
             line.truncate(canvas_width);
-        }
-        if wrapped_lines.len() > 1 {
-            let truncated_count = wrapped_lines.len() - 1;
-            // Don't place '--More--' on the last line.
-            for line in wrapped_lines.iter_mut().take(truncated_count) {
-                line.push_str(more_str.as_str());
-            }
         }
         wrapped_lines
     }
@@ -72,31 +61,4 @@ impl World {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    const TEST_WIDTH: usize = 80;
-
-    #[test]
-    fn test_single_line() {
-        let mut messages = Messages::new();
-        messages.add("Welcome, traveller!".to_string());
-        assert_eq!(messages.message_lines(TEST_WIDTH), vec!["Welcome, traveller!".to_string()]);
-    }
-
-    #[test]
-    fn test_two_lines() {
-        let mut messages = Messages::new();
-        messages.add("The putit hits! The putit hits! The putit hits! The putit hits! The putit hits! The putit hits! The putit hits!".to_string());
-        assert_eq!(messages.message_lines(TEST_WIDTH),
-                   vec!["The putit hits! The putit hits! The putit hits! The putit hits! The --More--".to_string(),
-                        "putit hits! The putit hits! The putit hits!".to_string()]);
-    }
-
-    #[test]
-    fn test_big_line() {
-        let mut messages = Messages::new();
-        let big = "O".repeat(TEST_WIDTH + 4);
-        messages.add(big);
-        assert_eq!(messages.message_lines(TEST_WIDTH),
-                   vec!["O".repeat(TEST_WIDTH)]);
-    }
 }

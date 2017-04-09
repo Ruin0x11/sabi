@@ -3,15 +3,18 @@ use std::collections::hash_map::Entry::*;
 use self::PropErr::*;
 use self::Prop::*;
 
+use actor::ActorId;
+
 // TEMP: Experiment with different stat architectures and see what works.
 //  - Static/baked in
 //  - Key/value pairs
 //    - Sets of required and optional properties?
 //  - Lua tables?
 
-enum PropType {
+pub enum PropType {
     Bool(bool),
     Num(i64),
+    Id(ActorId),
 }
 
 // This can be refactored to have type checking later.
