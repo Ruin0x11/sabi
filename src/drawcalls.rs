@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::collections::VecDeque;
 
-use engine::Canvas;
+use engine::canvas::{self, Canvas};
 use glyph::Glyph;
 
 pub struct DrawCalls {
@@ -23,9 +23,9 @@ impl DrawCalls {
         self.draw_calls.borrow_mut().clear();
     }
 
-    pub fn draw_all(&self, canvas: &mut Canvas) {
+    pub fn draw_all(&self) {
         for draw_call in self.draw_calls.borrow().iter() {
-            draw_call.draw(canvas);
+            canvas::with_mut(|c| draw_call.draw(c) );
         }
     }
 }

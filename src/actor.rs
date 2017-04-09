@@ -2,7 +2,9 @@ use std::cell::RefCell;
 use std::cmp;
 use std::fmt::{self, Display};
 
+use ai::{self, AiState};
 use action::Action;
+use direction::Direction;
 use glyph::Glyph;
 use log;
 use point::Point;
@@ -15,7 +17,7 @@ use stats::Stats;
 use stats::archetype;
 use stats::properties::Properties;
 
-const FOV_RADIUS: i32 = 5;
+const FOV_RADIUS: i32 = 10;
 
 lazy_static! {
     static ref ACTOR_LOG: Logger = log::make_logger("actor").unwrap();
@@ -33,7 +35,7 @@ pub struct Actor {
     // TEMP: The player can name things, names can have pre/suffixes, creatures
     // should be named by their breed, creature variations make their own
     // pre/suffixes, things can have proper names...
-    name: String,
+    pub name: String,
 
     x: i32,
     y: i32,
@@ -51,66 +53,14 @@ pub struct Actor {
     pub logger: Logger,
     pub stats: Stats,
     pub properties: Properties,
+    pub ai: AiState,
 
     fov: RefCell<FieldOfView>,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum Direction {
-    N,
-    NE,
-    E,
-    SE,
-    S,
-    SW,
-    W,
-    NW,
-}
-
-impl Direction {
-    fn to_movement_offset(&self) -> (i32, i32) {
-        match *self {
-            Direction::N  => (0,  -1),
-            Direction::NW => (-1, -1),
-            Direction::W  => (-1,  0),
-            Direction::SW => (-1,  1),
-            Direction::S  => (0,   1),
-            Direction::SE => (1,   1),
-            Direction::E  => (1,   0),
-            Direction::NE => (1,  -1),
-        }
-    }
-
-    fn from_movement_offset(offset: Point) -> Option<Direction> {
-        let (x, y) = (offset.x, offset.y);
-        match (x, y) {
-            (0,  -1) => Some(Direction::N),
-            (-1, -1) => Some(Direction::NW),
-            (-1,  0) => Some(Direction::W),
-            (-1,  1) => Some(Direction::SW),
-            (0,   1) => Some(Direction::S),
-            (1,   1) => Some(Direction::SE),
-            (1,   0) => Some(Direction::E),
-            (1,  -1) => Some(Direction::NE),
-            _        => None,
-        }
-    }
-
-    pub fn from_neighbors(from: Point, to: Point) -> Option<Direction> {
-        Direction::from_movement_offset(to - from)
-    }
-
-    pub fn add_offset(pt: Point, dir: Direction) -> Point {
-        let (dx, dy) = dir.to_movement_offset();
-        let cx = pt.x.clone() + dx;
-        let cy = pt.y.clone() + dy;
-        Point::new(cx, cy)
-    }
-}
-
 impl Display for Actor {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} ({:8})...", self.name(), self.get_id())
+        write!(f, "{} ({:.8}...)", self.name(), self.get_id().to_string())
     }
 }
 
@@ -130,6 +80,8 @@ impl Actor {
             stats: Stats::default(),
             properties: Properties::new(),
             disposition: Disposition::Enemy,
+
+            ai: AiState::new(),
 
             // Things needing instantiation.
             x: x,
@@ -154,12 +106,26 @@ impl Actor {
             properties: archetype.properties,
             disposition: Disposition::Enemy,
 
+            ai: AiState::new(),
+
             x: x,
             y: y,
             logger: Actor::get_actor_log(&id),
             uuid: id,
             fov: RefCell::new(FieldOfView::new()),
         }
+    }
+
+    pub fn seen_actors(&self, world: &World) -> Vec<ActorId> {
+        let mut ids = Vec::new();
+        for point in self.fov.borrow().iter() {
+            if let Some(id) = world.actor_id_at(*point) {
+                if id != self.uuid {
+                    ids.push(id);
+                }
+            }
+        }
+        ids
     }
 
     fn get_actor_log(id: &ActorId) -> Logger {
@@ -187,6 +153,10 @@ impl Actor {
         }
     }
 
+    pub fn hp(&self) -> i32 {
+        self.hit_points
+    }
+
     pub fn get_pos(&self) -> Point {
         Point::new(self.x, self.y)
     }
@@ -209,7 +179,7 @@ impl Actor {
     }
 
     // FIXME: to satisfy the borrow checker
-    pub fn fov(&self) -> FieldOfView {
+    pub fn fov<'a>(&self) -> FieldOfView {
         self.fov.borrow().clone()
     }
 

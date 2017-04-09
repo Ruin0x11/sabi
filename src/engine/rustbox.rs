@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+use std::collections::VecDeque;
 use std::error::Error;
 use std::default::Default;
 
@@ -8,10 +10,13 @@ use rustbox::Key as RustboxKey;
 use slog::Logger;
 
 use color::{Color, Color216, Color16};
-use engine::Canvas_;
+use engine::canvas::Canvas_;
 use glyph::{self, Glyph};
 use keys::{self, Key, KeyCode, NumkeyType};
 use log;
+use ui::{WindowKind};
+
+const MESSAGE_WINDOW_HEIGHT: i32 = 5;
 
 impl From<rustbox::Key> for Key {
     fn from(rb_key: rustbox::Key) -> Key {
@@ -73,9 +78,10 @@ impl Into<rustbox::Color> for Color216 {
 
 pub struct RustboxCanvas {
     logger: Logger,
-    root: RustBox,
+    root: RefCell<RustBox>,
     wants_close: bool,
     output_mode: rustbox::OutputMode,
+    message_buffer: VecDeque<String>,
 
     camera_x: i32,
     camera_y: i32,
@@ -90,7 +96,7 @@ impl RustboxCanvas {
             output_mode: output_mode,
             ..Default::default()
         }) {
-            Result::Ok(v) => v,
+            Result::Ok(v) => RefCell::new(v),
             Result::Err(e) => panic!("{}", e),
         };
 
@@ -99,6 +105,7 @@ impl RustboxCanvas {
             root: root,
             wants_close: false,
             output_mode: output_mode,
+            message_buffer: VecDeque::new(),
             camera_x: 0,
             camera_y: 0,
         };
@@ -115,19 +122,19 @@ impl Canvas_ for RustboxCanvas {
     }
 
     fn width(&self) -> i32 {
-        self.root.width() as i32
+        self.root.borrow().width() as i32
     }
 
     fn height(&self) -> i32 {
-        self.root.height() as i32
+        self.root.borrow().height() as i32
     }
 
-    fn clear(&mut self) {
-        self.root.clear();
+    fn clear(&self) {
+        self.root.borrow_mut().clear();
     }
 
-    fn present(&mut self) {
-        self.root.present();
+    fn present(&self) {
+        self.root.borrow_mut().present();
     }
 
     fn set_camera(&mut self, x: i32, y: i32) {
@@ -137,14 +144,14 @@ impl Canvas_ for RustboxCanvas {
 
     fn translate_pos(&self, world_x: i32, world_y: i32) -> (i32, i32) {
         let w = self.width();
-        let h = self.height();
+        let h = self.height() - MESSAGE_WINDOW_HEIGHT;
         (world_x - self.camera_x + (w / 2), world_y - self.camera_y + (h / 2))
     }
 
     fn get_input(&self) -> Vec<Key> {
         let mut keys = Vec::new();
         // NOTE: If it gets bad, switch to peek_event
-        match self.root.poll_event(false) {
+        match self.root.borrow().poll_event(false) {
             Ok(ev) => match ev {
                 // NOTE: Due to the way terminals work, Rustbox sends an Esc
                 // keypress along with the keycode when using Alt with a key.
@@ -157,12 +164,12 @@ impl Canvas_ for RustboxCanvas {
         keys
     }
 
-    fn print_glyph(&mut self, x: i32, y: i32, glyph: Glyph) {
+    fn print_glyph(&self, x: i32, y: i32, glyph: Glyph) {
         let (x, y) = self.translate_pos(x, y);
         let rend_glyph = glyph::lookup_ascii(glyph);
         let color_fg = Color16::from(rend_glyph.color_fg.clone()).into();
         let color_bg = Color16::from(rend_glyph.color_bg.clone()).into();
-        self.root.print_char(x as usize,
+        self.root.borrow_mut().print_char(x as usize,
                              y as usize,
                              rustbox::RB_NORMAL,
                              color_fg,
@@ -178,31 +185,48 @@ impl Canvas_ for RustboxCanvas {
         self.wants_close
     }
 
-    fn print_str(&mut self, x: i32, y: i32, s: &str) {
-        self.root.print(x as usize,
+    fn print_str(&self, x: i32, y: i32, s: &str) {
+        self.root.borrow_mut().print(x as usize,
                         y as usize,
                         rustbox::RB_NORMAL,
                         RustboxColor::White,
-                        RustboxColor::Black,
+                        RustboxColor::Default,
                         s);
     }
 
-    fn print_message(&mut self, message: &str) {
-        let h = self.height() - 1;
-        self.print_str(0, h, message);
-    }
-
-    fn show_messages(&mut self, messages: Vec<String>) {
-        for (i, mes) in messages.iter().enumerate() {
-            self.print_message(&mes);
-            if i != messages.len() - 1 {
-                self.present();
-                self.get_input();
+    fn draw_window(&self, kind: WindowKind) {
+        match kind {
+            WindowKind::Message => {
                 let w = self.width();
                 let h = self.height() - 1;
-                self.print_str(0, h, " ".repeat(w as usize).as_str());
+                self.print_str(0, h, "-".repeat(w as usize).as_str());
+                let meswin_top = h - MESSAGE_WINDOW_HEIGHT;
+                for i in meswin_top..h {
+                    self.print_str(0, i, " ".repeat(w as usize).as_str());
+                }
             }
         }
+    }
+
+    fn print_messages(&self) {
+        let w = self.width();
+        let h = self.height() - 1;
+        for (idx, message) in self.message_buffer.iter().take(MESSAGE_WINDOW_HEIGHT as usize).enumerate() {
+            self.print_str(0, h - idx as i32, message);
+        }
+        self.print_str(0, h - MESSAGE_WINDOW_HEIGHT, "-".repeat(w as usize).as_str());
+    }
+
+    fn update_message_buffer(&mut self, messages: Vec<String>) {
+        for (idx, message) in messages.into_iter().enumerate() {
+            self.message_buffer.push_front(message);
+            if idx > 0 && (idx % 5) == 0 {
+                self.print_messages();
+                self.print_str(0, 0, "--MORE--");
+                self.get_input();
+            }
+        }
+        self.print_messages();
     }
 }
 

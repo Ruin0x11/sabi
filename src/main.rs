@@ -1,3 +1,4 @@
+extern crate backtrace;
 extern crate chrono;
 #[macro_use] extern crate lazy_static;
 extern crate uuid;
@@ -9,11 +10,12 @@ extern crate slog_stream;
 pub extern crate tcod;
 extern crate textwrap;
 extern crate toml;
+extern crate goap;
 
 #[macro_use] extern crate enum_derive;
 #[macro_use] extern crate macro_attr;
 
-#[cfg(feature = "with-rustbox")]
+// #[cfg(feature = "with-rustbox")]
 extern crate rustbox;
 
 #[cfg(feature = "with-opengl")]
@@ -43,20 +45,20 @@ mod event;
 mod namegen;
 mod stats;
 mod util;
+mod direction;
+mod ui;
 
 use slog::Logger;
 
 use actor::*;
-use engine::Canvas;
+use engine::canvas;
 use point::Point;
 use state::GameState;
 
 use keys::Keys;
 
 pub struct GameContext {
-    canvas: Canvas,
     logger: Logger,
-    keys: Keys,
     state: GameState,
 }
 
@@ -69,12 +71,8 @@ fn init() {
 }
 
 pub fn get_context() -> GameContext {
-    let canvas = engine::get_canvas().unwrap();
-
     GameContext {
-        canvas: canvas,
         logger: log::make_logger("main").unwrap(),
-        keys: Keys::new(),
         state: GameState::new(),
     }
 }
@@ -88,7 +86,7 @@ pub fn run() {
 }
 
 fn game_loop(mut ctxt: &mut GameContext) {
-    while !ctxt.canvas.window_closed() {
+    while !canvas::window_closed() {
         state::process(ctxt);
     }
 }

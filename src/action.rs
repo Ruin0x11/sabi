@@ -1,4 +1,5 @@
-use actor::Direction;
+use actor::ActorId;
+use direction::Direction;
 
 #[derive(Clone, Debug)]
 pub enum Action {
@@ -7,4 +8,5 @@ pub enum Action {
     Dood,
     Explod,
     Hurt(u32),
+    SwingAt(ActorId),
 }

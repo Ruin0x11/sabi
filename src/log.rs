@@ -2,6 +2,8 @@ use std::fmt::{self, Display};
 use std::panic;
 use std::thread;
 
+use backtrace::Backtrace;
+
 use std::io;
 use std::fs::File;
 
@@ -39,9 +41,18 @@ pub fn make_logger(system_name: &str) -> Result<Logger, ()> {
     Ok(logger)
 }
 
+struct Shim(Backtrace);
+
+impl fmt::Debug for Shim {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "\n{:?}", self.0)
+    }
+}
+
 pub fn init_panic_hook() {
     panic::set_hook(Box::new(|info| {
         let logger = make_logger("error").unwrap();
+        let backtrace = Backtrace::new();
 
         let thread = thread::current();
         let thread = thread.name().unwrap_or("unnamed");
@@ -56,13 +67,14 @@ pub fn init_panic_hook() {
 
         match info.location() {
             Some(location) => {
-                error!(logger, "thread '{}' panicked at '{}': {}:{}",
+                error!(logger, "traceback: {:?}\nthread '{}' panicked at '{}': {}:{}",
+                       Shim(backtrace),
                        thread,
                        msg,
                        location.file(),
                        location.line());
             }
-            None => error!(logger, "thread '{}' panicked at '{}'", thread, msg),
+            None => error!(logger, "traceback: {:?}\nthread '{}' panicked at '{}'", Shim(backtrace), thread, msg),
         }
     }));
 }
