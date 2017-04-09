@@ -5,33 +5,33 @@ use std::f32;
 
 use point::*;
 
-#[derive(Eq, PartialEq, Clone, Debug)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct Line {
-    pub from: Point,
-    pub to: Point,
+    pub from: (f32, f32),
+    pub to: (f32, f32),
 }
 
 impl Line {
-    pub fn new(from: Point, to: Point) -> Self {
+    pub fn new(from: (f32, f32), to: (f32, f32)) -> Self {
         Line { from: from, to: to }
     }
 
-    pub fn is_clear_cw(&self, pt: &Point) -> bool {
-        self.dtheta(pt) > 0.0
+    pub fn is_clear_cw(&self, x: f32, y: f32) -> bool {
+        self.dtheta(x, y) > 0.0
     }
 
-    pub fn is_clear_ccw(&self, pt: &Point) -> bool {
-        self.dtheta(pt) < 0.0
+    pub fn is_clear_ccw(&self, x: f32, y: f32) -> bool {
+        self.dtheta(x, y) < 0.0
     }
 
-    fn dtheta(&self, pt: &Point) -> f32 {
-        let conv = |a: &Point, b: &Point| {
-            let i = (a.y - b.y) as f32;
-            let j = (a.x - b.x) as f32;
+    fn dtheta(&self, x: f32, y: f32) -> f32 {
+        let conv = |a: &(f32, f32), b: &(f32, f32)| {
+            let i = (a.1 - b.1) as f32;
+            let j = (a.0 - b.0) as f32;
             i.atan2(j)
         };
         let theta = conv(&self.to, &self.from);
-        let other = conv(pt, &self.from);
+        let other = conv(&(x, y), &self.from);
         let dt = other - theta;
         if dt > -f32::consts::PI {
             dt
@@ -43,12 +43,12 @@ impl Line {
 
 /// Describes a visible area between two lines, along with the obstructions
 /// coming from each.
-#[derive(Eq, PartialEq, Clone, Debug)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct Arc {
     pub steep: Line,
     pub shallow: Line,
-    pub steep_bumps: Vec<Point>,
-    pub shallow_bumps: Vec<Point>,
+    pub steep_bumps: Vec<(f32, f32)>,
+    pub shallow_bumps: Vec<(f32, f32)>,
 }
 
 impl Arc {
@@ -62,12 +62,12 @@ impl Arc {
     }
 
     /// Marks an obstruction coming from the clockwise direction of the arc.
-    pub fn add_steep_bump(&mut self, pt: &Point) {
-        let steep_bump = Point::new(pt.x + 1, pt.y);
+    pub fn add_steep_bump(&mut self, x: f32, y: f32) {
+        let steep_bump = (x + 1.0, y);
         self.steep_bumps.push(steep_bump);
         self.steep.to = steep_bump;
         for sb in self.shallow_bumps.iter() {
-            if self.steep.is_clear_cw(&sb) {
+            if self.steep.is_clear_cw(sb.0, sb.1) {
                 self.steep.from = sb.clone();
             }
         }
@@ -75,48 +75,48 @@ impl Arc {
 
     /// Marks an obstruction coming from the counterclockwise direction of the
     /// arc.
-    pub fn add_shallow_bump(&mut self, pt: &Point) {
-        let shallow_bump = Point::new(pt.x, pt.y + 1);
+    pub fn add_shallow_bump(&mut self, x: f32, y: f32) {
+        let shallow_bump = (x, y + 1.0);
         self.shallow_bumps.push(shallow_bump);
         self.shallow.to = shallow_bump;
         for sb in self.steep_bumps.iter() {
-            if self.shallow.is_clear_ccw(&sb) {
+            if self.shallow.is_clear_ccw(sb.0, sb.1) {
                 self.shallow.from = sb.clone();
             }
         }
     }
 
-    pub fn hits(&self, pt: &Point) -> bool {
-        self.steep.is_clear_ccw(&Point::new(pt.x + 1, pt.y)) &&
-            self.shallow.is_clear_cw(&Point::new(pt.x, pt.y + 1))
+    pub fn hits(&self, x: f32, y: f32) -> bool {
+        self.steep.is_clear_ccw(x + 1.0, y) &&
+            self.shallow.is_clear_cw(x, y + 1.0)
     }
 
     /// Determines if the wall at the given point blocks the arc.
-    pub fn shade(&mut self, pt: &Point) -> Blocking {
-        let steep_block = self.steep.is_clear_cw(&Point::new(pt.x, pt.y + 1));
-        let shallow_block = self.shallow.is_clear_ccw(&Point::new(pt.x + 1, pt.y));
+    pub fn shade(&mut self, x: f32, y: f32) -> Blocking {
+        let steep_block = self.steep.is_clear_cw(x, y + 1.0);
+        let shallow_block = self.shallow.is_clear_ccw(x + 1.0, y);
         if steep_block && shallow_block {
             // The wall is outside the arc, so it isn't visible
             return Blocking::Complete;
         } else if steep_block {
-            self.add_steep_bump(pt);
+            self.add_steep_bump(x, y);
             return Blocking::Partial;
         } else if shallow_block {
-            self.add_shallow_bump(pt);
+            self.add_shallow_bump(x, y);
             return Blocking::Partial;
         } else {
             // The wall is between both lines, so make two new arcs to account
             // for the squares it blocks
             let mut a = self.clone();
             let mut b = self.clone();
-            a.add_steep_bump(pt);
-            b.add_shallow_bump(pt);
+            a.add_steep_bump(x, y);
+            b.add_shallow_bump(x, y);
             return Blocking::Nothing(a, b)
         }
     }
 }
 
-#[derive(Eq, PartialEq, Clone, Debug)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum Blocking {
     Complete,
     Partial,
@@ -132,8 +132,8 @@ impl Light {
     pub fn new(radius: i32) -> Self {
         assert!(radius >= 0);
         let wide = Arc::new(
-            Line::new(Point::new(1, 0), Point::new(0, radius)),
-            Line::new(Point::new(0, 1), Point::new(radius, 0)),
+            Line::new((1.0, 0.0), (0.0, radius as f32)),
+            Line::new((0.0, 1.0), (radius as f32, 0.0)),
         );
         let mut arcs = Vec::new();
         arcs.push(wide);
@@ -144,9 +144,9 @@ impl Light {
 
     /// Determines if this light contains an arc that hits the given point,
     /// meaning it is visible.
-    pub fn hits(&self, pt: &Point) -> Option<usize> {
+    pub fn hits(&self, x: f32, y: f32) -> Option<usize> {
         for arc in self.arcs.borrow().iter() {
-            if arc.hits(pt) {
+            if arc.hits(x, y) {
                 let idx = self.arcs.borrow().iter().position(|a| *a == *arc).unwrap();
                 return Some(idx);
             }
@@ -156,8 +156,8 @@ impl Light {
 
     /// Checks the blocking status of an arc at a point and adds any
     /// obstructions, then updates this light's list of arcs.
-    pub fn shade(&mut self, arc_idx: usize, pt: &Point) -> usize {
-        let res = self.arcs.borrow_mut().get_mut(arc_idx).unwrap().shade(pt);
+    pub fn shade(&mut self, arc_idx: usize, x: f32, y: f32) -> usize {
+        let res = self.arcs.borrow_mut().get_mut(arc_idx).unwrap().shade(x, y);
         match res {
             Blocking::Nothing(arc_a, arc_b) => {
                 self.arcs.borrow_mut().remove(arc_idx);
@@ -197,8 +197,8 @@ impl FieldOfView {
                 for i in 0..dr+1 {
                     // Translate the world coordinate into the light's
                     // coordinate space.
-                    let cell = Point::new(dr - i, i);
-                    let idx_opt = light.hits(&cell);
+                    let cell = (dr - i, i );
+                    let idx_opt = light.hits(cell.0 as f32, cell.1 as f32);
 
                     // If the cell is unlit, ignore it.
                     if idx_opt.is_none() {
@@ -208,8 +208,8 @@ impl FieldOfView {
                     // If it is in bounds, add the lit cell to the visible
                     // cells.
                     let idx = idx_opt.unwrap();
-                    let ax = center.x + cell.x * dx;
-                    let ay = center.y + cell.y * dy;
+                    let ax = center.x + cell.0 * dx;
+                    let ay = center.y + cell.1 * dy;
                     let next = Point::new(ax, ay);
 
                     if in_bounds(&next) {
@@ -227,7 +227,7 @@ impl FieldOfView {
                     }
 
                     // Blocking cells cast shadows.
-                    let light_source_count = light.shade(idx, &cell);
+                    let light_source_count = light.shade(idx, cell.0 as f32, cell.1 as f32);
 
                     if light_source_count <= 0 {
                         return;
