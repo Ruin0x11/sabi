@@ -8,8 +8,59 @@ _Principles_
 _Backbone_
 - Feature-agnostic renderer (that is tightly coupled to game specifics)
 - Heavy usage of prebuilt modules.
+** Task
+*** TODO Send a message to all actors in a radius.
+*** TODO Create cosmetic decals for blood/cracks on tiles.
+*** TODO A world generation.
+Create a single deterministic layer from noise and, instead of looking at neighbors between regions, use the deterministic layer for generation
+** Architecture Considerations
+- Use a scripting language or not? Lua?
+  + Yes. Lua.
+- Messaging between actors?
+** Questions
+_Design_
+- Does there always have to be a player active?
+
+_Technical_
+- How do I keep a reference to an optional actor and be able to control it?
+** Things I know I want
+_Mechanics_
+- Ranged weapons
+- Themed dungeons/variety of generation patterns
+- Numeric speed value
+- FieldOfView/Invisibility/detection of invisible things
+- Magic/events that happen after a set period of time
+- Multi-turn actions that can be interrupted
+- Variable amount of body parts.
+- Some kind of crafting.
+- Friendly AI/pets
+- Friendly/Neutral/Hostile relations between all beings (infighting possible?)
+- Large, persistent and randomly generated open world
+- Home area of some kind
+- No permadeath by default, but it is an option
+  + although there still is a penalty for dying
+
+_Theme_
+- Something modern/abstract
+*** Tiles
+- Multiple items per tile
+- At most one special feature - stairs.
+  + Features can be added to a tile manually by the player
+- Stairs are items, but not normally takeable
+** Things to determine if fun
+- TP/charge system of skills
+- Player may balance between any amount of melee/shooting/magic
+- Creation of temporary dungeons/dungeons from items
+- Customization of home base
+- Maintainance of city/large base
+- Cell phone as quest acceptance/other tool
+- Base building/defense as part of an instanced quest
+- Items can act as living beings
+- Open world not separated by boundaries (chunked) alongside normal maps
+  + This is really cool, but /will/ require a rewrite...
+- Overworld travel
+- Hidden rooms (basements) of instanced buildings
+- People who create things out of materials?
+- Body parts equippable also, affecting state percentage modifier?
 ** TIPS
-22:43   Aaronepower [mTB nonbirit1m So you'd do something like `#[cfg(windows)] mod windows_sys as sys;
-                        #[cfg(macos)] mod mac_sys as sys;` and you'd make the API uniform so the rest of
-                        the code doesn't have to worry.
-[]]
+- There is one key optimization that makes this method faster (on top of the very fast raycasting method that is Bresenham): An actor's FOV map is not cleared before it’s recalculated--this is a waste of time since the map isn’t changing size, only content. Instead, with each map you store an “FOV ID” which is essentially an integer that equates to the value identifying visible cells on the map. Example: The first time you use a map it is filled with zeros and your ID is set to ’1′; the raycasting process sets all visible cells in the map to ’1′; later when you want to know if a particular cell is visible, you just test whether it equals the current ID. Every time you recalculate the FOV, you first increment the ID (2, 3, 4…), so you never have to clear your map in memory. Saves a lot of time if you’re frequently updating numerous maps. (I also use a similar time-saving method with my Dijkstra and A* pathfinding implementations, and in many other areas.)
