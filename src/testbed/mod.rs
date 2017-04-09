@@ -1,4 +1,5 @@
 mod goap_test;
+mod item;
 
 use actor::*;
 use world::*;
