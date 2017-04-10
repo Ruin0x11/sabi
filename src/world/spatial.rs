@@ -1,9 +1,17 @@
-pub struct Spatial {
-    actors: HashMap<ActorId, Actor>,
-    actor_ids_by_pos: HashMap<WorldPosition, ActorId>,
-    // Actors that were killed during the current actor's turn, by events, etc.
-    killed_actors: HashMap<ActorId, Actor>,
+use world::*;
 
-    // TEMP: Move upward
-    player_id: Option<ActorId>,
+type Spatial<T> = HashMap<WorldPosition, T>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_all() {
+        let s = ItemSpatial::new();
+        let c = Item::new();
+        let i = Item::new();
+        c.put(i);
+        s.put(c);
+    }
 }

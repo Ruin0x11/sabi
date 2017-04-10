@@ -1,6 +1,7 @@
 mod actors;
 mod iterators;
 mod message;
+// mod spatial;
 mod turn_order;
 
 use std::cell::RefCell;
@@ -18,8 +19,9 @@ use glyph::*;
 use slog::Logger;
 use log;
 
-use self::turn_order::TurnOrder;
 use self::message::Messages;
+use self::actors::Actors;
+use world::turn_order::TurnOrder;
 
 pub type WorldIter = Iterator<Item=WorldPosition>;
 
@@ -45,19 +47,9 @@ pub struct World {
     chunks: HashMap<ChunkIndex, Chunk>,
     type_: WorldType,
 
-    // NOTE: could also implement by putting each in its own Chunk
-    actors: HashMap<ActorId, Actor>,
-    actor_ids_by_pos: HashMap<WorldPosition, ActorId>,
-    // Actors that were killed during the current actor's turn, by events, etc.
-    killed_actors: HashMap<ActorId, Actor>,
-
-    // NOTE: I'm not sure it makes sense for a player to be tied to an existing
-    // world, but it works for now.
-    player_id: Option<ActorId>,
-    // NOTE: Also must keep track of following actors, to move them between
-    // areas.
-
+    actors: Actors,
     turn_order: TurnOrder,
+
     pub draw_calls: DrawCalls,
     messages: RefCell<Messages>,
     pub events: Vec<Event>,
@@ -70,10 +62,7 @@ impl World {
             chunk_size: chunk_size,
             chunks: HashMap::new(),
             type_: type_,
-            actors: HashMap::new(),
-            actor_ids_by_pos: HashMap::new(),
-            killed_actors: HashMap::new(),
-            player_id: None,
+            actors: Actors::new(),
             turn_order: TurnOrder::new(),
             draw_calls: DrawCalls::new(),
             events: Vec::new(),
@@ -192,7 +181,7 @@ impl World {
                        walkability: Walkability) -> bool {
         let walkable = match walkability {
             Walkability::MonstersWalkable => true,
-            Walkability::MonstersBlocking => self.actor_at(world_pos).is_none(),
+            Walkability::MonstersBlocking => self.actors.at_pos(world_pos).is_none(),
         };
 
         match self.cell(&world_pos) {
@@ -305,6 +294,110 @@ impl World {
     }
 }
 
+// Shim to modularize actor spatial code from complete world struct.
+// I keep coming across this pattern.
+// TODO: Wipe this and use world.actors instead?
+impl World {
+    pub fn player(&self) -> &Actor {
+        self.actors.player()
+    }
+
+    pub fn player_id(&self) -> ActorId {
+        self.actors.player_id()
+    }
+
+    pub fn set_player_id(&mut self, id: ActorId) {
+        self.actors.set_player_id(id);
+    }
+
+    pub fn actors(&mut self) -> hash_map::Values<ActorId, Actor> {
+        self.actors.iter()
+    }
+
+    pub fn actor_at(&self, world_pos: WorldPosition) -> Option<&Actor> {
+        self.actors.at_pos(world_pos)
+    }
+
+    pub fn actor_id_at(&self, world_pos: WorldPosition) -> Option<ActorId> {
+        self.actors.id_at_pos(world_pos)
+    }
+
+    pub fn was_killed(&self, id: &ActorId) -> bool {
+        self.actors.was_killed(id)
+    }
+
+    pub fn next_actor(&mut self) -> Option<ActorId> {
+        self.turn_order.next()
+    }
+
+    pub fn add_actor(&mut self, actor: Actor) {
+        self.turn_order.add_actor(actor.get_id(), 0);
+        self.actors.add(actor);
+    }
+
+    pub fn remove_actor(&mut self, id: &ActorId) -> Actor {
+        self.make_actor_inactive(id);
+        self.actors.remove(id)
+    }
+
+    /// Removes the actor from the position map and turn order, but doesn't
+    /// delete it.
+    // NOTE: Pointless?
+    fn make_actor_inactive(&mut self, id: &ActorId) {
+        // The player (and only the player) should still receive one last turn
+        // update if dead.
+        if !self.is_player(id) {
+            self.turn_order.remove_actor(id);
+        }
+
+        self.actors.make_actor_inactive(id);
+    }
+
+    pub fn is_player(&self, id: &ActorId) -> bool {
+        self.actors.is_player(id)
+    }
+
+    pub fn actor(&self, id: &ActorId) -> &Actor {
+        self.actors.get(id)
+    }
+
+    pub fn purge_dead(&mut self) {
+        self.actors.purge_dead()
+    }
+
+    pub fn pre_update_actor_pos(&mut self, pos_now: WorldPosition, pos_next: WorldPosition) {
+        self.actors.pre_update_actor_pos(pos_now, pos_next)
+    }
+}
+
+impl World {
+    /// Update the time-to-action for every actor in the world.
+    /// The actor with the lowest time-to-action is the next one to act.
+    pub fn advance_time(&mut self, amount: i32) {
+        for id in self.actors.ids() {
+            self.turn_order.advance_time_for(id, amount);
+        }
+
+        // The player is the only actor we might want to advance time for after
+        // dying, and that's only for a single turn so that control returns to
+        // the player and the death check can run instead of looping infinitely.
+        let pid = self.player_id();
+        if self.was_killed(&pid) {
+            self.turn_order.advance_time_for(&pid, amount);
+        }
+
+        info!(self.logger, "world time advanced by {}", amount);
+    }
+
+    pub fn add_delay_for(&mut self, id: &ActorId, amount: i32) {
+        self.turn_order.add_delay_for(id, amount);
+    }
+
+    pub fn time_until_turn_for(&self, id: &ActorId) -> i32 {
+        *self.turn_order.get_time_for(id)
+    }
+}
+
 // Because a world position and chunk index are different quantities, newtype to
 // enforce correct usage
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
@@ -334,7 +427,7 @@ mod tests {
         let callback = |pt: &Point, c: char, world: &mut World| {
             if c == '@' {
                 let actor = Actor::from_archetype(pt.x, pt.y, "putit");
-                world.add_actor(actor);
+                world.actors.add(actor);
             }
 
             let cell_kind = match c {
@@ -448,19 +541,19 @@ mod tests {
     fn test_actor_at() {
         let mut world = get_world(Point::new(2, 2));
         let pos = Point::new(0, 0);
-        assert!(world.actor_at(pos).is_none());
+        assert!(world.actors.at_pos(pos).is_none());
 
         let actor = Actor::new(0, 0, Glyph::Player);
-        world.add_actor(actor);
-        assert!(world.actor_at(pos).is_some());
+        world.actors.add(actor);
+        assert!(world.actors.at_pos(pos).is_some());
 
         let next_actor = world.next_actor().unwrap();
         logic::run_action(&mut world, &next_actor, Action::Move(Direction::SE));
-        assert!(world.actor_at(pos).is_none(), "{:?}", world.actor_ids_by_pos);
-        assert!(world.actor_at(Point::new(1,1)).is_some());
+        assert!(world.actors.at_pos(pos).is_none());
+        assert!(world.actors.at_pos(Point::new(1,1)).is_some());
 
-        world.remove_actor(&next_actor);
-        assert!(world.actor_at(Point::new(1,1)).is_none());
+        world.actors.remove(&next_actor);
+        assert!(world.actors.at_pos(Point::new(1,1)).is_none());
     }
 
     #[test]

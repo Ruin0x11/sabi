@@ -1,13 +1,52 @@
-use world::*;
+use slog::Logger;
 
-impl World {
+use log;
+
+use world::*;
+use world::turn_order::TurnOrder;
+
+pub struct Actors {
+    // NOTE: could also implement by putting each in its own Chunk
+    actors: HashMap<ActorId, Actor>,
+    actor_ids_by_pos: HashMap<WorldPosition, ActorId>,
+    // Actors that were killed during the current actor's turn, by events, etc.
+    killed_actors: HashMap<ActorId, Actor>,
+
+    logger: Logger,
+
+    // NOTE: I'm not sure it makes sense for a player to be tied to an existing
+    // world, but it works for now.
+    player_id: Option<ActorId>,
+    // NOTE: Also must keep track of following actors, to move them between
+    // areas.
+}
+
+trait ActorQuery {
+    
+}
+
+impl Actors {
+    pub fn new() -> Self {
+        Actors {
+            actors: HashMap::new(),
+            actor_ids_by_pos: HashMap::new(),
+            killed_actors: HashMap::new(),
+            player_id: None,
+            logger: log::make_logger("actors").unwrap(),
+        }
+    }
+
     /// Return an iterator over the currently loaded set of living Actors in
     /// this world across all chunks.
-    pub fn actors(&mut self) -> hash_map::Values<ActorId, Actor> {
+    pub fn iter(&mut self) -> hash_map::Values<ActorId, Actor> {
         self.actors.values()
     }
 
-    pub fn actor(&self, id: &ActorId) -> &Actor {
+    pub fn ids(&mut self) -> hash_map::Keys<ActorId, Actor> {
+        self.actors.keys()
+    }
+
+    pub fn get(&self, id: &ActorId) -> &Actor {
         if self.was_killed(id) {
             self.killed_actors.get(id).expect("No such actor!")
         } else {
@@ -15,7 +54,7 @@ impl World {
         }
     }
 
-    pub fn actor_mut(&mut self, id: &ActorId) -> &mut Actor {
+    pub fn get_mut(&mut self, id: &ActorId) -> &mut Actor {
         if self.was_killed(id) {
             self.killed_actors.get_mut(id).expect("No such actor!")
         } else {
@@ -24,13 +63,13 @@ impl World {
     }
 
     /// Returns a copy of the ID of the actor at point.
-    pub fn actor_id_at(&self, world_pos: WorldPosition) -> Option<ActorId> {
+    pub fn id_at_pos(&self, world_pos: WorldPosition) -> Option<ActorId> {
         self.actor_ids_by_pos.get(&world_pos).map(|i| i.clone())
     }
 
     /// Returns a reference to the actor at point.
-    pub fn actor_at(&self, world_pos: WorldPosition) -> Option<&Actor> {
-        match self.actor_id_at(world_pos) {
+    pub fn at_pos(&self, world_pos: WorldPosition) -> Option<&Actor> {
+        match self.id_at_pos(world_pos) {
             Some(id) => {
                 assert!(self.actors.contains_key(&id), "Coord -> id, id -> actor maps out of sync!");
                 self.actors.get(&id)
@@ -40,7 +79,7 @@ impl World {
     }
 
     /// Returns a mutable reference to the actor at point.
-    pub fn actor_at_mut(&mut self, world_pos: WorldPosition) -> Option<&mut Actor> {
+    pub fn at_pos_mut(&mut self, world_pos: WorldPosition) -> Option<&mut Actor> {
         match self.actor_ids_by_pos.get_mut(&world_pos) {
             Some(id) => {
                 assert!(self.actors.contains_key(id), "Coord -> id, id -> actor maps out of sync!");
@@ -56,66 +95,17 @@ impl World {
         self.actor_ids_by_pos.insert(pos_next, id);
     }
 
-    pub fn add_actor(&mut self, actor: Actor) {
+    pub fn add(&mut self, actor: Actor) {
         assert!(!self.actors.contains_key(&actor.get_id()), "Actor with same id already exists!");
-        self.turn_order.add_actor(actor.get_id(), 0);
         self.actor_ids_by_pos.insert(actor.get_pos(), actor.get_id());
         debug!(self.logger, "adding: {:8}", actor.get_id());
         self.actors.insert(actor.get_id(), actor);
     }
 
-    /// Removes the actor from the position map and turn order, but doesn't
-    /// delete it.
-    // NOTE: Pointless?
-    fn make_actor_inactive(&mut self, id: &ActorId) {
-        debug!(self.logger, "removing: {:8}", id);
-        let pos = self.actor(id).get_pos();
-
-        // The player (and only the player) should still receive one last turn
-        // update if dead.
-        if !self.is_player(id) {
-            self.turn_order.remove_actor(id);
-        }
-
-        self.actor_ids_by_pos.remove(&pos);
-    }
-
-    pub fn remove_actor(&mut self, id: &ActorId) -> Actor {
-        self.make_actor_inactive(id);
+    pub fn remove(&mut self, id: &ActorId) -> Actor {
         let actor = self.actors.remove(id);
         assert!(actor.is_some(), "Tried removing nonexistent actor from world!");
         actor.unwrap()
-    }
-
-    /// Wrapper to move an actor out of the world's actor hashmap, so it can be
-    /// mutated, then putting it back into the hashmap afterwards.
-    pub fn with_moved_actor<F>(&mut self, id: &ActorId, mut callback: F)
-        where F: FnMut(&mut World, &mut Actor) {
-        assert!(!self.killed_actors.contains_key(id), "Actor {} is dead!", id);
-
-        let mut actor = self.actors.remove(id).expect("Actor not found!");
-        callback(self, &mut actor);
-        self.actors.insert(id.clone(), actor);
-    }
-
-    pub fn player(&self) -> &Actor {
-        self.actor(&self.player_id())
-    }
-
-    pub fn player_id(&self) -> ActorId {
-        self.player_id.expect("No player has been set!")
-    }
-
-    pub fn set_player_id(&mut self, id: ActorId) {
-        self.player_id = Some(id);
-    }
-
-    pub fn is_player(&self, id: &ActorId) -> bool {
-        self.player_id() == *id
-    }
-
-    pub fn next_actor(&mut self) -> Option<ActorId> {
-        self.turn_order.next()
     }
 
     pub fn actor_killed(&mut self, id: ActorId) {
@@ -125,8 +115,15 @@ impl World {
         }
         debug!(self.logger, "Killing: {}", id);
 
-        let actor = self.remove_actor(&id);
+        let actor = self.remove(&id);
         self.killed_actors.insert(id, actor);
+    }
+
+    pub fn make_actor_inactive(&mut self, id: &ActorId) {
+        debug!(self.logger, "removing: {:8}", id);
+        let pos = self.get(id).get_pos();
+
+        self.actor_ids_by_pos.remove(&pos);
     }
 
     pub fn was_killed(&self, id: &ActorId) -> bool {
@@ -142,5 +139,42 @@ impl World {
             debug!(self.logger, "{} was killed, purging.", id);
             self.actor_killed(id);
         }
+    }
+
+    pub fn player(&self) -> &Actor {
+        self.actors.get(&self.player_id()).expect("Player not found!")
+    }
+
+    pub fn player_id(&self) -> ActorId {
+        self.player_id.expect("No player has been set!")
+    }
+
+    pub fn set_player_id(&mut self, id: ActorId) {
+        self.player_id = Some(id);
+    }
+
+    pub fn is_player(&self, id: &ActorId) -> bool {
+        self.player_id() == *id
+    }
+
+    pub fn remove_partial(&mut self, id: &ActorId) -> Option<Actor> {
+        assert!(!self.killed_actors.contains_key(id), "Actor {} is dead!", id);
+        self.actors.remove(id)
+    }
+
+    pub fn insert_partial(&mut self, actor: Actor) {
+        self.actors.insert(actor.get_id(), actor);
+    }
+}
+
+impl World {
+    /// Wrapper to move an actor out of the world's actor hashmap, so it can be
+    /// mutated, then putting it back into the hashmap afterwards.
+    pub fn with_moved_actor<F>(&mut self, id: &ActorId, mut callback: F)
+        where F: FnMut(&mut World, &mut Actor) {
+
+        let mut actor = self.actors.remove_partial(id).expect("Actor not found!");
+        callback(self, &mut actor);
+        self.actors.insert_partial(actor);
     }
 }

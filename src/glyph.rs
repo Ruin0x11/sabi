@@ -76,5 +76,7 @@ macro_attr!(
         Wall,
         DebugDraw,
 
+        Item,
+
         None,
     });
