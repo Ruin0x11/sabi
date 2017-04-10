@@ -44,7 +44,7 @@ impl Messages {
     }
 }
 
-impl World {
+impl<'a> World {
     pub fn message(&self, mes: String) {
         let true_mes = format!("{} ", mes);
         self.messages.borrow_mut().add(true_mes);

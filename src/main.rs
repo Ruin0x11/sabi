@@ -94,14 +94,7 @@ fn game_loop(mut ctxt: &mut GameContext) {
 
 use world::*;
 use rand::distributions::{Range, IndependentSample};
-use testbed::start_with_params;
-
-fn get_world() -> World {
-    let mut world = World::generate(WorldType::Instanced(WorldPosition::new(64, 64)),
-                                    16, tile::WALL);
-    world.draw_square(WorldPosition::new(32, 32), 30, tile::FLOOR);
-    world
-}
+use testbed::{get_world, start_with_params};
 
 fn setup() {
     let mut rng = rand::thread_rng();

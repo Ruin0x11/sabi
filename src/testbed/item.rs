@@ -1,10 +1,15 @@
+use std::collections::HashMap;
+
 use glyph::Glyph;
+use world::WorldPosition;
 
 const ITEM_PILE_LIMIT: usize = 9999;
 
 fn same_object<T>(a: &T, b: &T) -> bool {
     a as *const T == b as *const T
 }
+
+pub type ItemIdx = usize;
 
 #[derive(Debug)]
 pub enum ItemErr {
@@ -17,25 +22,25 @@ pub type ItemResult<T> = Result<T, ItemErr>;
 
 #[derive(Clone, Debug)]
 pub struct ItemDesc {
-    name: String,
-    weight: f32,
-    id: u32,
-    container: bool,
-    glyph: Glyph,
+    pub name: &'static str,
+    pub weight: f32,
+    pub id: u32,
+    pub container: bool,
+    pub glyph: Glyph,
 }
 
-pub trait ItemCollection<'a> {
-    fn acquire(&mut self, item: Item<'a>) -> ItemResult<()>;
-    fn can_acquire(&self, item: &Item<'a>) -> bool;
-    fn find(&self, id: u32) -> Vec<&Item<'a>>;
+pub trait ItemCollection {
+    fn acquire(&mut self, item: Item) -> ItemResult<()>;
+    fn can_acquire(&self, item: &Item) -> bool;
+    fn find(&self, id: u32) -> Vec<&Item>;
     fn len(&self) -> usize;
 }
 
 /// A pile of items on the ground.
-pub type ItemPile<'a> = Vec<Item<'a>>;
+pub type ItemPile = Vec<Item>;
 
-impl<'a> ItemCollection<'a> for ItemPile<'a> {
-    fn acquire(&mut self, item: Item<'a>) -> ItemResult<()> {
+impl ItemCollection for ItemPile {
+    fn acquire(&mut self, item: Item) -> ItemResult<()> {
         if !self.can_acquire(&item) {
             return Err(CannotPutInContainer);
         }
@@ -43,11 +48,11 @@ impl<'a> ItemCollection<'a> for ItemPile<'a> {
         Ok(())
     }
 
-    fn can_acquire(&self, _item: &Item<'a>) -> bool {
+    fn can_acquire(&self, _item: &Item) -> bool {
         self.len() < ITEM_PILE_LIMIT
     }
 
-    fn find(&self, id: u32) -> Vec<&Item<'a>> {
+    fn find(&self, id: u32) -> Vec<&Item> {
         let mut results = Vec::new();
         for i in self.iter() {
             if i.desc.id == id {
@@ -65,15 +70,15 @@ impl<'a> ItemCollection<'a> for ItemPile<'a> {
 
 /// An collection of items inside a container, like a chest or actor's inventory.
 #[derive(Clone, Debug)]
-pub struct ItemContainer<'a> {
+pub struct ItemContainer {
     capacity: usize,
     weight_limit: f32,
-    items: Vec<Item<'a>>,
+    items: Vec<Item>,
 
     cached_weight: f32,
 }
 
-impl<'a> ItemContainer<'a> {
+impl ItemContainer {
     pub fn new() -> Self {
         ItemContainer {
             capacity: 100,
@@ -95,8 +100,8 @@ impl<'a> ItemContainer<'a> {
     }
 }
 
-impl<'a> ItemCollection<'a> for ItemContainer<'a> {
-    fn can_acquire(&self, item: &Item<'a>) -> bool {
+impl ItemCollection for ItemContainer {
+    fn can_acquire(&self, item: &Item) -> bool {
         if self.items.len() >= self.capacity {
             return false
         }
@@ -107,7 +112,7 @@ impl<'a> ItemCollection<'a> for ItemContainer<'a> {
         true
     }
 
-    fn acquire(&mut self, item: Item<'a>) -> ItemResult<()> {
+    fn acquire(&mut self, item: Item) -> ItemResult<()> {
         for i in self.items.iter_mut() {
             if i.can_merge(&item) {
                 i.merge(item);
@@ -126,7 +131,7 @@ impl<'a> ItemCollection<'a> for ItemContainer<'a> {
         Ok(())
     }
 
-    fn find(&self, id: u32) -> Vec<&Item<'a>> {
+    fn find(&self, id: u32) -> Vec<&Item> {
         self.items.find(id)
     }
 
@@ -136,21 +141,49 @@ impl<'a> ItemCollection<'a> for ItemContainer<'a> {
 }
 
 #[derive(Clone, Debug)]
-pub struct Item<'a> {
-    pub desc: &'a ItemDesc,
+pub struct Item {
+    pub desc: &'static ItemDesc,
     pub custom_name: Option<String>,
-    pub containing: ItemContainer<'a>,
-    pub count: u32
+    pub containing: ItemContainer,
+    pub count: u32,
+
+    pub pos: WorldPosition,
+
+    pub link: ItemLink,
+    pub loc: Location,
 }
 
-impl<'a> Item<'a> {
-    pub fn new(desc: &'a ItemDesc) -> Self {
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub enum ItemLink {
+    InStack(Option<ItemIdx>),
+
+    // Used for finding out what in the player's inventory is equipped where.
+    InInventory(usize),
+    Nowhere,
+}
+
+#[derive(Clone, Debug)]
+pub enum Location {
+    World(WorldPosition),
+    YourInventory,
+    OtherInventory,
+}
+
+impl Item {
+    pub fn new(desc: &'static ItemDesc) -> Self {
         Item {
             desc: desc,
             custom_name: None,
             count: 1,
             containing: ItemContainer::new(),
+            pos: WorldPosition::new(0, 0),
+            link: ItemLink::Nowhere,
+            loc: Location::World(WorldPosition::new(0, 0)),
         }
+    }
+
+    pub fn get_pos(&self) -> WorldPosition {
+        self.pos
     }
 
     pub fn sanity_check(&self) {
@@ -175,7 +208,7 @@ impl<'a> Item<'a> {
     pub fn format_name(&self) -> String {
         let body = match self.custom_name {
             Some(ref cust) => format!("{} \"{}\"", self.desc.name, cust),
-            None       => self.desc.name.clone(),
+            None       => self.desc.name.clone().to_string(),
         };
         if self.count == 1 {
             body
@@ -234,29 +267,28 @@ impl<'a> Item<'a> {
 mod tests {
     use super::*;
 
-    fn get_descs() -> Vec<ItemDesc> {
-        vec![ItemDesc { name: "dream".to_string(),
-                        id: 1,
-                        weight: 0.1,
-                        container: false,
-                        glyph: Glyph::Item },
-             ItemDesc { name: "kitchen knife".to_string(),
-                        id: 2,
-                        weight: 10.0,
-                        container: false,
-                        glyph: Glyph::Item },
-             ItemDesc { name: "meatchest".to_string(),
-                        id: 3,
-                        weight: 50.0,
-                        container: true,
-                        glyph: Glyph::Item }]
+    lazy_static! {
+        static ref DESCS: Vec<ItemDesc>  = vec![ItemDesc { name: "dream",
+                                                           id: 1,
+                                                           weight: 0.1,
+                                                           container: false,
+                                                           glyph: Glyph::Item },
+                                                ItemDesc { name: "kitchen knife",
+                                                           id: 2,
+                                                           weight: 10.0,
+                                                           container: false,
+                                                           glyph: Glyph::Item },
+                                                ItemDesc { name: "meatchest",
+                                                           id: 3,
+                                                           weight: 50.0,
+                                                           container: true,
+                                                           glyph: Glyph::Item }];
     }
 
     #[test]
     fn test_merge() {
-        let descs = get_descs();
-        let mut dream_a = Item::new(descs.get(0).unwrap());
-        let dream_b = Item::new(descs.get(0).unwrap());
+        let mut dream_a = Item::new(DESCS.get(0).unwrap());
+        let dream_b = Item::new(DESCS.get(0).unwrap());
 
         assert_eq!(dream_a.can_merge(&dream_b), true);
         assert_eq!(dream_b.can_merge(&dream_a), true);
@@ -265,15 +297,14 @@ mod tests {
         dream_a.merge(dream_b);
         assert_eq!(dream_a.count, 2);
 
-        let knife = Item::new(descs.get(1).unwrap());
+        let knife = Item::new(DESCS.get(1).unwrap());
 
         assert_eq!(dream_a.can_merge(&knife), false)
     }
 
     #[test]
     fn test_set_name() {
-        let descs = get_descs();
-        let mut argh = Item::new(descs.get(0).unwrap());
+        let mut argh = Item::new(DESCS.get(0).unwrap());
         argh.set_name("argh".to_string());
         assert_eq!(argh.format_name(), "dream \"argh\"");
         argh.set_name("".to_string());
@@ -282,9 +313,8 @@ mod tests {
 
     #[test]
     fn test_named_merge() {
-        let descs = get_descs();
-        let mut trance = Item::new(descs.get(0).unwrap());
-        let mut ennui = Item::new(descs.get(0).unwrap());
+        let mut trance = Item::new(DESCS.get(0).unwrap());
+        let mut ennui = Item::new(DESCS.get(0).unwrap());
         trance.set_name("Trance".to_string());
         ennui.set_name("Ennui".to_string());
         assert_eq!(trance.can_merge(&ennui), false);
@@ -295,16 +325,14 @@ mod tests {
 
     #[test]
     fn test_container_merge() {
-        let descs = get_descs();
-        let chest = Item::new(descs.get(2).unwrap());
-        let upper_chest = Item::new(descs.get(2).unwrap());
+        let chest = Item::new(DESCS.get(2).unwrap());
+        let upper_chest = Item::new(DESCS.get(2).unwrap());
         assert_eq!(chest.can_merge(&upper_chest), false);
     }
 
     #[test]
     fn test_split() {
-        let descs = get_descs();
-        let mut dream_a = Item::new(descs.get(0).unwrap());
+        let mut dream_a = Item::new(DESCS.get(0).unwrap());
 
         assert!(dream_a.split(1).is_none());
 
@@ -325,10 +353,9 @@ mod tests {
 
     #[test]
     fn test_find() {
-        let descs = get_descs();
-        let mut chest = Item::new(descs.get(2).unwrap());
-        let mut upper_chest = Item::new(descs.get(2).unwrap());
-        let mut dream = Item::new(descs.get(0).unwrap());
+        let mut chest = Item::new(DESCS.get(2).unwrap());
+        let mut upper_chest = Item::new(DESCS.get(2).unwrap());
+        let mut dream = Item::new(DESCS.get(0).unwrap());
         dream.count = 42;
 
         chest.containing.acquire(dream).unwrap();
@@ -343,11 +370,10 @@ mod tests {
 
     #[test]
     fn test_container_weights() {
-        let descs = get_descs();
 
-        let dream = Item::new(descs.get(0).unwrap());
-        let knife = Item::new(descs.get(1).unwrap());
-        let chest = Item::new(descs.get(2).unwrap());
+        let dream = Item::new(DESCS.get(0).unwrap());
+        let knife = Item::new(DESCS.get(1).unwrap());
+        let chest = Item::new(DESCS.get(2).unwrap());
         let other_chest = chest.clone();
 
         let mut container = ItemContainer::new();
@@ -370,11 +396,10 @@ mod tests {
 
     #[test]
     fn test_weights() {
-        let descs = get_descs();
 
-        let dream =     Item::new(descs.get(0).unwrap());
-        let knife =     Item::new(descs.get(1).unwrap());
-        let mut chest = Item::new(descs.get(2).unwrap());
+        let dream =     Item::new(DESCS.get(0).unwrap());
+        let knife =     Item::new(DESCS.get(1).unwrap());
+        let mut chest = Item::new(DESCS.get(2).unwrap());
         let mut other_chest = chest.clone();
 
         assert_eq!(chest.weight(), 50.0);

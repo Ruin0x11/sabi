@@ -1,15 +1,31 @@
 mod goap_test;
-mod item;
+pub mod item;
+pub mod items;
+
+use std::cell::RefCell;
 
 use actor::*;
 use world::*;
 use state;
 use ::*;
+use self::item::*;
+use glyph::Glyph;
 
-fn get_world() -> World {
+lazy_static! {
+    static ref DESC: ItemDesc = ItemDesc { name: "dream",
+                                           id: 1,
+                                           weight: 0.1,
+                                           container: false,
+                                           glyph: Glyph::Item };
+}
+
+pub fn get_world<'a>() -> World {
     let mut world = World::generate(WorldType::Instanced(WorldPosition::new(64, 64)),
                                     16, tile::WALL);
     world.draw_square(WorldPosition::new(32, 32), 30, tile::FLOOR);
+    let mut item = Item::new(&DESC);
+    world.add_item(WorldPosition::new(5, 5), item);
+
     world
 }
 
@@ -17,8 +33,11 @@ pub fn step_once(player: Actor, world: World) {
     init();
     let mut context = get_context();
     context.state.set_world(world);
-    context.state.current_world_mut().set_player_id(player.get_id());
-    context.state.current_world_mut().add_actor(player);
+    {
+        let mut world = &mut context.state.world;
+        world.set_player_id(player.get_id());
+        world.add_actor(player);
+    }
     state::step(&mut context);
 }
 
@@ -26,8 +45,11 @@ pub fn start_with_params(player: Actor, world: World) {
     init();
     let mut context = get_context();
     context.state.set_world(world);
-    context.state.current_world_mut().set_player_id(player.get_id());
-    context.state.current_world_mut().add_actor(player);
+    {
+        let mut world = &mut context.state.world;
+        world.set_player_id(player.get_id());
+        world.add_actor(player);
+    }
     while !canvas::window_closed() {
         state::process(&mut context);
     }
@@ -79,7 +101,6 @@ pub fn make_grid_from_str<M, F, T>(text: &str, mut constructor: M, mut callback:
     use rand::distributions::{IndependentSample, Range};
     use super::*;
     use tile;
-    use glyph::Glyph;
 
     #[test]
     fn test_chunked_world() {
@@ -88,7 +109,6 @@ pub fn make_grid_from_str<M, F, T>(text: &str, mut constructor: M, mut callback:
         let player = Actor::from_archetype(0, 0, "test_player");
         start_with_params(player, world);
     }
-
 
     #[test]
     fn test_no_actors() {

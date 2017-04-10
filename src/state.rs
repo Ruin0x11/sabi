@@ -15,7 +15,7 @@ use uuid::Uuid;
 use ::GameContext;
 
 pub struct GameState {
-    world: World,
+    pub world: World,
     action_queue: VecDeque<Action>,
 }
 
@@ -31,14 +31,6 @@ impl GameState {
         self.world = world;
     }
 
-    pub fn current_world(&self) -> &World {
-        &self.world
-    }
-
-    pub fn current_world_mut(&mut self) -> &mut World {
-        &mut self.world
-    }
-
     pub fn add_action(&mut self, action: Action) {
         self.action_queue.push_back(action);
     }
@@ -46,13 +38,12 @@ impl GameState {
     pub fn player_action(&mut self, action: Action) {
         let id = self.world.player_id();
         if !self.world.was_killed(&id) {
-            let mut world = self.current_world_mut();
-            logic::run_action(&mut world, &id, action);
+            logic::run_action(&mut self.world, &id, action);
         }
     }
 
-    pub fn advance_time(&mut self, diff: i32) {
-        let world = self.current_world_mut();
+    pub fn advance_time(& mut self, diff: i32) {
+        let world = &mut self.world;
         world.advance_time(diff)
     }
 }
@@ -74,7 +65,6 @@ fn draw_overlays(world: &mut World) {
 }
 
 fn draw_world(world: &mut World) {
-    // FIXME: Let the player actor not be deleted, to get its fov.
     let fov = world.player().fov();
     world.with_cells(Point::new(0, 0), Point::new(128, 128),
                      |point, ref cell| {
@@ -92,8 +82,18 @@ fn show_messages(world: &mut World) {
     });
 }
 
+fn draw_items(world: &World) {
+    let fov = world.player().fov();
+    for item in world.items_in_map() {
+        let pos = item.get_pos();
+        if fov.is_visible(&pos) {
+            canvas::with(|c| c.print_glyph(pos.x, pos.y, item.desc.glyph));
+        }
+    }
+}
+
 fn draw_actors(world: &mut World) {
-    // FIXME: Let the player actor not be deleted, to get its fov.
+    // TODO: Make trait for pos queryable?
     let fov = world.player().fov();
     for actor in world.actors() {
         let pos = actor.get_pos();
@@ -159,7 +159,7 @@ fn process_player_command(command: &Command, context: &mut GameContext) {
     }
 }
 
-fn process_player_input(context: &mut GameContext) {
+fn process_player_input<'a>(context: &'a mut GameContext) {
     process_player_commands(context);
 
     while let Some(action) = context.state.action_queue.pop_front() {
@@ -172,6 +172,7 @@ pub fn render_all(world: &mut World) {
     let camera_pos = world.player().get_pos();
     canvas::with_mut(|c| c.set_camera(camera_pos.x, camera_pos.y));
     draw_world(world);
+    draw_items(world);
     draw_actors(world);
     draw_overlays(world);
 }

@@ -99,6 +99,8 @@ impl Actors {
     }
 
     pub fn remove(&mut self, id: &ActorId) -> Actor {
+        let pos = self.actors.get(id).expect("Actor not in pos map!").get_pos();
+        self.actor_ids_by_pos.remove(&pos);
         let actor = self.actors.remove(id);
         assert!(actor.is_some(), "Tried removing nonexistent actor from world!");
         actor.unwrap()
@@ -160,5 +162,27 @@ impl Actors {
 
     pub fn insert_partial(&mut self, actor: Actor) {
         self.actors.insert(actor.get_id(), actor);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_add_remove() {
+        let mut actors = Actors::new();
+        let actor = Actor::new(0, 0, Glyph::Player);
+        let id = actor.get_id();
+        assert!(actors.at_pos(WorldPosition::new(0, 0)).is_none());
+        assert!(actors.actors.get(&id).is_none());
+
+        actors.add(actor);
+        assert!(actors.at_pos(WorldPosition::new(0, 0)).is_some());
+        assert!(actors.actors.get(&id).is_some());
+
+        actors.remove(&id);
+        assert!(actors.at_pos(WorldPosition::new(0, 0)).is_none());
+        assert!(actors.actors.get(&id).is_none());
     }
 }

@@ -22,6 +22,8 @@ use log;
 use self::message::Messages;
 use self::actors::Actors;
 use world::turn_order::TurnOrder;
+use testbed::item::*;
+use testbed::items::*;
 
 pub type WorldIter = Iterator<Item=WorldPosition>;
 
@@ -50,6 +52,8 @@ pub struct World {
     actors: Actors,
     turn_order: TurnOrder,
 
+    pub items: Items,
+
     pub draw_calls: DrawCalls,
     messages: RefCell<Messages>,
     pub events: Vec<Event>,
@@ -62,8 +66,12 @@ impl World {
             chunk_size: chunk_size,
             chunks: HashMap::new(),
             type_: type_,
+
             actors: Actors::new(),
             turn_order: TurnOrder::new(),
+
+            items: Items::new(),
+
             draw_calls: DrawCalls::new(),
             events: Vec::new(),
             messages: RefCell::new(Messages::new()),
@@ -302,10 +310,34 @@ impl World {
         callback(self, &mut actor);
         self.actors.insert_partial(actor);
     }
+
+    pub fn add_actor(&mut self, actor: Actor) {
+        self.turn_order.add_actor(actor.get_id(), 0);
+        self.actors.add(actor);
+    }
+
+    pub fn remove_actor(&mut self, id: &ActorId) -> Actor {
+        self.make_actor_inactive(id);
+        self.actors.remove(id)
+    }
+
+    /// Removes the actor from the position map and turn order, but doesn't
+    /// delete it.
+    // NOTE: Pointless?
+    fn make_actor_inactive(&mut self, id: &ActorId) {
+        // The player (and only the player) should still receive one last turn
+        // update if dead.
+        if !self.is_player(id) {
+            self.turn_order.remove_actor(id);
+        }
+
+        self.actors.make_actor_inactive(id);
+    }
 }
 
 // Shim to modularize actor spatial code from complete world struct.
-// I keep coming across this pattern.
+// I keep coming across this pattern of having to move methods in an inner
+// struct up a level.
 // TODO: Wipe this and use world.actors instead?
 impl World {
     pub fn player(&self) -> &Actor {
@@ -338,29 +370,6 @@ impl World {
 
     pub fn next_actor(&mut self) -> Option<ActorId> {
         self.turn_order.next()
-    }
-
-    pub fn add_actor(&mut self, actor: Actor) {
-        self.turn_order.add_actor(actor.get_id(), 0);
-        self.actors.add(actor);
-    }
-
-    pub fn remove_actor(&mut self, id: &ActorId) -> Actor {
-        self.make_actor_inactive(id);
-        self.actors.remove(id)
-    }
-
-    /// Removes the actor from the position map and turn order, but doesn't
-    /// delete it.
-    // NOTE: Pointless?
-    fn make_actor_inactive(&mut self, id: &ActorId) {
-        // The player (and only the player) should still receive one last turn
-        // update if dead.
-        if !self.is_player(id) {
-            self.turn_order.remove_actor(id);
-        }
-
-        self.actors.make_actor_inactive(id);
     }
 
     pub fn is_player(&self, id: &ActorId) -> bool {
@@ -405,6 +414,21 @@ impl World {
 
     pub fn time_until_turn_for(&self, id: &ActorId) -> i32 {
         *self.turn_order.get_time_for(id)
+    }
+}
+
+impl World {
+    pub fn add_item(&mut self, pos: WorldPosition, item: Item) {
+        self.items.place_in_world(pos, item);
+    }
+
+    pub fn items_in_map<'a>(&'a self) -> Box<Iterator<Item=&'a Item> + 'a> {
+        Box::new(self.items.iter().filter(|i|{
+            match i.link {
+                ItemLink::InStack(..) => true,
+                _                     => false,
+            }
+        }))
     }
 }
 

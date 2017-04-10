@@ -69,7 +69,7 @@ mod tests {
     use tile;
     use point::Point;
 
-    fn get_world() -> World {
+    fn get_world<'a>() -> World {
         let mut world = World::generate(WorldType::Instanced(WorldPosition::new(32, 32)),
                             16, tile::WALL);
         world.draw_square(WorldPosition::new(15, 15), 10, tile::FLOOR);

@@ -55,7 +55,7 @@ impl Border {
     }
 }
 
-impl World {
+impl<'a> World {
     fn debug_cell(&self, pos: &WorldPosition) {
         if let Some(cell) = self.cell(pos) {
             debug!(self.logger, "Tile before: {:?}", cell.tile);
