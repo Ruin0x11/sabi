@@ -21,10 +21,6 @@ pub struct Actors {
     // areas.
 }
 
-trait ActorQuery {
-    
-}
-
 impl Actors {
     pub fn new() -> Self {
         Actors {
@@ -164,17 +160,5 @@ impl Actors {
 
     pub fn insert_partial(&mut self, actor: Actor) {
         self.actors.insert(actor.get_id(), actor);
-    }
-}
-
-impl World {
-    /// Wrapper to move an actor out of the world's actor hashmap, so it can be
-    /// mutated, then putting it back into the hashmap afterwards.
-    pub fn with_moved_actor<F>(&mut self, id: &ActorId, mut callback: F)
-        where F: FnMut(&mut World, &mut Actor) {
-
-        let mut actor = self.actors.remove_partial(id).expect("Actor not found!");
-        callback(self, &mut actor);
-        self.actors.insert_partial(actor);
     }
 }

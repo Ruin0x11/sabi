@@ -292,6 +292,16 @@ impl World {
         }
 
     }
+
+    /// Wrapper to move an actor out of the world's actor hashmap, so it can be
+    /// mutated, then putting it back into the hashmap afterwards.
+    pub fn with_moved_actor<F>(&mut self, id: &ActorId, mut callback: F)
+        where F: FnMut(&mut World, &mut Actor) {
+
+        let mut actor = self.actors.remove_partial(id).expect("Actor not found!");
+        callback(self, &mut actor);
+        self.actors.insert_partial(actor);
+    }
 }
 
 // Shim to modularize actor spatial code from complete world struct.
