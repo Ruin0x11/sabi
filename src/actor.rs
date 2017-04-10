@@ -68,12 +68,14 @@ impl Actor {
     // TODO: Should never be used. Use archetypes instead.
     pub fn new(x: i32, y: i32, glyph: Glyph) -> Self {
         let id = Uuid::new_v4();
+        let name = namegen::gen();
+        let logger = Actor::get_actor_log(&name, &id);
         Actor {
             // TEMP: Things that can be looked up in a hashmap.
             glyph: glyph,
 
             // TEMP: Things generated at creation.
-            name: namegen::gen(),
+            name: name,
             hit_points: 100,
             speed: 100,
 
@@ -86,7 +88,7 @@ impl Actor {
             // Things needing instantiation.
             x: x,
             y: y,
-            logger: Actor::get_actor_log(&id),
+            logger: logger,
             uuid: id,
             fov: RefCell::new(FieldOfView::new()),
         }
@@ -95,10 +97,12 @@ impl Actor {
     pub fn from_archetype(x: i32, y: i32, archetype_name: &str) -> Self {
         let id = Uuid::new_v4();
         let archetype = archetype::load(archetype_name);
+        let name = namegen::gen();
+        let logger = Actor::get_actor_log(&name, &id);
         Actor {
             glyph: archetype.glyph,
 
-            name: namegen::gen(),
+            name: name,
             hit_points: archetype.stats.max_hp() as i32,
             speed: 100,
 
@@ -110,7 +114,7 @@ impl Actor {
 
             x: x,
             y: y,
-            logger: Actor::get_actor_log(&id),
+            logger: logger,
             uuid: id,
             fov: RefCell::new(FieldOfView::new()),
         }
@@ -128,8 +132,8 @@ impl Actor {
         ids
     }
 
-    fn get_actor_log(id: &ActorId) -> Logger {
-        ACTOR_LOG.new(o!("id" => format!("{:.8}...", id.to_string())))
+    fn get_actor_log(name: &String, id: &ActorId) -> Logger {
+        ACTOR_LOG.new(o!("name" => name.clone(), "id" => format!("{:.8}...", id.to_string())))
     }
 
     pub fn name(&self) -> String {
