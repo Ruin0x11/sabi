@@ -1,3 +1,5 @@
+mod sensors;
+
 use std::cell::RefCell;
 
 use goap::{Planner};
@@ -9,6 +11,7 @@ use action::Action;
 use world::{World, Walkability};
 use pathfinding::Path;
 use drawcalls::Draw;
+use ai::sensors::{Sensor};
 
 pub fn state_kill(id: &ActorId, state: &AiState) {
     let mut goal_c =  BTreeMap::new();
@@ -67,23 +70,21 @@ pub enum AiAction {
     Run,
 }
 
+thread_local! {
+    static SENSORS: HashMap<AiProp, Sensor> = sensors::make_sensors();
+}
+
 pub fn update_memory(actor: &Actor, world: &World) {
     let ref mut memory = actor.ai.memory.borrow_mut();
-    memory.facts.insert(AiProp::HealthLow, actor.hp() < 50);
-    match *actor.ai.target.borrow() {
-        Some(ref id) => {
-            let target = world.actor(id);
-            memory.facts.insert(AiProp::HasTarget, true);
-            memory.facts.insert(AiProp::TargetVisible, actor.can_see(&target.get_pos()));
-            memory.facts.insert(AiProp::TargetDead, target.is_dead());
-            memory.facts.insert(AiProp::NextToTarget, actor.get_pos().next_to(target.get_pos()));
-        },
-        None => {
-            memory.facts.insert(AiProp::HasTarget, false);
-            memory.facts.insert(AiProp::TargetVisible, false);
-            memory.facts.insert(AiProp::TargetDead, false);
-            memory.facts.insert(AiProp::NextToTarget, false);
-        }
+    let wants_to_know = vec![AiProp::HasTarget, AiProp::TargetVisible,
+                             AiProp::TargetDead, AiProp::NextToTarget, AiProp::HealthLow];
+    for fact in wants_to_know.iter() {
+        SENSORS.with(|s| {
+            let sensor = s.get(fact).unwrap();
+            let result = (sensor.callback)(world, actor);
+            debug!(actor.logger, "{:?}, {}", fact, result);
+            memory.facts.insert(fact.clone(), result);
+        });
     }
 }
 
@@ -164,7 +165,6 @@ fn action_run(_actor: &Actor, _world: &World) -> Action {
 
 use std::collections::{BTreeMap, HashMap};
 use goap::*;
-use stats::properties::PropType;
 
 type AiPlanner = GoapPlanner<AiProp, bool, AiAction>;
 

@@ -381,7 +381,11 @@ impl World {
     }
 
     pub fn purge_dead(&mut self) {
-        self.actors.purge_dead()
+        for id in self.actors.dead_ids() {
+            debug!(self.logger, "{} was killed, purging.", id);
+            self.turn_order.remove_actor(&id);
+            self.actors.actor_killed(id);
+        }
     }
 
     pub fn pre_update_actor_pos(&mut self, pos_now: WorldPosition, pos_next: WorldPosition) {

@@ -128,15 +128,10 @@ impl Actors {
         self.killed_actors.contains_key(id)
     }
 
-    pub fn purge_dead(&mut self) {
-        let dead_ids = self.actors.iter()
+    pub fn dead_ids(&self) -> Vec<ActorId> {
+        self.actors.iter()
             .filter(|&(_, actor)| actor.is_dead())
-            .map(|(id, _)| id).cloned().collect::<Vec<ActorId>>();
-
-        for id in dead_ids {
-            debug!(self.logger, "{} was killed, purging.", id);
-            self.actor_killed(id);
-        }
+            .map(|(id, _)| id).cloned().collect::<Vec<ActorId>>()
     }
 
     pub fn player(&self) -> &Actor {

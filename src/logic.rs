@@ -80,7 +80,7 @@ fn swing_at(world: &mut World, attacker: &mut Actor, other_id: ActorId) {
         damage = stats::formulas::calculate_damage(attacker, other);
     }
     world.with_moved_actor(&other_id, |world, other| {
-        world.message(format!("{} hits {}! {} damage!", attacker.name(), other.name(), damage));
+        world.message(format!("{} hits {}! ({})", attacker.name(), other.name(), damage));
         other.hurt(damage)
     })
 }

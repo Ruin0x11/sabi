@@ -53,6 +53,7 @@ pub fn start_with_params(player: Actor, world: World) {
     while !canvas::window_closed() {
         state::process(&mut context);
     }
+    println!("Done.");
     info!(context.logger, "Testbed exited cleanly.");
 }
 

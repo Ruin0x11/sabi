@@ -188,6 +188,10 @@ pub fn process_actors(world: &mut World) {
             break
         }
 
+        if world.was_killed(id) {
+            panic!("Killed actor remained in turn order! {}", id);
+        }
+
         let action = {
             let actor = world.actor(id);
             ai::update_goal(actor, world);
