@@ -1,19 +1,19 @@
-extern crate backtrace;
-extern crate chrono;
+#[macro_use] extern crate calx_ecs;
+#[macro_use] extern crate enum_derive;
 #[macro_use] extern crate lazy_static;
-extern crate uuid;
-extern crate rand;
-extern crate serde;
+#[macro_use] extern crate macro_attr;
 #[macro_use] extern crate serde_derive;
 #[macro_use] extern crate slog;
-extern crate slog_stream;
-pub extern crate tcod;
-extern crate textwrap;
-extern crate toml;
+extern crate backtrace;
+extern crate chrono;
 extern crate goap;
-
-#[macro_use] extern crate enum_derive;
-#[macro_use] extern crate macro_attr;
+extern crate infinigen;
+extern crate rand;
+extern crate serde;
+extern crate slog_stream;
+extern crate toml;
+extern crate uuid;
+pub extern crate tcod;
 
 // #[cfg(feature = "with-rustbox")]
 extern crate rustbox;
@@ -23,30 +23,33 @@ extern crate rustbox;
 extern crate glium;
 
 mod action;
+mod actor;
+mod ai;
+mod chunk;
 mod color;
+mod direction;
+mod drawcalls;
 mod engine;
+mod event;
+mod fov;
+mod gen;
 mod glyph;
 mod keys;
 mod log;
-mod tile;
-mod chunk;
-mod world;
-mod point;
-mod gen;
-mod actor;
-mod state;
-mod testbed;
-mod ai;
-mod pathfinding;
-mod drawcalls;
-mod fov;
 mod logic;
-mod event;
 mod namegen;
+mod pathfinding;
+mod point;
+mod state;
 mod stats;
-mod util;
-mod direction;
+mod testbed;
+mod tile;
 mod ui;
+mod util;
+mod world;
+
+mod ecs;
+mod command;
 
 use slog::Logger;
 
@@ -79,20 +82,22 @@ pub fn get_context() -> GameContext {
 
 pub fn run() {
     init();
-    setup();
-    // let mut context = get_context();
-    // game_loop(&mut context);
+    // setup();
+    let mut context = get_context();
+    game_loop(&mut context);
     // info!(context.logger, "Exited cleanly.");
+    println!("Done.");
 }
 
 fn game_loop(mut ctxt: &mut GameContext) {
+    use ecs::Mutate;
+    let e = ctxt.state.world.create(::ecs::prefab::mob("Dood", ::glyph::Glyph::Player), Point::new(1,1));
+    ctxt.state.world.set_player(Some(e));
     while !canvas::window_closed() {
         state::process(ctxt);
     }
 }
 
-
-use world::*;
 use rand::distributions::{Range, IndependentSample};
 use testbed::{get_world, start_with_params};
 

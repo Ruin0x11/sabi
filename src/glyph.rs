@@ -65,7 +65,7 @@ pub struct RenderGlyph {
 }
 
 macro_attr!(
-    #[derive(Hash, Eq, PartialEq, Debug, Copy, Clone, EnumFromStr!)]
+    #[derive(Hash, Eq, PartialEq, Debug, Copy, Clone, EnumFromStr!, Serialize, Deserialize)]
     pub enum Glyph {
         Player,
 

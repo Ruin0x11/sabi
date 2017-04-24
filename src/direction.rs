@@ -1,3 +1,5 @@
+use std::ops::Add;
+
 use rand::{self, Rng};
 
 use point::Point;
@@ -60,11 +62,15 @@ impl Direction {
     pub fn from_neighbors(from: Point, to: Point) -> Option<Direction> {
         Direction::from_movement_offset(to - from)
     }
+}
 
-    pub fn add_offset(pt: Point, dir: Direction) -> Point {
+impl Add<Direction> for Point {
+    type Output = Point;
+
+    fn add(self, dir: Direction) -> Point {
         let (dx, dy) = dir.to_movement_offset();
-        let cx = pt.x.clone() + dx;
-        let cy = pt.y.clone() + dy;
+        let cx = self.x.clone() + dx;
+        let cy = self.y.clone() + dy;
         Point::new(cx, cy)
     }
 }

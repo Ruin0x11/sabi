@@ -1,6 +1,6 @@
 use glyph::{Glyph};
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub enum TileType {
     Wall,
     Floor,
@@ -26,14 +26,14 @@ impl Tile {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub enum TileFeature {
     Door(bool),
     StairsUp,
     StairsDown,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub struct Tile {
     pub type_: TileType,
 

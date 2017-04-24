@@ -2,13 +2,14 @@ use std::collections::BTreeMap;
 use std::iter::Iterator;
 use std::cmp;
 
-use actor::ActorId;
+use calx_ecs::Entity;
 
 use world::*;
 use world::actors::Actors;
 
+#[derive(Serialize, Deserialize)]
 pub struct TurnOrder {
-    times_until_turn: BTreeMap<ActorId, i32>,
+    times_until_turn: BTreeMap<Entity, i32>,
 }
 
 impl TurnOrder {
@@ -18,39 +19,39 @@ impl TurnOrder {
         }
     }
 
-    pub fn add_actor(&mut self, id: ActorId, time: i32) {
+    pub fn add(&mut self, id: Entity, time: i32) {
         assert!(!self.times_until_turn.contains_key(&id),
-                "Actor {} already exists in turn order!", id);
+                "Entity already exists in turn order!");
         self.times_until_turn.insert(id, time);
     }
 
-    pub fn remove_actor(&mut self, id: &ActorId) {
+    pub fn remove(&mut self, id: &Entity) {
         self.times_until_turn.remove(id)
             .expect("Actor not in turn order map");
     }
 
-    pub fn advance_time_for(&mut self, id: &ActorId, diff: i32) {
+    pub fn advance_time_for(&mut self, id: &Entity, diff: i32) {
         let time_until_turn = self.times_until_turn.get_mut(id)
             .expect("Tried advancing time of actor not in turn order");
         *time_until_turn -= diff;
     }
 
-    pub fn add_delay_for(&mut self, id: &ActorId, diff: i32) {
+    pub fn add_delay_for(&mut self, id: &Entity, diff: i32) {
         let time_until_turn = self.times_until_turn.get_mut(id)
             .expect("Tried delaying time of actor not in turn order");
         *time_until_turn = cmp::max(0, *time_until_turn);
         *time_until_turn += diff;
     }
 
-    pub fn get_time_for(&self, id: &ActorId) -> &i32 {
-        self.times_until_turn.get(id)
+    pub fn get_time_for(&self, id: &Entity) -> i32 {
+        *self.times_until_turn.get(id)
             .expect("Actor not in turn order map")
     }
 }
 
 impl Iterator for TurnOrder {
-    type Item = ActorId;
-    fn next(&mut self) -> Option<ActorId> {
+    type Item = Entity;
+    fn next(&mut self) -> Option<Entity> {
         if self.times_until_turn.len() == 0 {
             return None;
         }
@@ -61,7 +62,7 @@ impl Iterator for TurnOrder {
     }
 }
 
-
+#[cfg(never)]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -79,7 +80,7 @@ mod tests {
     #[test]
     fn test_single_id() {
         let mut turn_order = TurnOrder::new();
-        let actor = ActorId::new_v4();
+        let actor = Entity::new_v4();
         turn_order.add_actor(actor, 0);
 
         assert_eq!(turn_order.next().unwrap(), actor);
@@ -92,8 +93,8 @@ mod tests {
     #[test]
     fn test_two_ids() {
         let mut turn_order = TurnOrder::new();
-        let actor_a = ActorId::new_v4();
-        let actor_b = ActorId::new_v4();
+        let actor_a = Entity::new_v4();
+        let actor_b = Entity::new_v4();
         turn_order.add_actor(actor_a, 0);
         turn_order.add_actor(actor_b, 10);
 

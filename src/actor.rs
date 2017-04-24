@@ -141,7 +141,7 @@ impl Actor {
     }
 
     pub fn move_in_direction(&mut self, dir: Direction, world: &mut World) {
-        let pos = Direction::add_offset(self.get_pos(), dir);
+        let pos = self.get_pos() + dir;
 
         self.move_to(pos, world);
     }

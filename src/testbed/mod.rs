@@ -30,31 +30,31 @@ pub fn get_world<'a>() -> World {
 }
 
 pub fn step_once(player: Actor, world: World) {
-    init();
-    let mut context = get_context();
-    context.state.set_world(world);
-    {
-        let mut world = &mut context.state.world;
-        world.set_player_id(player.get_id());
-        world.add_actor(player);
-    }
-    state::step(&mut context);
+    // init();
+    // let mut context = get_context();
+    // context.state.set_world(world);
+    // {
+    //     let mut world = &mut context.state.world;
+    //     world.set_player_id(player.get_id());
+    //     world.add_actor(player);
+    // }
+    // state::step(&mut context);
 }
 
 pub fn start_with_params(player: Actor, world: World) {
-    init();
-    let mut context = get_context();
-    context.state.set_world(world);
-    {
-        let mut world = &mut context.state.world;
-        world.set_player_id(player.get_id());
-        world.add_actor(player);
-    }
-    while !canvas::window_closed() {
-        state::process(&mut context);
-    }
-    println!("Done.");
-    info!(context.logger, "Testbed exited cleanly.");
+    // init();
+    // let mut context = get_context();
+    // context.state.set_world(world);
+    // {
+    //     let mut world = &mut context.state.world;
+    //     world.set_player_id(player.get_id());
+    //     world.add_actor(player);
+    // }
+    // while !canvas::window_closed() {
+    //     state::process(&mut context);
+    // }
+    // println!("Done.");
+    // info!(context.logger, "Testbed exited cleanly.");
 }
 
 /// Creates an object of the specified type from a grid string using constructor

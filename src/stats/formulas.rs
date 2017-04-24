@@ -1,9 +1,10 @@
 use std::fmt::{self, Display};
 
+use calx_ecs::Entity;
 use rand::{self, Rng};
 use rand::distributions::{Range, IndependentSample};
 
-use actor::Actor;
+use ecs::*;
 
 struct Dice {
     rolls: u32,
@@ -45,17 +46,18 @@ impl Display for Dice {
     }
 }
 
-pub fn calculate_delay(actor: &Actor, action_cost: u32) -> i32 {
-    (100*action_cost / actor.speed) as i32
+pub fn calculate_delay(world: &EcsWorld, actor: &Entity, action_cost: u32) -> i32 {
+    let speed = world.ecs().turns.get_or_err(*actor).speed;
+    (100*action_cost / speed) as i32
 }
 
-pub fn check_evasion(attacker: &Actor, defender: &Actor) -> bool {
+pub fn check_evasion(world: &EcsWorld, attacker: &Entity, defender: &Entity) -> bool {
     false
 }
 
-pub fn calculate_damage(attacker: &Actor, defender: &Actor) -> u32 {
+pub fn calculate_damage(world: &EcsWorld, attacker: &Entity, defender: &Entity) -> u32 {
     let dice = Dice::new(2, 4, 4);
-    debug!(attacker.logger, "{}: attacking {} with {}", attacker, defender, dice);
+    // debug!(attacker.logger, "{}: attacking {} with {}", attacker, defender, dice);
 
     dice.roll()
 }

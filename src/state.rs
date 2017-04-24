@@ -3,31 +3,33 @@ use std::collections::{HashMap, VecDeque};
 
 use action::*;
 use actor::*;
+use command::Command;
 use direction::Direction;
 use ai::{self};
 use event;
 use keys::*;
 use point::Point;
 use logic;
-use world::{World, WorldType};
 use engine::canvas;
 use uuid::Uuid;
 use ::GameContext;
+use ecs::*;
+use ecs::traits::*;
 
 pub struct GameState {
-    pub world: World,
+    pub world: EcsWorld,
     action_queue: VecDeque<Action>,
 }
 
 impl GameState {
     pub fn new() -> Self {
         GameState {
-            world: World::new_empty(WorldType::Nothing, 0),
+            world: EcsWorld::new(0),
             action_queue: VecDeque::new(),
         }
     }
 
-    pub fn set_world(&mut self, world: World) {
+    pub fn set_world(&mut self, world: EcsWorld) {
         self.world = world;
     }
 
@@ -36,22 +38,15 @@ impl GameState {
     }
 
     pub fn player_action(&mut self, action: Action) {
-        let id = self.world.player_id();
-        if !self.world.was_killed(&id) {
-            logic::run_action(&mut self.world, &id, action);
+        if let Some(player) = self.world.player() {
+            logic::run_action(&mut self.world, player, action);
         }
     }
 
     pub fn advance_time(& mut self, diff: i32) {
         let world = &mut self.world;
-        world.advance_time(diff)
+        // world.advance_time(diff)
     }
-}
-
-pub enum Command {
-    Move(Direction),
-    Wait,
-    Quit,
 }
 
 pub enum NextState {
@@ -59,22 +54,24 @@ pub enum NextState {
     Quit,
 }
 
-fn draw_overlays(world: &mut World) {
+#[cfg(never)]
+fn draw_overlays(world: &mut EcsWorld) {
     world.draw_calls.draw_all();
     world.draw_calls.clear();
 }
 
-fn draw_world(world: &mut World) {
-    let fov = world.player().fov();
+fn draw_world(world: &mut EcsWorld) {
+    // let fov = world.player().fov();
     world.with_cells(Point::new(0, 0), Point::new(128, 128),
                      |point, ref cell| {
-                         if fov.is_visible(&point) {
+                         // if fov.is_visible(&point) {
                              canvas::with(|c| c.print_glyph(point.x, point.y, cell.tile.glyph.clone()) )
-                         }
+                         // }
                      });
 }
 
-fn show_messages(world: &mut World) {
+#[cfg(never)]
+fn show_messages(world: &mut EcsWorld) {
     canvas::with_mut(|c| {
         let messages = world.pop_messages(c.width() as usize);
         debug!(world.logger, "Showing messages, len: {}", messages.len());
@@ -82,51 +79,15 @@ fn show_messages(world: &mut World) {
     });
 }
 
-fn draw_items(world: &World) {
-    let fov = world.player().fov();
-    for item in world.items_in_map() {
-        let pos = item.get_pos();
-        if fov.is_visible(&pos) {
-            canvas::with(|c| c.print_glyph(pos.x, pos.y, item.desc.glyph));
-        }
-    }
-}
-
-fn draw_actors(world: &mut World) {
+fn draw_entities(world: &mut EcsWorld) {
     // TODO: Make trait for pos queryable?
-    let fov = world.player().fov();
-    for actor in world.actors() {
-        let pos = actor.get_pos();
-        if fov.is_visible(&pos) {
-            canvas::with(|c| c.print_glyph(pos.x, pos.y, actor.glyph));
+    for e in world.entities() {
+        let pos = world.position(*e);
+        if let Some(pos) = world.position(*e) {
+            if let Some(a) = world.ecs().appearances.get(*e) {
+                canvas::with(|c| c.print_glyph(pos.x, pos.y, a.glyph));
+            }
         }
-    }
-}
-
-fn get_command_for_key(context: &GameContext, key: Key) -> Command {
-    if let KeyCode::Unknown(c) = key.code {
-        warn!(context.logger, "Unknown was returned, {}", c);
-    }
-    debug!(context.logger, "Key: {:?}", key);
-    match key {
-        Key { code: KeyCode::Esc,     .. } => Command::Quit,
-        Key { code: KeyCode::Left,    .. } |
-        Key { code: KeyCode::H,       .. } |
-        Key { code: KeyCode::NumPad4, .. } => Command::Move(Direction::W),
-        Key { code: KeyCode::Right,   .. } |
-        Key { code: KeyCode::L,       .. } |
-        Key { code: KeyCode::NumPad6, .. } => Command::Move(Direction::E),
-        Key { code: KeyCode::Up,      .. } |
-        Key { code: KeyCode::K,       .. } |
-        Key { code: KeyCode::NumPad8, .. } => Command::Move(Direction::N),
-        Key { code: KeyCode::Down,    .. } |
-        Key { code: KeyCode::J,       .. } |
-        Key { code: KeyCode::NumPad2, .. } => Command::Move(Direction::S),
-        Key { code: KeyCode::NumPad1, .. } => Command::Move(Direction::SW),
-        Key { code: KeyCode::NumPad3, .. } => Command::Move(Direction::SE),
-        Key { code: KeyCode::NumPad7, .. } => Command::Move(Direction::NW),
-        Key { code: KeyCode::NumPad9, .. } => Command::Move(Direction::NE),
-        _                                  => Command::Wait
     }
 }
 
@@ -136,7 +97,8 @@ pub fn get_commands_from_input(context: &mut GameContext) -> Vec<Command> {
     let mut keys = canvas::with(|c| c.get_input());
 
     while let Some(key) = keys.pop() {
-        commands.push(get_command_for_key(context, key));
+        info!(context.logger, "Key: {:?}", key);
+        commands.push(Command::from_key( key));
     }
     commands
 }
@@ -167,19 +129,18 @@ fn process_player_input<'a>(context: &'a mut GameContext) {
     }
 }
 
-pub fn render_all(world: &mut World) {
+pub fn render_all(world: &mut EcsWorld) {
     canvas::clear();
-    let camera_pos = world.player().get_pos();
+    let camera_pos = world.flags().camera;
     canvas::with_mut(|c| c.set_camera(camera_pos.x, camera_pos.y));
     draw_world(world);
-    draw_items(world);
-    draw_actors(world);
-    draw_overlays(world);
+    draw_entities(world);
+    // draw_overlays(world);
 }
 
-pub fn process_actors(world: &mut World) {
-    while let Some(ref id) = world.next_actor() {
-        let leftover_ticks = world.time_until_turn_for(id);
+pub fn process_actors(world: &mut EcsWorld) {
+    while let Some(id) = world.next_entity() {
+        let leftover_ticks = world.turn_order().get_time_for(&id);
         if leftover_ticks > 0 {
             world.advance_time(leftover_ticks);
         }
@@ -188,16 +149,17 @@ pub fn process_actors(world: &mut World) {
             break
         }
 
-        if world.was_killed(id) {
-            panic!("Killed actor remained in turn order! {}", id);
+        if !world.is_alive(id) {
+            panic!("Killed actor remained in turn order!");
         }
 
-        let action = {
-            let actor = world.actor(id);
-            ai::update_goal(actor, world);
-            ai::update_memory(&actor, world);
-            ai::choose_action(actor, world)
-        };
+        // let action = {
+        //     let actor = world.actor(id);
+        //     ai::update_goal(actor, world);
+        //     ai::update_memory(&actor, world);
+        //     ai::choose_action(actor, world)
+        // };
+        let action = Action::Wait;
 
         logic::run_action(world, id, action);
 
@@ -205,30 +167,29 @@ pub fn process_actors(world: &mut World) {
     }
 }
 
-pub fn check_player_dead(world: &mut World) -> bool {
-    let id = world.player_id();
-    let res = world.was_killed(&id);
+pub fn check_player_dead(world: &mut EcsWorld) -> bool {
+    let res = world.player().is_none();
     if res {
-        info!(world.logger, "Player has died.");
-        world.message("You're dead!".to_string());
-        show_messages(world);
+        // info!(world.logger, "Player has died.");
+        // world.message("You're dead!".to_string());
+        // show_messages(world);
         canvas::present();
         canvas::get_input();
     }
     res
 }
 
-pub fn process_events(world: &mut World) {
-    let mut responses = event::check_all(world);
-    while responses.len() != 0 {
-        world.events.clear();
-        while let Some((action, id)) = responses.pop() {
-            // FIXME: don't delay actors here.
-            logic::run_action(world, &id, action);
-        }
-        //render_all(world, canvas);
-        responses.extend(event::check_all(world));
-    }
+pub fn process_events(world: &mut EcsWorld) {
+    // let mut responses = event::check_all(world);
+    // while responses.len() != 0 {
+    //     world.events.clear();
+    //     while let Some((action, id)) = responses.pop() {
+    //         // FIXME: don't delay actors here.
+    //         logic::run_action(world, &id, action);
+    //     }
+    //     //render_all(world, canvas);
+    //     responses.extend(event::check_all(world));
+    // }
 }
 
 // TEMP: Just to bootstrap things dirtily.
@@ -242,7 +203,7 @@ pub fn process(context: &mut GameContext) {
     }
 
     render_all(&mut context.state.world);
-    show_messages(&mut context.state.world);
+    // show_messages(&mut context.state.world);
     canvas::present();
 
     process_player_input(context);

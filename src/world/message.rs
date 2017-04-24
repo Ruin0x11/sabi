@@ -1,6 +1,5 @@
 use std::collections::VecDeque;
 
-use textwrap;
 use world::*;
 
 const MORE: &'static str = "--More--";
@@ -34,13 +33,13 @@ impl Messages {
     pub fn message_lines(&self, canvas_width: usize) -> Vec<String> {
         let more_str = format!(" {}", MORE);
         let combined = self.combined_message();
-        let mut wrapped_lines = textwrap::wrap(combined.as_str(), canvas_width);
-        for line in wrapped_lines.iter_mut() {
-            // TODO: Truncate with '...' instead, if the line is a single block
-            // greater than the canvas width.
-            line.truncate(canvas_width);
-        }
-        wrapped_lines
+        let mut wrapped_lines = combined;
+        // for line in wrapped_lines.iter_mut() {
+        //     // TODO: Truncate with '...' instead, if the line is a single block
+        //     // greater than the canvas width.
+        //     line.truncate(canvas_width);
+        // }
+        vec![wrapped_lines]
     }
 }
 

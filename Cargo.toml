@@ -11,18 +11,16 @@ with-tcod = []
 [dependencies]
 tcod = "0.11.0"
 rand = "0.3.15"
-ears = "0.4.0"
 bitflags = "0.8.0"
-textwrap = "0.4.0"
-uuid = { version = "0.4.0", features = ["serde", "v4"]}
+uuid = { version = "0.4.0", features = ["serde", "v4"]} # REMOVE
 lazy_static = "0.2.5"
 
 # Logging
-backtrace = "0.3.0"
+backtrace = "0.3.0" # REMOVE?
 slog = "1.2"
 slog-stream = "1.2"
 env_logger = "0.3"
-chrono = "0.3.0"
+chrono = "0.3.0" # REMOVE?
 
 # Game data serialization
 toml = "0.3.2"
@@ -31,7 +29,10 @@ serde_derive = "0.9.11"
 enum_derive = "0.1.7"
 macro-attr = "0.2.0"
 
-goap = { path = "/home/nuko/build/goap-rs" }
+calx-ecs = "0.5.0"
+
+goap = { git = "https://github.com/ruin0x11/goap-rs.git" }
+infinigen = { git = "https://github.com/ruin0x11/infinigen-rs.git" }
 
 glium = { version = "0.16.0", optional = true }
 # rustbox = { version = "0.9.0", optional = true }

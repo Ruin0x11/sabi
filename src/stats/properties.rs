@@ -11,6 +11,7 @@ use actor::ActorId;
 //    - Sets of required and optional properties?
 //  - Lua tables?
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum PropType {
     Bool(bool),
     Num(i64),
@@ -26,7 +27,7 @@ pub enum PropType {
 // The properties that are most important can be moved into the respective
 // struct, and everything less important can live here.
 macro_attr! {
-    #[derive(Eq, PartialEq, Hash, Clone, Debug, EnumFromStr!)]
+    #[derive(Serialize, Deserialize, Eq, PartialEq, Hash, Clone, Debug, EnumFromStr!)]
     pub enum Prop {
         Explosive,
 
@@ -44,6 +45,7 @@ pub enum PropErr {
 
 /// Arbitrary key-value properties. Use when modeling things that don't fit
 /// into the baked-in structs.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Properties {
     // poor-man's polymorphism
     props: HashMap<Prop, PropType>,

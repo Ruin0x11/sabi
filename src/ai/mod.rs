@@ -1,30 +1,34 @@
+mod action;
 mod sensors;
 
 use std::cell::RefCell;
 
-use goap::{Planner};
+use calx_ecs::Entity;
+use goap::Planner;
 use rand::{self, Rng};
 
 use actor::{Actor, ActorId};
-use direction::Direction;
 use action::Action;
-use world::{World, Walkability};
-use pathfinding::Path;
-use drawcalls::Draw;
+use world::World;
 use ai::sensors::{Sensor};
 
-pub fn state_kill(id: &ActorId, state: &AiState) {
+pub fn state_kill(id: Entity, state: &AiState) {
     let mut goal_c =  BTreeMap::new();
     goal_c.insert(AiProp::TargetDead, true);
 
     let goal = GoapState { facts: goal_c };
     *state.goal.borrow_mut() = goal;
-    *state.target.borrow_mut() = Some(id.clone());
+    *state.target.borrow_mut() = Some(id);
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct AiState {
+    #[serde(default="make_planner")]
+    #[serde(skip_serializing)]
+    #[serde(skip_deserializing)]
     planner: AiPlanner,
-    target: RefCell<Option<ActorId>>,
+
+    target: RefCell<Option<Entity>>,
     memory: RefCell<AiMemory>,
     goal:   RefCell<AiMemory>,
 }
@@ -53,7 +57,7 @@ impl AiState {
     }
 }
 
-#[derive(Hash, Ord, PartialOrd, Eq, PartialEq, Debug, Clone)]
+#[derive(Serialize, Deserialize, Hash, Ord, PartialOrd, Eq, PartialEq, Debug, Clone)]
 pub enum AiProp {
     HealthLow,
     HasTarget,
@@ -62,7 +66,7 @@ pub enum AiProp {
     NextToTarget,
 }
 
-#[derive(Hash, Ord, PartialOrd, Eq, PartialEq, Debug, Clone)]
+#[derive(Serialize, Deserialize, Hash, Ord, PartialOrd, Eq, PartialEq, Debug, Clone)]
 pub enum AiAction {
     Wander,
     MoveCloser,
@@ -74,93 +78,46 @@ thread_local! {
     static SENSORS: HashMap<AiProp, Sensor> = sensors::make_sensors();
 }
 
-pub fn update_memory(actor: &Actor, world: &World) {
-    let ref mut memory = actor.ai.memory.borrow_mut();
-    let wants_to_know = vec![AiProp::HasTarget, AiProp::TargetVisible,
-                             AiProp::TargetDead, AiProp::NextToTarget, AiProp::HealthLow];
-    for fact in wants_to_know.iter() {
-        SENSORS.with(|s| {
-            let sensor = s.get(fact).unwrap();
-            let result = (sensor.callback)(world, actor);
-            debug!(actor.logger, "{:?}, {}", fact, result);
-            memory.facts.insert(fact.clone(), result);
-        });
-    }
+pub fn update_memory(entity: &Entity, world: &World) {
+    // let ref mut memory = actor.ai.memory.borrow_mut();
+    // let wants_to_know = vec![AiProp::HasTarget, AiProp::TargetVisible,
+    //                          AiProp::TargetDead, AiProp::NextToTarget, AiProp::HealthLow];
+    // for fact in wants_to_know.iter() {
+    //     SENSORS.with(|s| {
+    //         let sensor = s.get(fact).unwrap();
+    //         let result = (sensor.callback)(world, actor);
+    //         debug!(actor.logger, "{:?}, {}", fact, result);
+    //         memory.facts.insert(fact.clone(), result);
+    //     });
+    // }
 }
 
-pub fn update_goal(actor: &Actor, world: &World) {
-    if actor.ai.planner.plan_found(&actor.ai.memory.borrow(), &actor.ai.goal.borrow()) {
+pub fn update_goal(entity: Entity, world: &World) {
+    // if actor.ai.planner.plan_found(&actor.ai.memory.borrow(), &actor.ai.goal.borrow()) {
         // The current plan has been finished. We need a new one.
-        if let Some(id) = rand::thread_rng().choose(&actor.seen_actors(world)) {
-            state_kill(id, &actor.ai);
-        }
-    }
+        // if let Some(id) = rand::thread_rng().choose(&actor.seen_actors(world)) {
+        //     state_kill(entity, &actor.ai);
+        // }
+    // }
 }
 
-pub fn choose_action(actor: &Actor, world: &World) -> Action {
+pub fn choose_action(entity: Entity, world: &World) -> Action {
     // TEMP: Just save the whole plan and only update when something interesting
     // happens
-    let actions = actor.ai.planner.get_plan(&actor.ai.memory.borrow(), &actor.ai.goal.borrow());
-    if let Some(action) = actions.first() {
-        debug!(actor.logger, "the action: {:?}", action);
-        match *action {
-            AiAction::Wander => action_wander(actor, world),
-            AiAction::MoveCloser => action_move_closer(actor, world),
-            AiAction::SwingAt => action_swing_at(actor, world),
-            AiAction::Run => action_run(actor, world),
-        }
-    } else {
-        warn!(actor.logger, "I can't figure out what to do!");
-        Action::Wait
-    }
-}
-
-fn action_wander(_actor: &Actor, _world: &World) -> Action {
-    Action::Move(Direction::choose8())
-}
-
-fn action_swing_at(actor: &Actor, _world: &World) -> Action {
-    Action::SwingAt(actor.ai.target.borrow().unwrap())
-}
-
-fn action_move_closer(actor: &Actor, world: &World) -> Action {
-    let target = world.actor(&actor.ai.target.borrow().unwrap());
-    assert!(!target.is_dead(), "Target is already dead!");
-
-    let my_pos = actor.get_pos();
-    let target_pos = target.get_pos();
-
-    assert!(actor.can_see(&target_pos), "Actor can't see target!");
-
-    // Am I right next to the target?
-    match Direction::from_neighbors(my_pos, target_pos) {
-        Some(dir) => return Action::Move(dir),
-        None      => (),
-    }
-
-    let mut path = Path::find(my_pos, target_pos, &world, Walkability::MonstersBlocking);
-
-    debug!(actor.logger, "My: {} target: {}, path: {:?}", my_pos, target_pos, path);
-
-    if path.len() == 0 {
-        // TODO: Lost sight of target.
-        return Action::Wait;
-    }
-
-    let next_pos = path.next().unwrap();
-
-    for pt in path {
-        world.draw_calls.push(Draw::Point(pt.x, pt.y));
-    }
-
-    match Direction::from_neighbors(my_pos, next_pos) {
-        Some(dir) => Action::Move(dir),
-        None      => panic!("Can't traverse path: {} {}", my_pos, next_pos),
-    }
-}
-
-fn action_run(_actor: &Actor, _world: &World) -> Action {
-    Action::Move(Direction::choose8())
+    Action::Wait
+    // let actions = actor.ai.planner.get_plan(&actor.ai.memory.borrow(), &actor.ai.goal.borrow());
+    // if let Some(action) = actions.first() {
+    //     debug!(actor.logger, "the action: {:?}", action);
+    //     match *action {
+    //         AiAction::Wander => action::wander(actor, world),
+    //         AiAction::MoveCloser => action::move_closer(actor, world),
+    //         AiAction::SwingAt => action::swing_at(actor, world),
+    //         AiAction::Run => action::run_away(actor, world),
+    //     }
+    // } else {
+    //     warn!(actor.logger, "I can't figure out what to do!");
+    //     Action::Wait
+    // }
 }
 
 use std::collections::{BTreeMap, HashMap};

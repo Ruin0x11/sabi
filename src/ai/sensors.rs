@@ -1,53 +1,41 @@
 use std::collections::HashMap;
 
-use actor::Actor;
-use world::World;
+use calx_ecs::Entity;
+
 use ai::AiProp;
+use world::World;
 
 pub struct Sensor {
-    pub callback: Box<Fn(&World, &Actor) -> bool>,
+    pub callback: Box<Fn(&World, &Entity) -> bool>,
 }
 
 impl Sensor {
     pub fn new<F>(callback: F) -> Self
-        where F: 'static + Fn(&World, &Actor) -> bool {
+        where F: 'static + Fn(&World, &Entity) -> bool {
         Sensor {
             callback: Box::new(callback),
         }
     }
 }
 
-fn target_visible(world: &World, actor: &Actor) -> bool {
-    actor.ai.target.borrow()
-        .map_or(false, |id| {
-            let target = world.actor(&id);
-            actor.can_see(&target.get_pos())
-        })
+fn target_visible(world: &World, entity: &Entity) -> bool {
+    false
 }
 
-fn target_dead(world: &World, actor: &Actor) -> bool {
-    actor.ai.target.borrow()
-        .map_or(false, |id| {
-            let target = world.actor(&id);
-            target.is_dead()
-        })
+fn target_dead(world: &World, entity: &Entity) -> bool {
+    true
 }
 
-
-fn next_to_target(world: &World, actor: &Actor) -> bool {
-    actor.ai.target.borrow()
-        .map_or(false, |id| {
-            let target = world.actor(&id);
-            actor.get_pos().next_to(target.get_pos())
-        })
+fn next_to_target(world: &World, entity: &Entity) -> bool {
+    false
 }
 
-fn has_target(_world: &World, actor: &Actor) -> bool {
-    actor.ai.target.borrow().is_some()
+fn has_target(_world: &World, entity: &Entity) -> bool {
+    true
 }
 
-fn health_low(_world: &World, actor: &Actor) -> bool {
-    actor.hp() < 20
+fn health_low(_world: &World, entity: &Entity) -> bool {
+    false
 }
 
 pub fn make_sensors() -> HashMap<AiProp, Sensor> {
