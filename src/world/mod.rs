@@ -1,607 +1,282 @@
-mod actors;
-mod iterators;
-mod message;
-// mod spatial;
-mod turn_order;
+mod terrain;
 
-use std::cell::RefCell;
-use std::collections::{VecDeque, HashMap, HashSet, hash_map};
-use std::fmt;
+pub use self::terrain::Terrain;
 
-use actor::{Actor, ActorId};
+use std::collections::HashSet;
+use std::fs::File;
+use std::slice;
+
+use calx_ecs::{ComponentData, Entity};
+
 use action::Action;
-use drawcalls::*;
-use event::Event;
-use tile::*;
-use point::Point;
+use cell::{self, Cell};
 use chunk::*;
-use glyph::*;
-use slog::Logger;
-use log;
-
-use self::message::Messages;
-use self::actors::Actors;
-pub use world::turn_order::TurnOrder;
-use testbed::item::*;
-use testbed::items::*;
-
-pub type WorldIter = Iterator<Item=WorldPosition>;
-
-#[derive(Eq, PartialEq, Copy, Clone)]
-pub enum Walkability {
-    MonstersWalkable,
-    MonstersBlocking,
-}
+use chunk::serial::SerialChunk;
+use command::CommandResult;
+use data::spatial::{Spatial, Place};
+use data::{TurnOrder, Walkability};
+use direction::Direction;
+use ecs::*;
+use ecs::flags::Flags;
+use ecs::traits::*;
+use infinigen::*;
+use logic;
+use point::Point;
+use point::RectangleArea;
 
 pub type WorldPosition = Point;
 
-pub enum WorldType {
-    Instanced(Point),
-    Overworld,
-    Nothing
-}
+pub type WorldIter = Iterator<Item=WorldPosition>;
 
-/// Describes a collection of Chunks put together to form a complete playing
-/// field. This is the interface to the world that living beings can interact
-/// with.
-pub struct World {
-    chunk_size: i32,
-    chunks: HashMap<ChunkIndex, Chunk>,
-    type_: WorldType,
-
-    actors: Actors,
+#[derive(Serialize, Deserialize)]
+pub struct EcsWorld {
+    ecs_: Ecs,
+    terrain: Terrain,
+    spatial: Spatial,
     turn_order: TurnOrder,
-
-    pub items: Items,
-
-    pub draw_calls: DrawCalls,
-    messages: RefCell<Messages>,
-    pub events: Vec<Event>,
-    pub logger: Logger,
+    flags: Flags,
 }
 
-impl World {
-    pub fn new_empty(type_: WorldType, chunk_size: i32) -> Self {
-        World {
-            chunk_size: chunk_size,
-            chunks: HashMap::new(),
-            type_: type_,
-
-            actors: Actors::new(),
+impl EcsWorld {
+    pub fn new(seed: u32) -> EcsWorld {
+        EcsWorld {
+            ecs_: Ecs::new(),
+            terrain: Terrain::new(),
+            spatial: Spatial::new(),
             turn_order: TurnOrder::new(),
-
-            items: Items::new(),
-
-            draw_calls: DrawCalls::new(),
-            events: Vec::new(),
-            messages: RefCell::new(Messages::new()),
-            logger: log::make_logger("world").unwrap(),
+            flags: Flags::new(seed),
         }
-    }
-
-    pub fn generate(type_: WorldType, chunk_size: i32, tile: Tile) -> World {
-        let chunks = match type_ {
-            WorldType::Instanced(dimensions) => World::generate_chunked(chunk_size, dimensions, tile),
-            _   => HashMap::new(),
-        };
-
-        let mut world = World::new_empty(type_, chunk_size);
-        world.chunks = chunks;
-
-        assert!(world.chunks.len() > 0, "No chunks created!");
-        debug!(world.logger, "World created, no. of chunks: {}", world.chunks.len());
-
-        world
-    }
-
-    fn generate_chunked(chunk_size: i32, dimensions: Point, tile: Tile) -> HashMap<ChunkIndex, Chunk> {
-        assert!(dimensions.x >= 0);
-        assert!(dimensions.y >= 0);
-
-        let mut chunks = HashMap::new();
-        let debug = "abcdefg";
-
-        // ceiling
-        let columns = (dimensions.x + chunk_size - 1) / chunk_size;
-        let rows = (dimensions.y + chunk_size - 1) / chunk_size;
-
-        for i in 0..columns {
-            for j in 0..rows {
-                let index = (j + (i * rows)) as usize;
-                // TODO: Shave off bounds
-                chunks.insert(ChunkIndex::new(i, j), Chunk::generate_basic(tile));
-            }
-        }
-        chunks
-    }
-
-    fn chunk_index_from_world_pos(&self, pos: WorldPosition) -> ChunkIndex {
-        let conv = |i: i32| {
-            if i < 0 {
-                // [-1, -chunk_size] = -1
-                ((i + 1) / self.chunk_size) - 1
-            } else {
-                // [0, chunk_size-1] = 0
-                i / self.chunk_size
-            }
-        };
-
-        ChunkIndex::new(conv(pos.x), conv(pos.y))
-    }
-
-    fn chunk_pos_from_world_pos(&self, pos: WorldPosition) -> Point {
-        let conv = |i: i32| {
-            let i_new = i % self.chunk_size;
-            if i_new < 0 {
-                self.chunk_size + i_new
-            } else {
-                i_new
-            }
-        };
-
-        Point::new(conv(pos.x), conv(pos.y))
-    }
-
-    pub fn chunk_from_world_pos(&self, pos: WorldPosition) -> Option<&Chunk> {
-        let index = self.chunk_index_from_world_pos(pos);
-        self.chunk(index)
-    }
-
-    pub fn chunk_mut_from_world_pos(&mut self, pos: WorldPosition) -> Option<&mut Chunk> {
-        let index = self.chunk_index_from_world_pos(pos);
-        self.chunk_mut(index)
-    }
-
-    pub fn chunk(&self, index: ChunkIndex) -> Option<&Chunk> {
-        self.chunks.get(&index)
-    }
-
-    pub fn chunk_mut(&mut self, index: ChunkIndex) -> Option<&mut Chunk> {
-        self.chunks.get_mut(&index)
-    }
-
-    pub fn pos_valid(&self, world_pos: &WorldPosition) -> bool {
-        let chunk_index = self.chunk_index_from_world_pos(*world_pos);
-        let is_in_chunk = self.chunk(chunk_index).is_some();
-        match self.type_ {
-            WorldType::Instanced(size) => {
-                let is_in_boundaries = *world_pos < size;
-                // debug!(self.logger, "pos: {} size: {}", world_pos, size);
-                // debug!(self.logger, "in chunk, boundaries: {} {}", is_in_chunk, is_in_boundaries);
-                is_in_chunk && is_in_boundaries
-            }
-            _ => is_in_chunk
-        }
-    }
-
-    pub fn is_walkable(&self, world_pos: WorldPosition,
-                       walkability: Walkability) -> bool {
-        let walkable = match walkability {
-            Walkability::MonstersWalkable => true,
-            Walkability::MonstersBlocking => self.actors.at_pos(world_pos).is_none(),
-        };
-
-        match self.cell(&world_pos) {
-            Some(cell) => {
-                let passable = cell.tile.can_pass_through();
-                let in_bounds = self.pos_valid(&world_pos);
-                // debug!(self.logger, "Cell: {:?}", cell);
-                // debug!(self.logger, "passable, bounds, walkable: {} {} {}",
-                // passable, in_bounds, walkable);
-                passable && in_bounds && walkable
-            },
-            None       => false,
-        }
-    }
-
-    // FIXME: It complains about adding lifetimes.
-    #[cfg(never)]
-    fn chunk_result<'a, F, R>(&'a self, world_pos: WorldPosition, func: &mut F, default: R) -> R
-        where F: FnMut(&Chunk, ChunkPosition) -> R {
-        let chunk_pos = ChunkPosition::from_world(world_pos);
-        let chunk_opt = self.chunk_from_world_pos(world_pos);
-        match chunk_opt {
-            Some(chunk) => {
-                func(chunk, chunk_pos)
-            },
-            None => default,
-        }
-    }
-
-    #[cfg(never)]
-    fn chunk_result_mut<'a, F, R>(&'a self, world_pos: WorldPosition, func: &mut F, default: R) -> R
-        where F: FnMut(&Chunk, ChunkPosition) -> R {
-        let chunk_pos = ChunkPosition::from_world(world_pos);
-        let chunk_opt = self.chunk_from_world_pos(world_pos);
-        match chunk_opt {
-            Some(chunk) => {
-                func(chunk, chunk_pos)
-            },
-            None => default,
-        }
-    }
-
-    pub fn cell(&self, world_pos: &WorldPosition) -> Option<&Cell> {
-        let chunk_pos = ChunkPosition::from_world(world_pos);
-        let chunk_opt = self.chunk_from_world_pos(*world_pos);
-        match chunk_opt {
-            Some(chunk) => {
-                Some(chunk.cell(chunk_pos))
-            },
-            None => None,
-        }
-    }
-
-    pub fn cell_mut(&mut self, world_pos: &WorldPosition) -> Option<&mut Cell> {
-        let chunk_pos = ChunkPosition::from_world(world_pos);
-        let chunk_opt = self.chunk_mut_from_world_pos(*world_pos);
-        match chunk_opt {
-            Some(chunk) => {
-                Some(chunk.cell_mut(chunk_pos))
-            }
-            None => None,
-        }
-    }
-
-    /// Return an iterator over `Cell` that covers a rectangular shape
-    /// specified by the top-left (inclusive) point and the dimensions
-    /// (width, height) of the rectangle.
-    ///
-    /// The iteration order is not specified.
-    pub fn with_cells<F>(&mut self, top_left: WorldPosition, dimensions: Point, mut callback: F)
-        where F: FnMut(Point, &Cell)
-    {
-        assert!(dimensions.x >= 0);
-        assert!(dimensions.y >= 0);
-
-        let mut chunk_index = self.chunk_index_from_world_pos(top_left);
-        let mut world_pos = Chunk::world_position_from_index(chunk_index, self.chunk_size);
-        let bottom_right = top_left + dimensions;
-        let starter_chunk_x = world_pos.x;
-
-        while world_pos.y < bottom_right.y {
-            while world_pos.x < bottom_right.x {
-                {
-                    chunk_index = self.chunk_index_from_world_pos(world_pos);
-                    let chunk_opt = self.chunk_from_world_pos(world_pos);
-                    if let Some(chunk) = chunk_opt {
-                        for (chunk_pos, cell) in chunk.iter() {
-                            let cell_world_pos = chunk.world_position(chunk_index, chunk_pos);
-                            if cell_world_pos >= top_left && cell_world_pos < bottom_right {
-                                callback(cell_world_pos, cell);
-                            }
-                        }
-                    }
-                }
-                world_pos.x += self.chunk_size;
-            }
-            world_pos.y += self.chunk_size;
-            world_pos.x = starter_chunk_x;
-        }
-
-    }
-
-    /// Wrapper to move an actor out of the world's actor hashmap, so it can be
-    /// mutated, then putting it back into the hashmap afterwards.
-    pub fn with_moved_actor<F>(&mut self, id: &ActorId, mut callback: F)
-        where F: FnMut(&mut World, &mut Actor) {
-
-        let mut actor = self.actors.remove_partial(id).expect("Actor not found!");
-        callback(self, &mut actor);
-        self.actors.insert_partial(actor);
-    }
-
-    pub fn add_actor(&mut self, actor: Actor) {
-        // self.turn_order.add_actor(actor.get_id(), 0);
-        self.actors.add(actor);
-    }
-
-    pub fn remove_actor(&mut self, id: &ActorId) -> Actor {
-        self.make_actor_inactive(id);
-        self.actors.remove(id)
-    }
-
-    /// Removes the actor from the position map and turn order, but doesn't
-    /// delete it.
-    // NOTE: Pointless?
-    fn make_actor_inactive(&mut self, id: &ActorId) {
-        // The player (and only the player) should still receive one last turn
-        // update if dead.
-        if !self.is_player(id) {
-            // self.turn_order.remove_actor(id);
-        }
-
-        self.actors.make_actor_inactive(id);
     }
 }
 
-// Shim to modularize actor spatial code from complete world struct.
-// I keep coming across this pattern of having to move methods in an inner
-// struct up a level.
-// TODO: Wipe this and use world.actors instead?
-impl World {
-    pub fn player(&self) -> &Actor {
-        self.actors.player()
+impl Query for EcsWorld {
+    fn position(&self, e: Entity) -> Option<WorldPosition> {
+        match self.spatial.get(e) {
+            Some(Place::At(loc)) => Some(loc),
+            Some(Place::In(container)) => self.position(container),
+            _ => None,
+        }
     }
 
-    pub fn player_id(&self) -> ActorId {
-        self.actors.player_id()
-    }
+    fn player(&self) -> Option<Entity> {
+        if let Some(p) = self.flags.player {
+            if self.is_alive(p) {
+                return Some(p);
+            }
+        }
 
-    pub fn set_player_id(&mut self, id: ActorId) {
-        self.actors.set_player_id(id);
-    }
-
-    pub fn actors(&mut self) -> hash_map::Values<ActorId, Actor> {
-        self.actors.iter()
-    }
-
-    pub fn actor_at(&self, world_pos: WorldPosition) -> Option<&Actor> {
-        self.actors.at_pos(world_pos)
-    }
-
-    pub fn actor_id_at(&self, world_pos: WorldPosition) -> Option<ActorId> {
-        self.actors.id_at_pos(world_pos)
-    }
-
-    pub fn was_killed(&self, id: &ActorId) -> bool {
-        self.actors.was_killed(id)
-    }
-
-    pub fn next_actor(&mut self) -> Option<ActorId> {
-        // self.turn_order.next()
         None
     }
 
-    pub fn is_player(&self, id: &ActorId) -> bool {
-        self.actors.is_player(id)
+    fn is_player(&self, e: Entity) -> bool {
+        self.player().map_or(false, |p| p == e)
     }
 
-    pub fn actor(&self, id: &ActorId) -> &Actor {
-        self.actors.get(id)
+    fn is_alive(&self, e: Entity) -> bool {
+        self.ecs().healths.map_or(false, |h| h.hit_points > 0, e)
     }
 
-    pub fn purge_dead(&mut self) {
-        for id in self.actors.dead_ids() {
-            debug!(self.logger, "{} was killed, purging.", id);
-            // self.turn_order.remove_actor(&id);
-            self.actors.actor_killed(id);
+    fn seed(&self) -> u32 { self.flags.seed }
+
+    fn entities(&self) -> slice::Iter<Entity> { self.ecs_.iter() }
+
+    fn entities_at(&self, loc: WorldPosition) -> Vec<Entity> { self.spatial.entities_at(loc) }
+
+    fn ecs<'a>(&'a self) -> &'a Ecs { &self.ecs_ }
+
+    fn flags<'a>(&'a self) -> &'a Flags { &self.flags }
+
+    fn turn_order<'a>(&'a self) -> &'a TurnOrder { &self.turn_order }
+
+    fn next_entity(&self) -> Option<Entity> {
+        None
+    }
+}
+
+impl Mutate for EcsWorld {
+    fn set_entity_location(&mut self, e: Entity, loc: WorldPosition) { self.spatial.insert_at(e, loc); }
+
+    fn set_player(&mut self, player: Option<Entity>) { self.flags.player = player; }
+
+    fn kill_entity(&mut self, e: Entity) {
+        self.spatial.remove(e);
+        self.turn_order.remove(&e)
+    }
+
+    fn ecs_mut<'a>(&'a mut self) -> &'a mut Ecs { &mut self.ecs_ }
+
+    fn flags_mut<'a>(&'a mut self) -> &'a mut Flags { &mut self.flags }
+
+    fn remove_entity(&mut self, e: Entity) { self.ecs_.remove(e); }
+
+    fn move_entity(&mut self, e: Entity, dir: Direction) -> CommandResult {
+        let loc = try!(self.position(e).ok_or(())) + dir;
+        if self.can_walk(loc, Walkability::MonstersBlocking) {
+            self.place_entity(e, loc);
+            return Ok(());
+        }
+
+        Err(())
+    }
+
+    fn do_fov(&mut self, e: Entity) {
+        if !self.ecs().fovs.has(e) {
+            return;
+        }
+
+        if let Some(ref center) = self.position(e) {
+            const FOV_RADIUS: i32 = 12;
+
+            let ref mut fov = self.ecs_.fovs[e];
+
+            fov.update(&self.terrain, center, FOV_RADIUS);
         }
     }
 
-    pub fn pre_update_actor_pos(&mut self, pos_now: WorldPosition, pos_next: WorldPosition) {
-        self.actors.pre_update_actor_pos(pos_now, pos_next)
+    fn spawn(&mut self, loadout: &Loadout, pos: WorldPosition) -> Entity {
+        let entity = loadout.make(&mut self.ecs_);
+        self.place_entity(entity, pos);
+        self.turn_order.add(entity, 0);
+        entity
     }
-}
 
-impl World {
-    /// Update the time-to-action for every actor in the world.
-    /// The actor with the lowest time-to-action is the next one to act.
-    pub fn advance_time(&mut self, amount: i32) {
-        for id in self.actors.ids() {
-            // self.turn_order.advance_time_for(id, amount);
+    fn run_action(&mut self, entity: Entity, action: Action) {
+        logic::run_action(self, entity, action);
+    }
+
+    fn advance_time(&mut self, ticks: i32) {
+        let ids: Vec<Entity> = self.entities()
+            .filter(|&&e| self.ecs().turns.get(e).is_some())
+            .cloned().collect();
+        for id in ids {
+            self.turn_order.advance_time_for(&id, ticks);
         }
+    }
 
-        // The player is the only actor we might want to advance time for after
-        // dying, and that's only for a single turn so that control returns to
-        // the player and the death check can run instead of looping infinitely.
-        let pid = self.player_id();
-        if self.was_killed(&pid) {
-            // self.turn_order.advance_time_for(&pid, amount);
+    fn add_delay_for(&mut self, id: &Entity, amount: i32) {
+        self.turn_order.add_delay_for(id, amount);
+    }
+}
+
+const UPDATE_RADIUS: i32 = 3;
+
+impl<'a> Chunked<'a, File, ChunkIndex, SerialChunk, Region<ChunkIndex>> for EcsWorld {
+    fn load_chunk(&mut self, index: &ChunkIndex) -> Result<(), SerialError> {
+        if let Err(_) = self.terrain.load_chunk_from_save(index) {
+            if self.chunk_loaded(index) {
+                return Err(ChunkAlreadyLoaded(index.0.x, index.0.y));
+            }
+            // println!("Addding chunk at {}", index);
+            self.terrain.insert_chunk(index.clone(), Chunk::generate_basic(cell::FLOOR));
+
+            // The region this chunk was created in needs to know of the chunk
+            // that was created in-game but nonexistent on disk.
+            self.terrain.notify_chunk_creation(index);
         }
-
-        info!(self.logger, "world time advanced by {}", amount);
+        Ok(())
     }
 
-    pub fn add_delay_for(&mut self, id: &ActorId, amount: i32) {
-        // self.turn_order.add_delay_for(id, amount);
+    fn unload_chunk(&mut self, index: &ChunkIndex) -> SerialResult<()> {
+        self.terrain.unload_chunk(index)
     }
 
-    pub fn time_until_turn_for(&self, id: &ActorId) -> i32 {
-        // *self.turn_order.get_time_for(id)
-        0
-    }
-}
-
-impl World {
-    pub fn add_item(&mut self, pos: WorldPosition, item: Item) {
-        self.items.place_in_world(pos, item);
+    fn chunk_loaded(&self, index: &ChunkIndex) -> bool {
+        self.terrain.chunk(*index).is_some()
     }
 
-    pub fn items_in_map<'a>(&'a self) -> Box<Iterator<Item=&'a Item> + 'a> {
-        Box::new(self.items.iter().filter(|i|{
-            match i.link {
-                ItemLink::InStack(..) => true,
-                _                     => false,
-            }
-        }))
-    }
-}
-
-// Because a world position and chunk index are different quantities, newtype to
-// enforce correct usage
-#[derive(Serialize, Deserialize, Copy, Clone, Debug, Hash, Eq, PartialEq)]
-pub struct ChunkIndex(pub Point);
-
-impl ChunkIndex {
-    pub fn new(x: i32, y: i32) -> Self {
-        ChunkIndex(Point::new(x, y))
+    fn chunk_indices(&self) -> Vec<ChunkIndex> {
+        self.terrain.chunk_indices()
     }
 
-    pub fn from_world_pos(pos: Point) -> ChunkIndex {
-        let conv = |i: i32| {
-            if i < 0 {
-                // [-1, -chunk_width] = -1
-                ((i + 1) / CHUNK_WIDTH) - 1
-            } else {
-                // [0, chunk_width-1] = 0
-                i / CHUNK_WIDTH
-            }
-        };
+    fn update_chunks(&mut self) -> Result<(), SerialError>{
+        let mut relevant: HashSet<ChunkIndex> = HashSet::new();
 
-        ChunkIndex::new(conv(pos.x), conv(pos.y))
-    }
+        let center = ChunkIndex::from_world_pos(self.flags.camera);
 
-}
-
-impl fmt::Display for ChunkIndex {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "({}, {})", self.0.x, self.0.y)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use tile::{self, FLOOR};
-    use direction::Direction;
-    use logic;
-    use testbed::make_grid_from_str;
-
-    fn world_from_str(text: &str) -> World {
-        let callback = |pt: &Point, c: char, world: &mut World| {
-            if c == '@' {
-                let actor = Actor::from_archetype(pt.x, pt.y, "putit");
-                world.actors.add(actor);
-            }
-
-            let cell_kind = match c {
-                '.' => tile::FLOOR,
-                '#' => tile::WALL,
-                _   => unreachable!(),
-            };
-            world.set_tile(pt.clone(), cell_kind);
-        };
-        let make = |dim: Point| World::generate(WorldType::Instanced(dim), 64, tile::FLOOR);
-        make_grid_from_str(text, make, callback)
-    }
-
-    fn get_world(size: Point) -> World {
-        World::generate(WorldType::Instanced(size), 16, tile::FLOOR)
-    }
-
-    #[test]
-    fn test_chunk_pos_from_world_pos() {
-        let chunk_size = 128;
-        let world = World::new_empty(WorldType::Overworld, chunk_size);
-        assert_eq!(
-            world.chunk_pos_from_world_pos(Point::new(0, 0)),
-            Point::new(0, 0)
-        );
-        assert_eq!(
-            world.chunk_pos_from_world_pos(Point::new(1, 1)),
-            Point::new(1, 1)
-        );
-        assert_eq!(
-            world.chunk_pos_from_world_pos(Point::new(chunk_size, chunk_size)),
-            Point::new(0, 0)
-        );
-        assert_eq!(
-            world.chunk_pos_from_world_pos(Point::new(chunk_size * 2 + 64, chunk_size * 2 + 32)),
-            Point::new(64, 32)
-        );
-        assert_eq!(
-            world.chunk_pos_from_world_pos(Point::new(-chunk_size, -chunk_size)),
-            Point::new(0, 0)
-        );
-        assert_eq!(
-            world.chunk_pos_from_world_pos(Point::new(-chunk_size * 2 + 64, -chunk_size * 2 + 32)),
-            Point::new(64, 32)
-        );
-    }
-
-    #[test]
-    fn test_chunk_index_from_world_pos() {
-        let chunk_size = 128;
-        let world = World::new_empty(WorldType::Overworld, chunk_size);
-        assert_eq!(
-            world.chunk_index_from_world_pos(Point::new(0, 0)),
-            ChunkIndex::new(0, 0)
-        );
-        assert_eq!(
-            world.chunk_index_from_world_pos(Point::new(1, 1)),
-            ChunkIndex::new(0, 0)
-        );
-        assert_eq!(
-            world.chunk_index_from_world_pos(Point::new(chunk_size - 1, chunk_size - 1)),
-            ChunkIndex::new(0, 0)
-        );
-        assert_eq!(
-            world.chunk_index_from_world_pos(Point::new(chunk_size, chunk_size)),
-            ChunkIndex::new(1, 1)
-        );
-        assert_eq!(
-            world.chunk_index_from_world_pos(Point::new(chunk_size * 2 + (chunk_size / 2),
-                                                        chunk_size * 3 + (chunk_size / 2))),
-            ChunkIndex::new(2, 3)
-        );
-        assert_eq!(
-            world.chunk_index_from_world_pos(Point::new(-chunk_size, -chunk_size)),
-            ChunkIndex::new(-1, -1)
-        );
-        assert_eq!(
-            world.chunk_index_from_world_pos(Point::new(-chunk_size + (chunk_size / 2),
-                                                        -chunk_size + (chunk_size / 2))),
-            ChunkIndex::new(-1, -1)
-        );
-        assert_eq!(
-            world.chunk_index_from_world_pos(Point::new(-chunk_size * 3 + (chunk_size / 2),
-                                                        -chunk_size * 4 + (chunk_size / 2))),
-            ChunkIndex::new(-3, -4)
-        );
-    }
-
-    #[test]
-    fn test_pos_valid() {
-        let world = get_world(Point::new(1, 1));
-        assert_eq!(world.pos_valid(&Point::new(0, 0)), true);
-        for i in -1..1 {
-            for j in -1..1 {
-                if i != 0 && j != 0 {
-                    let pos = Point::new(i, j);
-                    let index = world.chunk_index_from_world_pos(pos);
-                    assert_eq!(world.pos_valid(&pos), false, "pos: {} index: {}", pos, index);
+        relevant.insert(center);
+        let quadrant = |dx, dy, idxes: &mut HashSet<ChunkIndex>| {
+            for dr in 1..UPDATE_RADIUS+1 {
+                for i in 0..dr+1 {
+                    let ax = center.0.x + (dr - i) * dx;
+                    let ay = center.0.y + i * dy;
+                    let chunk_idx = ChunkIndex::new(ax, ay);
+                    idxes.insert(chunk_idx);
                 }
             }
+        };
+        quadrant(-1,  1, &mut relevant);
+        quadrant(1,   1, &mut relevant);
+        quadrant(-1, -1, &mut relevant);
+        quadrant(1,  -1, &mut relevant);
+
+        for idx in relevant.iter() {
+            if !self.chunk_loaded(idx) {
+                // println!("Loading chunk {}", idx);
+                self.load_chunk(idx)?;
+            }
         }
 
-        let world = get_world(Point::new(32, 32));
-        assert_eq!(world.pos_valid(&Point::new(0, 0)), true);
-        assert_eq!(world.pos_valid(&Point::new(17, 17)), true);
-        assert_eq!(world.pos_valid(&Point::new(32, 17)), false);
-        assert_eq!(world.pos_valid(&Point::new(-1, -1)), false);
+        let indices = self.chunk_indices();
+        for idx in indices.iter() {
+            if !relevant.contains(idx) && self.chunk_loaded(idx) {
+                self.unload_chunk(idx)?;
+            }
+        }
+
+        self.terrain.prune_empty_regions();
+
+        Ok(())
     }
 
-    #[test]
-    fn test_actor_at() {
-        let mut world = get_world(Point::new(2, 2));
-        let pos = Point::new(0, 0);
-        assert!(world.actors.at_pos(pos).is_none());
+    fn save(mut self) -> Result<(), SerialError> {
+        let indices = self.chunk_indices();
+        for index in indices.iter() {
+            self.unload_chunk(index)?;
+        }
+        Ok(())
+    }
+}
 
-        let actor = Actor::new(0, 0, Glyph::Player);
-        world.actors.add(actor);
-        assert!(world.actors.at_pos(pos).is_some());
-
-        // let next_actor = world.next_actor().unwrap();
-        // // logic::run_action(&mut world, &next_actor, Action::Move(Direction::SE));
-        // assert!(world.actors.at_pos(pos).is_none());
-        // assert!(world.actors.at_pos(Point::new(1,1)).is_some());
-
-        // world.actors.remove(&next_actor);
-        // assert!(world.actors.at_pos(Point::new(1,1)).is_none());
+impl WorldQuery for EcsWorld {
+    fn can_walk(&self, pos: Point, walkability: Walkability) -> bool {
+        let cell_walkable = self.terrain.cell(&pos).map_or(false, |c| c.can_pass_through());
+        // TODO: Should be anything blocking
+        let no_mob = walkability.can_walk(self, &pos);
+        cell_walkable && no_mob
     }
 
-    #[test]
-    fn test_is_walkable() {
-        let world = world_from_str(".");
-
-        assert_eq!(world.is_walkable(Point::new(-1, -1), Walkability::MonstersWalkable), false);
-        assert_eq!(world.is_walkable(Point::new(1, 1), Walkability::MonstersWalkable), false);
-
-        let world = world_from_str("
-@.
-..");
-        assert_eq!(world.is_walkable(Point::new(0, 0), Walkability::MonstersBlocking), false);
-        assert_eq!(world.is_walkable(Point::new(0, 0), Walkability::MonstersWalkable), true);
+    fn pos_valid(&self, pos: &Point) -> bool {
+        self.terrain.pos_valid(pos)
     }
+
+    fn with_cells<F>(&mut self, top_left: Point,
+                     dimensions: Point,
+                     mut callback: F) where F: FnMut(Point, &Cell) {
+        let bottom_right = top_left + dimensions;
+        for point in RectangleArea::new(top_left, bottom_right) {
+            if let Some(cell) = self.terrain.cell(&point) {
+                callback(point, cell);
+            }
+        }
+    }
+}
+
+impl<C: Component> ComponentQuery<C> for ComponentData<C> {
+    fn get_or_err(&self, e: Entity) -> &C {
+        self.get(e).unwrap()
+    }
+    fn map_or<F, T>(&self, default: T, callback: F, e: Entity) -> T
+        where F: FnOnce(&C,) -> T {
+        self.get(e).map_or(default, callback)
+    }
+
+    fn map<F, T>(&self, callback: F, e: Entity) -> Option<T>
+        where F: FnOnce(&C,) -> T {
+        self.get(e).map(callback)
+    }
+
+    fn has(&self, e: Entity) -> bool {
+        self.get(e).is_some()
+    }
+
 }

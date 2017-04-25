@@ -1,9 +1,6 @@
 use std::cell::RefCell;
-use std::cmp;
 use std::fmt::{self, Display};
 
-use ai::{self, AiState};
-use action::Action;
 use direction::Direction;
 use glyph::Glyph;
 use log;
@@ -24,12 +21,6 @@ lazy_static! {
 }
 
 pub type ActorId = Uuid;
-
-#[derive(Eq, PartialEq)]
-pub enum Disposition {
-    Friendly,
-    Enemy,
-}
 
 pub struct Actor {
     // TEMP: The player can name things, names can have pre/suffixes, creatures
@@ -53,7 +44,6 @@ pub struct Actor {
     pub logger: Logger,
     pub stats: Stats,
     pub properties: Properties,
-    pub ai: AiState,
 
     fov: RefCell<FieldOfView>,
 }
@@ -83,8 +73,6 @@ impl Actor {
             properties: Properties::new(),
             disposition: Disposition::Enemy,
 
-            ai: AiState::new(),
-
             // Things needing instantiation.
             x: x,
             y: y,
@@ -109,8 +97,6 @@ impl Actor {
             stats: archetype.stats,
             properties: archetype.properties,
             disposition: Disposition::Enemy,
-
-            ai: AiState::new(),
 
             x: x,
             y: y,

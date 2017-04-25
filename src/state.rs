@@ -1,20 +1,21 @@
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 
+use infinigen::Chunked;
+
+use ::GameContext;
 use action::*;
-use actor::*;
+use ai;
 use command::Command;
 use direction::Direction;
-use ai::{self};
-use event;
-use keys::*;
-use point::Point;
-use logic;
-use engine::canvas;
-use uuid::Uuid;
-use ::GameContext;
 use ecs::*;
 use ecs::traits::*;
+use engine::canvas;
+use keys::*;
+use logic;
+use point::Point;
+use uuid::Uuid;
+use world::EcsWorld;
 
 pub struct GameState {
     pub world: EcsWorld,
@@ -27,10 +28,6 @@ impl GameState {
             world: EcsWorld::new(0),
             action_queue: VecDeque::new(),
         }
-    }
-
-    pub fn set_world(&mut self, world: EcsWorld) {
-        self.world = world;
     }
 
     pub fn add_action(&mut self, action: Action) {
@@ -62,12 +59,12 @@ fn draw_overlays(world: &mut EcsWorld) {
 
 fn draw_world(world: &mut EcsWorld) {
     // let fov = world.player().fov();
-    world.with_cells(Point::new(0, 0), Point::new(128, 128),
-                     |point, ref cell| {
-                         // if fov.is_visible(&point) {
-                             canvas::with(|c| c.print_glyph(point.x, point.y, cell.tile.glyph.clone()) )
-                         // }
-                     });
+    let size = canvas::size();
+    let center = world.flags().camera - size/2;
+
+    world.with_cells(center, size, |point, ref cell| {
+        canvas::with(|c| c.print_glyph(point.x, point.y, cell.glyph) )
+    } );
 }
 
 #[cfg(never)]
@@ -153,13 +150,15 @@ pub fn process_actors(world: &mut EcsWorld) {
             panic!("Killed actor remained in turn order!");
         }
 
-        // let action = {
-        //     let actor = world.actor(id);
-        //     ai::update_goal(actor, world);
-        //     ai::update_memory(&actor, world);
-        //     ai::choose_action(actor, world)
-        // };
-        let action = Action::Wait;
+        if !world.ecs().ais.has(id) {
+            continue;
+        }
+
+        let action = {
+            ai::update_goal(id, world);
+            ai::update_memory(&id, world);
+            ai::choose_action(id, world)
+        };
 
         logic::run_action(world, id, action);
 
@@ -192,8 +191,22 @@ pub fn process_events(world: &mut EcsWorld) {
     // }
 }
 
+fn update_world_terrain(world: &mut EcsWorld) {
+    world.update_chunks().unwrap();
+}
+
+fn update_camera(world: &mut EcsWorld) {
+    if let Some(player) = world.flags().player {
+        if let Some(pos) = world.position(player) {
+            world.flags_mut().camera = pos;
+        }
+    }
+}
+
 // TEMP: Just to bootstrap things dirtily.
 pub fn process(context: &mut GameContext) {
+    update_world_terrain(&mut context.state.world);
+
     process_actors(&mut context.state.world);
 
     let dead = check_player_dead(&mut context.state.world);
@@ -201,6 +214,8 @@ pub fn process(context: &mut GameContext) {
         canvas::close_window();
         return;
     }
+
+    update_camera(&mut context.state.world);
 
     render_all(&mut context.state.world);
     // show_messages(&mut context.state.world);

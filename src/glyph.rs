@@ -58,7 +58,6 @@ pub struct RenderGlyph {
     pub color_fg: Color,
     pub color_bg: Color,
 
-
     // In the future, could hold information on how to draw the character in
     // graphically based rendering tagets.
     //pub graphical_data: Option<char>,

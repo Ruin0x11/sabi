@@ -2,9 +2,11 @@ use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 use std::f32;
 
+use data::Walkability;
 use drawcalls::Draw;
+use ecs::traits::{Query, WorldQuery};
 use point::Point;
-use world::{World, Walkability};
+use world::EcsWorld;
 
 const CALCULATION_LIMIT: u32 = 50;
 
@@ -15,7 +17,7 @@ pub struct Path {
 
 impl Path {
     fn neighbors(current: Point,
-                 world: &World,
+                 world: &EcsWorld,
                  walkability: Walkability) -> Vec<Point> {
         assert!(world.pos_valid(&current));
         let nearby_points: [Point; 9] = [
@@ -34,7 +36,7 @@ impl Path {
             .map(|&d| current + d)
             .filter(|&point|
                     world.pos_valid(&point)
-                    && world.is_walkable(point, walkability))
+                    && world.can_walk(point, walkability))
             .collect::<Vec<_>>()
     }
 
@@ -75,7 +77,7 @@ impl Path {
         }
     }
 
-    pub fn find(from: Point, to: Point, world: &World, walkability: Walkability) -> Self {
+    pub fn find(from: Point, to: Point, world: &EcsWorld, walkability: Walkability) -> Self {
         if from == to {
             return Path { path: vec![] };
         }
@@ -84,9 +86,9 @@ impl Path {
         // monster, it counts the destination as unwalkable. In that case, just
         // stop when right next to the destination.
         let stop_when_neighboring = walkability == Walkability::MonstersBlocking
-            && world.actor_at(to).is_some();
+            && world.mob_at(to).is_some();
 
-        if !stop_when_neighboring && !world.is_walkable(to, walkability) {
+        if !stop_when_neighboring && !world.can_walk(to, walkability) {
             return Path { path: vec![] };
         }
 
@@ -191,11 +193,14 @@ impl PartialOrd for State {
     }
 }
 
+#[cfg(never)]
 #[cfg(test)]
 mod test {
     use super::Path;
+    use ecs::EcsWorld;
+    use ecs::traits::*;
     use point::{Point, POINT_ZERO};
-    use world::{WorldType, World, Walkability};
+    use data::Walkability;
     use testbed::make_grid_from_str;
     use tile::{self, Tile};
     use tile::TileType::{Wall, Floor};
@@ -204,7 +209,7 @@ mod test {
     struct Board {
         start: Point,
         destination: Point,
-        level: World,
+        level: EcsWorld,
     }
 
     fn make_board(text: &str) -> Board {
@@ -218,7 +223,7 @@ mod test {
         assert!(width > 0);
         assert!(lines.iter().all(|line| line.chars().count() == width));
 
-        let level = World::generate(WorldType::Instanced(Point::new(width as i32, height as i32)), 128, tile::WALL);
+        let level = EcsWorld::generate(EcsWorldType::Instanced(Point::new(width as i32, height as i32)), 128, tile::WALL);
 
         Board {
             start: start,
@@ -252,7 +257,7 @@ mod test {
                 });
         };
         let make = |dim: Point| {
-            let world = World::generate(WorldType::Instanced(Point::new(dim.x,
+            let world = EcsWorld::generate(EcsWorldType::Instanced(Point::new(dim.x,
                     dim.y)), 128, tile::WALL);
             Board {
                 start: POINT_ZERO,

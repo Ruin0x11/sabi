@@ -1,12 +1,12 @@
-mod chunk_management;
-mod components;
+pub mod components;
 pub mod prefab;
 pub mod traits;
-mod spatial;
-mod world;
-mod flags;
+pub mod flags;
+pub mod instantiate;
 
-pub use self::world::EcsWorld;
+use ai;
+use fov;
+
 pub use self::traits::*;
 
 Ecs! {
@@ -15,4 +15,6 @@ Ecs! {
     appearances: components::Appearance,
     turns: components::Turn,
     props: components::Props,
+    ais: ai::Ai,
+    fovs: fov::FieldOfView,
 }

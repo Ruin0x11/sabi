@@ -1,6 +1,5 @@
 use direction::Direction;
 use keys::{Key, KeyCode};
-use ::GameContext;
 
 pub type CommandResult = Result<(), ()>;
 

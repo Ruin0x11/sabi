@@ -48,6 +48,10 @@ pub fn height() -> i32 {
     with(|c| c.height())
 }
 
+pub fn size() -> Point {
+    Point::new(width(), height())
+}
+
 pub fn window_closed() -> bool {
     with(|c| c.window_closed())
 }

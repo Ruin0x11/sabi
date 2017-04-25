@@ -1,7 +1,5 @@
-use ai::AiState;
 use glyph::Glyph;
 use stats::properties::Properties;
-use world::WorldPosition;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Name {
@@ -74,13 +72,6 @@ impl Turn {
 pub struct Item {
     pub can_equip: bool,
     pub count: u32,
-}
-
-#[cfg(never)]
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Ai {
-    pub state: AiState,
-    pub disposition: Disposition,
 }
 
 #[cfg(never)]

@@ -8,7 +8,9 @@ use ecs::*;
 use ecs::flags::Flags;
 use ecs::prefab::*;
 use command::CommandResult;
-use world::*;
+use data::{TurnOrder, Walkability};
+use cell::{Cell, CellFeature};
+use world::WorldPosition;
 
 use infinigen::SerialResult;
 use point::Point;
@@ -18,10 +20,12 @@ use chunk::*;
 
 pub trait WorldQuery {
     fn can_walk(&self, pos: Point, walkability: Walkability) -> bool;
+    fn pos_valid(&self, pos: &Point) -> bool;
 
     fn with_cells<F>(&mut self, top_left: Point,
                      dimensions: Point,
-                     mut callback: F) where F: FnMut(Point, &Cell);
+                     callback: F)
+        where F: FnMut(Point, &Cell);
 }
 
 /// Queries that are directly related to the terrain itself, and not the
@@ -29,6 +33,8 @@ pub trait WorldQuery {
 pub trait TerrainQuery {
     fn chunk(&self, index: ChunkIndex) -> Option<&Chunk>;
     fn chunk_indices(&self) -> Vec<ChunkIndex>;
+
+    fn pos_valid(&self, pos: &WorldPosition) -> bool { self.cell(pos).is_some() }
 
     fn chunk_from_world_pos(&self, pos: WorldPosition) -> Option<&Chunk> {
         let index = ChunkIndex::from_world_pos(pos);
@@ -70,6 +76,19 @@ pub trait TerrainMutate {
             None => None,
         }
     }
+
+    fn set_cell(&mut self, pos: WorldPosition, cell: Cell) {
+        // self.debug_cell(&pos);
+        if let Some(cell_mut) = self.cell_mut(&pos) {
+            *cell_mut = cell;
+        }
+    }
+
+    fn set_cell_feature(&mut self, pos: &WorldPosition, feature: Option<CellFeature>) {
+        if let Some(cell_mut) = self.cell_mut(pos) {
+            cell_mut.feature = feature;
+        }
+    }
 }
 
 pub trait Query {
@@ -95,16 +114,18 @@ pub trait Query {
 
     fn is_alive(&self, e: Entity) -> bool { self.position(e).is_some() }
 
-    fn is_mob(&self, e: Entity) -> bool { true }
+    fn is_mob(&self, e: Entity) -> bool {
+        let ecs = self.ecs();
+        ecs.ais.has(e)
+            && ecs.turns.has(e)
+            && ecs.healths.has(e)
+            && ecs.names.has(e)
+            && ecs.fovs.has(e)
+    }
 
     /// Return mob (if any) at given position.
     fn mob_at(&self, loc: Point) -> Option<Entity> {
         self.entities_at(loc).into_iter().find(|&e| self.is_mob(e))
-    }
-
-    /// Return whether the entity can occupy a location.
-    fn can_enter(&self, e: Entity, loc: Point) -> bool {
-        true
     }
 
     // fn extract_prefab
@@ -132,8 +153,14 @@ pub trait Mutate: Query + Sized {
     fn move_entity(&mut self, e: Entity, dir: Direction) -> CommandResult;
 
     fn after_entity_moved(&mut self, e: Entity) {
-        //fov
+        self.do_fov(e);
     }
+
+    fn do_fov(&mut self, e: Entity);
+
+    fn ecs_mut<'a>(&'a mut self) -> &'a mut Ecs;
+
+    fn flags_mut<'a>(&'a mut self) -> &'a mut Flags;
 
     fn spawn(&mut self, loadout: &Loadout, pos: Point) -> Entity;
     fn create(&mut self, prefab: Prefab, pos: Point) -> Entity {
@@ -166,6 +193,11 @@ pub trait ComponentQuery<C: Component> {
 
     /// Gets a component off this entity and runs a callback, with a fallback
     /// value if it doesn't exist.
-    fn get_or<F, T>(&self, e: Entity, default: T, callback: F) -> T
+    fn map_or<F, T>(&self, default: T, callback: F, e: Entity) -> T
         where F: FnOnce(&C,) -> T;
+
+    fn map<F, T>(&self, callback: F, e: Entity) -> Option<T>
+        where F: FnOnce(&C,) -> T;
+
+    fn has(&self, e: Entity) -> bool;
 }

@@ -355,7 +355,7 @@ dependencies = [
 [[package]]
 name = "goap"
 version = "0.1.1"
-source = "git+https://github.com/ruin0x11/goap-rs.git#1a653260fd33faf53f85a7f098fd6e80b2e3e716"
+source = "git+https://github.com/ruin0x11/goap-rs.git#304c9a474eea226b51ee9a19f66d4344d20f14c2"
 dependencies = [
  "serde 0.9.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 0.9.15 (registry+https://github.com/rust-lang/crates.io-index)",

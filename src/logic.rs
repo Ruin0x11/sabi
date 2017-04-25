@@ -1,10 +1,9 @@
 use calx_ecs::Entity;
-use ecs::*;
-use ecs::EcsWorld;
 use action::Action;
 use direction::Direction;
-use event::*;
 use stats;
+use ecs::traits::{Mutate, Query};
+use world::EcsWorld;
 
 fn pre_tick(_world: &mut EcsWorld) {
 

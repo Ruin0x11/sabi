@@ -3,38 +3,38 @@ use std::collections::HashMap;
 use calx_ecs::Entity;
 
 use ai::AiProp;
-use world::World;
+use world::EcsWorld;
 
 pub struct Sensor {
-    pub callback: Box<Fn(&World, &Entity) -> bool>,
+    pub callback: Box<Fn(&EcsWorld, &Entity) -> bool>,
 }
 
 impl Sensor {
     pub fn new<F>(callback: F) -> Self
-        where F: 'static + Fn(&World, &Entity) -> bool {
+        where F: 'static + Fn(&EcsWorld, &Entity) -> bool {
         Sensor {
             callback: Box::new(callback),
         }
     }
 }
 
-fn target_visible(world: &World, entity: &Entity) -> bool {
+fn target_visible(world: &EcsWorld, entity: &Entity) -> bool {
     false
 }
 
-fn target_dead(world: &World, entity: &Entity) -> bool {
+fn target_dead(world: &EcsWorld, entity: &Entity) -> bool {
     true
 }
 
-fn next_to_target(world: &World, entity: &Entity) -> bool {
+fn next_to_target(world: &EcsWorld, entity: &Entity) -> bool {
     false
 }
 
-fn has_target(_world: &World, entity: &Entity) -> bool {
+fn has_target(_world: &EcsWorld, entity: &Entity) -> bool {
     true
 }
 
-fn health_low(_world: &World, entity: &Entity) -> bool {
+fn health_low(_world: &EcsWorld, entity: &Entity) -> bool {
     false
 }
 

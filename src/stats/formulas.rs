@@ -4,7 +4,8 @@ use calx_ecs::Entity;
 use rand::{self, Rng};
 use rand::distributions::{Range, IndependentSample};
 
-use ecs::*;
+use ecs::traits::{ComponentQuery, Query};
+use world::EcsWorld;
 
 struct Dice {
     rolls: u32,

@@ -4,9 +4,6 @@ use std::cmp;
 
 use calx_ecs::Entity;
 
-use world::*;
-use world::actors::Actors;
-
 #[derive(Serialize, Deserialize)]
 pub struct TurnOrder {
     times_until_turn: BTreeMap<Entity, i32>,

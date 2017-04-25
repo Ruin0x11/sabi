@@ -23,14 +23,13 @@ extern crate rustbox;
 extern crate glium;
 
 mod action;
-mod actor;
 mod ai;
 mod chunk;
 mod color;
 mod direction;
 mod drawcalls;
 mod engine;
-mod event;
+// mod event;
 mod fov;
 mod gen;
 mod glyph;
@@ -43,9 +42,10 @@ mod point;
 mod state;
 mod stats;
 mod testbed;
-mod tile;
+mod cell;
 mod ui;
 mod util;
+mod data;
 mod world;
 
 mod ecs;
@@ -53,12 +53,9 @@ mod command;
 
 use slog::Logger;
 
-use actor::*;
 use engine::canvas;
 use point::Point;
 use state::GameState;
-
-use keys::Keys;
 
 pub struct GameContext {
     logger: Logger,
@@ -96,25 +93,4 @@ fn game_loop(mut ctxt: &mut GameContext) {
     while !canvas::window_closed() {
         state::process(ctxt);
     }
-}
-
-use rand::distributions::{Range, IndependentSample};
-use testbed::{get_world, start_with_params};
-
-fn setup() {
-    let mut rng = rand::thread_rng();
-    let mut world = get_world();
-
-    let mut player = Actor::from_archetype(6, 6, "test_player");
-    player.disposition = Disposition::Friendly;
-
-    let range = Range::new(30, 200);
-
-    for i in 0..16 {
-        let mut other = Actor::from_archetype(10 + i, 16, "putit");
-        other.speed = range.ind_sample(&mut rng);
-        world.add_actor(other);
-    }
-
-    start_with_params(player, world);
 }

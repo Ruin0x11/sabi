@@ -1,4 +1,3 @@
-use rand::{Rng, SeedableRng, XorShiftRng};
 use point::Point;
 use calx_ecs::Entity;
 
@@ -8,7 +7,6 @@ pub struct Flags {
     pub player: Option<Entity>,
 
     pub seed: u32,
-    // rng: EncodeRng<XorShiftRng>,
 }
 
 impl Flags {
@@ -18,10 +16,8 @@ impl Flags {
             player: None,
 
             seed: seed,
-            // rng: SeedableRng::from_seed([seed, seed, seed, seed]),
         }
     }
 
-    pub fn seed(&self) -> u32 { self.seed }
-    // pub fn rng<'a>(&'a mut self) -> &'a mut Rng { &mut self.rng }
+    // pub fn seed(&self) -> u32 { self.seed }
 }

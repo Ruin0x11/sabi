@@ -4,10 +4,16 @@ assert_components!(e, [Health, Position, Turn], "Doesn't have components.");
 let health = world.get_or_err(e, Health).health;
 #+END_SRC
 * Debt
-- Check all #[cfg(never)]
-- Clean all imports
-- Make all warnings go away
-- Refactor modules to live in namespaced groups
+** TODO Clean all imports
+** TODO Make all warnings go away
+** TODO Refactor modules to live in tighter namespaced groups
+** DONE Refactor Cell to be Tile
+CLOSED: [2017-04-24 Mon 20:43]
+** TODO Remove all warnings
+** TODO Add logging again
+** TODO Check all #[cfg(never)]
+** TODO I guess remove World/Actor?
+** TODO Indent all function headers below 80 lines
 * It happens.
 _Principles_
 - Familiar places & persons.

@@ -1,5 +1,6 @@
 use ecs::Loadout;
 use ecs::components::*;
+use fov::FieldOfView;
 use glyph::Glyph;
 
 pub struct Prefab {
@@ -13,5 +14,6 @@ pub fn mob(name: &str, glyph: Glyph) -> Prefab {
             .c(Health::new(100))
             .c(Appearance::new(glyph))
             .c(Turn::new(100))
+            .c(FieldOfView::new())
     }
 }

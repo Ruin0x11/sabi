@@ -1,10 +1,9 @@
-use std::collections::{HashSet, hash_map, HashMap};
+use std::collections::{HashSet, HashMap};
 use std::fs::File;
 
 use chunk::*;
-use point::Point;
-use tile;
-use world::ChunkIndex;
+use chunk::serial::SerialChunk;
+use cell;
 
 use ecs::traits::*;
 
@@ -34,11 +33,6 @@ impl Terrain {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct SerialChunk {
-    pub i: i32,
-}
-
 pub fn get_region_filename(index: &RegionIndex) -> String {
     format!("r.{}.{}.sr", index.0, index.1)
 }
@@ -46,7 +40,7 @@ pub fn get_region_filename(index: &RegionIndex) -> String {
 impl<'a> Manager<'a, SerialChunk, File, ChunkIndex, Region<ChunkIndex>> for RegionManager<ChunkIndex>
     where Region<ChunkIndex>: ManagedRegion<'a, SerialChunk, File, ChunkIndex>{
     fn load(&self, index: RegionIndex) -> Region<ChunkIndex> {
-        // println!("LOAD REGION {}", index);
+        assert!(!self.regions.contains_key(&index), "Region already loaded! {}", index);
         let filename = get_region_filename(&index);
 
         let handle = Region::get_region_file(filename);
@@ -80,15 +74,19 @@ impl<'a> Manager<'a, SerialChunk, File, ChunkIndex, Region<ChunkIndex>> for Regi
 }
 
 impl Terrain {
+    // TODO: see infinigen about generalizing this away
     pub fn load_chunk_from_save(&mut self, index: &ChunkIndex) -> Result<(), SerialError> {
+        let old_count = self.chunks.len();
         let region = self.regions.get_for_chunk(index);
-        let chunk: SerialChunk = match region.read_chunk(index) {
+        let _chunk: SerialChunk = match region.read_chunk(index) {
             Ok(c) => c,
             Err(e) => return Err(e),
         };
         // println!("Loading chunk at {}", index);
 
-        // self.chunks.insert(index.clone(), chunk.chunk);
+        self.chunks.insert(index.clone(), Chunk::generate_basic(cell::FLOOR));
+
+        assert_eq!(self.chunks.len(), old_count + 1, "Chunk wasn't inserted into world!");
 
         Ok(())
     }
