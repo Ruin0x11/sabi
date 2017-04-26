@@ -20,10 +20,94 @@ macro_rules! now {
     () => ( Local::now().format("%m-%d %H:%M:%S%.3f") )
 }
 
+#[macro_export]
+macro_rules! crit_ecs(
+    ($w:ident, $e:expr, #$tag:expr, $($args:tt)+) => {
+        if let Some(l) = $w.ecs().logs.get($e) {
+            crit!(l.logger, $tag, $($args)+);
+        }
+    };
+    ($w:ident, $e:expr, $($args:tt)+) => {
+        if let Some(l) = $w.ecs().logs.get($e) {
+            crit!(l.logger, $($args)+);
+        }
+    };
+);
+
+#[macro_export]
+macro_rules! error_ecs(
+    ($w:ident, $e:expr, #$tag:expr, $($args:tt)+) => {
+        if let Some(l) = $w.ecs().logs.get($e) {
+            error!(l.logger, $tag, $($args)+);
+        }
+    };
+    ($w:ident, $e:expr, $($args:tt)+) => {
+        if let Some(l) = $w.ecs().logs.get($e) {
+            error!(l.logger, $($args)+);
+        }
+    };
+);
+
+#[macro_export]
+macro_rules! warn_ecs(
+    ($w:ident, $e:expr, #$tag:expr, $($args:tt)+) => {
+        if let Some(l) = $w.ecs().logs.get($e) {
+            warn!(l.logger, $tag, $($args)+);
+        }
+    };
+    ($w:ident, $e:expr, $($args:tt)+) => {
+        if let Some(l) = $w.ecs().logs.get($e) {
+            warn!(l.logger, $($args)+);
+        }
+    };
+);
+
+#[macro_export]
+macro_rules! info_ecs(
+    ($w:ident, $e:expr, #$tag:expr, $($args:tt)+) => {
+        if let Some(l) = $w.ecs().logs.get($e) {
+            info!(l.logger, $tag, $($args)+);
+        }
+    };
+    ($w:ident, $e:expr, $($args:tt)+) => {
+        if let Some(l) = $w.ecs().logs.get($e) {
+            info!(l.logger, $($args)+);
+        }
+    };
+);
+
+#[macro_export]
+macro_rules! debug_ecs(
+    ($w:ident, $e:expr, #$tag:expr, $($args:tt)+) => {
+        if let Some(l) = $w.ecs().logs.get($e) {
+            debug!(l.logger, $tag, $($args)+);
+        }
+    };
+    ($w:ident, $e:expr, $($args:tt)+) => {
+        if let Some(l) = $w.ecs().logs.get($e) {
+            debug!(l.logger, $($args)+);
+        }
+    };
+);
+
+#[macro_export]
+macro_rules! trace_ecs(
+    ($w:ident, $e:expr, #$tag:expr, $($args:tt)+) => {
+        if let Some(l) = $w.ecs().logs.get($e) {
+            trace!(l.logger, $tag, $($args)+);
+        }
+    };
+    ($w:ident, $e:expr, $($args:tt)+) => {
+        if let Some(l) = $w.ecs().logs.get($e) {
+            trace!(l.logger, $($args)+);
+        }
+    };
+);
+
 /// Create a new root log and drain for a game system.
 /// Intended to be used once per major game system. For more specific logs
 /// within systems, use log.new(o!(...)) instead.
-pub fn make_logger(system_name: &str) -> Result<Logger, ()> {
+pub fn make_logger(system_name: &str) -> Logger {
     let path = format!("/tmp/sabi-{}.log", system_name);
     let root_logfile = File::create(path)
         .expect("Couldn't open log file");
@@ -38,7 +122,7 @@ pub fn make_logger(system_name: &str) -> Result<Logger, ()> {
 
     info!(logger, "Log for {} initialized.", system_name);
 
-    Ok(logger)
+    logger
 }
 
 struct Shim(Backtrace);
@@ -51,7 +135,7 @@ impl fmt::Debug for Shim {
 
 pub fn init_panic_hook() {
     panic::set_hook(Box::new(|info| {
-        let logger = make_logger("error").unwrap();
+        let logger = make_logger("error");
         let backtrace = Backtrace::new();
 
         let thread = thread::current();

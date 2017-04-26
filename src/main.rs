@@ -24,6 +24,9 @@ extern crate rustbox;
 #[macro_use]
 extern crate glium;
 
+// Macros must be used before all other modules
+#[macro_use] mod log;
+
 mod action;
 mod ai;
 mod cell;
@@ -38,7 +41,6 @@ mod engine;
 mod fov;
 mod glyph;
 mod keys;
-mod log;
 mod logic;
 mod namegen;
 mod pathfinding;
@@ -72,7 +74,7 @@ fn init() {
 
 pub fn get_context() -> GameContext {
     GameContext {
-        logger: log::make_logger("main").unwrap(),
+        logger: log::make_logger("main"),
         state: GameState::new(),
     }
 }
@@ -87,10 +89,10 @@ pub fn run() {
 }
 
 fn game_loop(mut ctxt: &mut GameContext) {
-    let e = ctxt.state.world.create(::ecs::prefab::mob("Dood", ::glyph::Glyph::Player), Point::new(1,1));
+    let e = ctxt.state.world.create(::ecs::prefab::mob("Player", 100000, ::glyph::Glyph::Player), Point::new(1,1));
     ctxt.state.world.set_player(Some(e));
 
-    ctxt.state.world.create(::ecs::prefab::mob("Putit", ::glyph::Glyph::Putit), Point::new(1,10));
+    ctxt.state.world.create(::ecs::prefab::mob("Putit", 100, ::glyph::Glyph::Putit), Point::new(1,10));
 
     while !canvas::window_closed() {
         state::process(ctxt);

@@ -17,4 +17,5 @@ Ecs! {
     props: components::Props,
     ais: ai::Ai,
     fovs: fov::FieldOfView,
+    logs: components::Log,
 }

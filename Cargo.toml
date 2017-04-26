@@ -38,3 +38,6 @@ infinigen = { git = "https://github.com/ruin0x11/infinigen-rs.git" }
 glium = { version = "0.16.0", optional = true }
 # rustbox = { version = "0.9.0", optional = true }
 rustbox = { version = "0.9.0" }
+
+[profile.dev]
+codegen-units = 4

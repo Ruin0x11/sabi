@@ -110,7 +110,7 @@ impl Path {
         let mut calculation_steps = 0;
 
         while let Some(current) = frontier.pop() {
-            if stop_when_neighboring && Point::next_to(&current.position, to) {
+            if stop_when_neighboring && Point::is_next_to(&current.position, to) {
                 came_from.insert(to, Some(current.position));
                 break
             } else if current.position == to {

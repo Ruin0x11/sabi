@@ -1,4 +1,12 @@
+use std::fmt;
+
+use serde::de::{self, Deserialize, Deserializer, Visitor};
+use serde::ser::{Serialize, Serializer, SerializeStruct};
+
+use slog::Logger;
+
 use glyph::Glyph;
+use log;
 use stats::properties::Properties;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -34,6 +42,10 @@ impl Health {
             hit_points: max,
             max_hit_points: max,
         }
+    }
+
+    pub fn hurt(&mut self, amount: u32) {
+        self.hit_points -= amount as i32;
     }
 }
 
@@ -72,6 +84,66 @@ impl Turn {
 pub struct Item {
     pub can_equip: bool,
     pub count: u32,
+}
+
+#[derive(Clone, Debug)]
+pub struct Log {
+    pub ident: String,
+    pub logger: Logger,
+}
+
+lazy_static! {
+    static ref MOB_LOG: Logger = log::make_logger("mob");
+}
+
+fn get_mob_log() -> Logger {
+    MOB_LOG.new(o!())
+}
+
+impl Log {
+    pub fn new(ident: &str) -> Self {
+        Log {
+            ident: ident.to_string(),
+            logger: get_mob_log(),
+        }
+    }
+}
+
+impl Serialize for Log {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S: Serializer
+    {
+        serializer.serialize_str(&self.ident)
+    }
+}
+
+impl Deserialize for Log {
+    fn deserialize<D>(deserializer: D) -> Result<Log, D::Error>
+        where D: Deserializer
+    {
+        struct LogVisitor;
+
+        impl Visitor for LogVisitor {
+            type Value = Log;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("`ident`")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Log, E>
+                where E: de::Error
+            {
+                let logger = get_mob_log();
+                let log = Log {
+                    ident: value.to_string(),
+                    logger: logger,
+                };
+                Ok(log)
+            }
+        }
+
+        deserializer.deserialize_str(LogVisitor)
+    }
 }
 
 #[cfg(never)]

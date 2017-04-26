@@ -5,16 +5,19 @@ let health = world.get(e, Health).health;
 let health = world.get_opt(e, Health).map_or(0, |h| h.health);
 #+END_SRC
 * Debt
+** TODO Disambiguate "AiAction" and "Action"
 ** TODO Clean all imports
 ** TODO Make all warnings go away
 ** TODO Refactor modules to live in tighter namespaced groups
 ** DONE Refactor Cell to be Tile
 CLOSED: [2017-04-24 Mon 20:43]
 ** TODO Remove all warnings
-** TODO Add logging again
+** DONE Add logging again
+CLOSED: [2017-04-26 Wed 00:06]
 ** TODO Check all #[cfg(never)]
 ** TODO I guess remove World/Actor?
 ** TODO Indent all function headers below 80 lines
+** TODO Replace ThreadRng with singular Rng for determinism
 * It happens.
 _Principles_
 - Familiar places & persons.

@@ -4,6 +4,7 @@ mod sensors;
 use std::cell::RefCell;
 
 use calx_ecs::Entity;
+use rand::{self, Rng, ThreadRng};
 
 use action::Action;
 use ai::sensors::{Sensor};
@@ -30,13 +31,13 @@ pub struct Ai {
     pub disposition: Disposition,
 }
 
-pub fn state_kill(id: Entity, state: &Ai) {
+pub fn state_kill(target: Entity, state: &Ai) {
     let mut goal_c =  BTreeMap::new();
     goal_c.insert(AiProp::TargetDead, true);
 
     let goal = GoapState { facts: goal_c };
     *state.goal.borrow_mut() = goal;
-    *state.target.borrow_mut() = Some(id);
+    *state.target.borrow_mut() = Some(target);
 }
 
 type AiMemory = GoapState<AiProp, bool>;
@@ -86,34 +87,38 @@ thread_local! {
 }
 
 pub fn run(entity: Entity, world: &EcsWorld) -> Action {
+    assert!(!world.is_player(entity), "Tried running AI on current player!");
+
     update_goal(entity, world);
     update_memory(entity, world);
     choose_action(entity, world)
 }
 
 pub fn update_memory(entity: Entity, world: &EcsWorld) {
-    // let ref mut memory = actor.ai.memory.borrow_mut();
-    // let wants_to_know = vec![AiProp::HasTarget, AiProp::TargetVisible,
-    //                          AiProp::TargetDead, AiProp::NextToTarget, AiProp::HealthLow];
-    // for fact in wants_to_know.iter() {
-    //     SENSORS.with(|s| {
-    //         let sensor = s.get(fact).unwrap();
-    //         let result = (sensor.callback)(world, actor);
-    //         debug!(actor.logger, "{:?}, {}", fact, result);
-    //         memory.facts.insert(fact.clone(), result);
-    //     });
-    // }
+    let ai = world.ecs().ais.get_or_err(entity);
+    let ref mut memory = ai.memory.borrow_mut();
+    let wants_to_know = vec![AiProp::HasTarget, AiProp::TargetVisible,
+                             AiProp::TargetDead, AiProp::NextToTarget, AiProp::HealthLow];
+    for fact in wants_to_know.iter() {
+        SENSORS.with(|s| {
+            let sensor = s.get(fact).unwrap();
+            let result = (sensor.callback)(world, &entity, ai);
+            // debug_ecs!(world, entity, "{:?}, {}", fact, result);
+            memory.facts.insert(fact.clone(), result);
+        });
+    }
 }
 
 pub fn update_goal(entity: Entity, world: &EcsWorld) {
     let ai = world.ecs().ais.get_or_err(entity);
     let actions = ai.planner.get_plan(&ai.memory.borrow(), &ai.goal.borrow());
 
-    if !ai.planner.plan_found(&ai.memory.borrow(), &ai.goal.borrow()) {
-        // The current plan has been finished. We need a new one.
-        // if let Some(id) = rand::thread_rng().choose(&actor.seen_actors(world)) {
-        //     state_kill(entity, &actor.ai);
-        // }
+    if ai.planner.goal_reached(&ai.memory.borrow(), &ai.goal.borrow()) {
+        // TODO: Determine a new plan.
+        debug_ecs!(world, entity, "Plan reached!");
+        if let Some(target) = rand::thread_rng().choose(&world.seen_entities(entity)) {
+            state_kill(*target, ai);
+        }
     }
 }
 
@@ -123,7 +128,7 @@ pub fn choose_action(entity: Entity, world: &EcsWorld) -> Action {
     let ai = world.ecs().ais.get_or_err(entity);
     let actions = ai.planner.get_plan(&ai.memory.borrow(), &ai.goal.borrow());
     if let Some(action) = actions.first() {
-        // debug!(actor.logger, "the action: {:?}", action);
+        debug_ecs!(world, entity, "the action: {:?}", action);
         match *action {
             AiAction::Wander => action::wander(entity, world),
             AiAction::MoveCloser => action::move_closer(entity, world),
@@ -131,8 +136,8 @@ pub fn choose_action(entity: Entity, world: &EcsWorld) -> Action {
             AiAction::Run => action::run_away(entity, world),
         }
     } else {
-        // warn!(actor.logger, "I can't figure out what to do!");
-        Action::Wait
+        warn_ecs!(world, entity, "I can't figure out what to do!");
+        action::wander(entity, world)
     }
 }
 

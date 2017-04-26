@@ -189,6 +189,8 @@ impl FieldOfView {
     /// Updates this field of view using the Precise Permissive Field of View
     /// algorithm.
     pub fn update(&mut self, terrain: &Terrain, center: &Point, radius: i32) {
+        self.clear();
+
         self.visible.insert(center.clone());
 
         let in_bounds = |pos: &Point| terrain.pos_valid(pos);

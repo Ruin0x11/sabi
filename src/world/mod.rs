@@ -9,6 +9,7 @@ use std::fs::File;
 use std::slice;
 
 use calx_ecs::{ComponentData, Entity};
+use slog::Logger;
 
 use action::Action;
 use cell::{self, Cell};
@@ -22,6 +23,7 @@ use ecs::*;
 use ecs::flags::Flags;
 use ecs::traits::*;
 use infinigen::*;
+use log;
 use logic;
 use point::Point;
 use point::RectangleArea;
@@ -84,6 +86,30 @@ impl Query for EcsWorld {
         self.ecs().healths.map_or(false, |h| h.hit_points > 0, e)
     }
 
+    fn can_see(&self, viewer: Entity, pos: WorldPosition) -> bool {
+        true
+    }
+
+    fn seen_entities(&self, viewer: Entity) -> Vec<Entity> {
+        debug_ecs!(self, viewer, "Seeing!");
+        if !self.ecs().fovs.has(viewer) {
+            return vec![];
+        }
+
+        let fov = self.ecs().fovs.get(viewer).unwrap();
+
+        let mut seen = Vec::new();
+        for point in fov.iter() {
+            if let Some(e) = self.mob_at(*point) {
+                if e != viewer {
+                    debug_ecs!(self, viewer, "am: {:?} Saw {:?}", viewer, e);
+                    seen.push(e);
+                }
+            }
+        }
+        seen
+    }
+
     fn seed(&self) -> u32 { self.flags.seed }
 
     fn entities(&self) -> slice::Iter<Entity> { self.ecs_.iter() }
@@ -95,10 +121,6 @@ impl Query for EcsWorld {
     fn flags<'a>(&'a self) -> &'a Flags { &self.flags }
 
     fn turn_order<'a>(&'a self) -> &'a TurnOrder { &self.turn_order }
-
-    fn next_entity(&self) -> Option<Entity> {
-        None
-    }
 }
 
 impl Mutate for EcsWorld {
@@ -107,6 +129,7 @@ impl Mutate for EcsWorld {
     fn set_player(&mut self, player: Option<Entity>) { self.flags.player = player; }
 
     fn kill_entity(&mut self, e: Entity) {
+        debug_ecs!(self, e, "Removing {:?} from turn order", e);
         self.spatial.remove(e);
         self.turn_order.remove(&e)
     }
@@ -125,6 +148,10 @@ impl Mutate for EcsWorld {
         }
 
         Err(())
+    }
+
+    fn next_entity(&mut self) -> Option<Entity> {
+        self.turn_order.next()
     }
 
     fn do_fov(&mut self, e: Entity) {
@@ -154,7 +181,8 @@ impl Mutate for EcsWorld {
 
     fn advance_time(&mut self, ticks: i32) {
         let ids: Vec<Entity> = self.entities()
-            .filter(|&&e| self.ecs().turns.get(e).is_some())
+            // TODO: Kludge to avoid removing entities first?
+            .filter(|&&e| self.is_alive(e) && self.ecs().turns.get(e).is_some())
             .cloned().collect();
         for id in ids {
             self.turn_order.advance_time_for(&id, ticks);
@@ -178,7 +206,7 @@ impl WorldQuery for EcsWorld {
         self.terrain.pos_valid(pos)
     }
 
-    fn with_cells<F>(&mut self, top_left: Point,
+    fn with_cells<F>(&self, top_left: Point,
                      dimensions: Point,
                      mut callback: F) where F: FnMut(Point, &Cell) {
         let bottom_right = top_left + dimensions;
@@ -206,6 +234,13 @@ impl<C: Component> ComponentQuery<C> for ComponentData<C> {
 
     fn has(&self, e: Entity) -> bool {
         self.get(e).is_some()
+    }
+}
+
+impl<C: Component> ComponentMutate<C> for ComponentData<C> {
+    fn map_mut<F, T>(&mut self, callback: F, e: Entity) -> Option<T>
+        where F: FnOnce(&mut C,) -> T {
+        self.get_mut(e).map(callback)
     }
 }
 

@@ -58,12 +58,18 @@ fn draw_overlays(world: &mut EcsWorld) {
 }
 
 fn draw_world(world: &mut EcsWorld) {
-    // let fov = world.player().fov();
     let size = canvas::size();
+
     let center = world.flags().camera - size/2;
 
     world.with_cells(center, size, |point, ref cell| {
-        canvas::with(|c| c.print_glyph(point.x, point.y, cell.glyph) )
+        let visible = world.player().map_or(true, |p| {
+            world.ecs().fovs.map_or(true, |f| f.is_visible(&point), p)
+        });
+
+        if visible {
+            canvas::with(|c| c.print_glyph(point.x, point.y, cell.glyph) )
+        }
     } );
 }
 
@@ -137,6 +143,10 @@ pub fn render_all(world: &mut EcsWorld) {
 
 pub fn process_actors(world: &mut EcsWorld) {
     while let Some(id) = world.next_entity() {
+        if !world.is_alive(id) {
+            panic!("Killed actor remained in turn order!");
+        }
+
         let leftover_ticks = world.turn_order().get_time_for(&id);
         if leftover_ticks > 0 {
             world.advance_time(leftover_ticks);
@@ -146,11 +156,10 @@ pub fn process_actors(world: &mut EcsWorld) {
             break
         }
 
-        if !world.is_alive(id) {
-            panic!("Killed actor remained in turn order!");
-        }
-
         if !world.ecs().ais.has(id) {
+            if world.turn_order().contains(id) {
+                panic!("Entity without ai in turn order!");
+            }
             continue;
         }
 
@@ -160,6 +169,8 @@ pub fn process_actors(world: &mut EcsWorld) {
 
         process_events(world);
     }
+
+    world.purge_dead();
 }
 
 pub fn check_player_dead(world: &mut EcsWorld) -> bool {

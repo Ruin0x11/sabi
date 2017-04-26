@@ -16,10 +16,6 @@ use stats::properties::Properties;
 
 const FOV_RADIUS: i32 = 10;
 
-lazy_static! {
-    static ref ACTOR_LOG: Logger = log::make_logger("actor").unwrap();
-}
-
 pub type ActorId = Uuid;
 
 pub struct Actor {

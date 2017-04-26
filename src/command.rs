@@ -25,9 +25,13 @@ impl Command {
             Key { code: KeyCode::Down,    .. } |
             Key { code: KeyCode::J,       .. } |
             Key { code: KeyCode::NumPad2, .. } => Command::Move(Direction::S),
+            Key { code: KeyCode::B,       .. } |
             Key { code: KeyCode::NumPad1, .. } => Command::Move(Direction::SW),
+            Key { code: KeyCode::N,       .. } |
             Key { code: KeyCode::NumPad3, .. } => Command::Move(Direction::SE),
+            Key { code: KeyCode::Y,       .. } |
             Key { code: KeyCode::NumPad7, .. } => Command::Move(Direction::NW),
+            Key { code: KeyCode::U,       .. } |
             Key { code: KeyCode::NumPad9, .. } => Command::Move(Direction::NE),
             _                                  => Command::Wait
         }

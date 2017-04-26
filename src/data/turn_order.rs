@@ -4,7 +4,7 @@ use std::cmp;
 
 use calx_ecs::Entity;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TurnOrder {
     times_until_turn: BTreeMap<Entity, i32>,
 }
@@ -14,6 +14,10 @@ impl TurnOrder {
         TurnOrder {
             times_until_turn: BTreeMap::new(),
         }
+    }
+
+    pub fn contains(&self, id: Entity) -> bool {
+        self.times_until_turn.contains_key(&id)
     }
 
     pub fn add(&mut self, id: Entity, time: i32) {

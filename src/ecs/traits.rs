@@ -23,7 +23,7 @@ pub trait WorldQuery {
     fn can_walk(&self, pos: Point, walkability: Walkability) -> bool;
     fn pos_valid(&self, pos: &Point) -> bool;
 
-    fn with_cells<F>(&mut self, top_left: Point,
+    fn with_cells<F>(&self, top_left: Point,
                      dimensions: Point,
                      callback: F)
         where F: FnMut(Point, &Cell);
@@ -109,9 +109,11 @@ pub trait Query {
 
     fn turn_order<'a>(&'a self) -> &'a TurnOrder;
 
-    fn next_entity(&self) -> Option<Entity>;
-
     fn is_alive(&self, e: Entity) -> bool { self.position(e).is_some() }
+
+    fn can_see(&self, viewer: Entity, pos: WorldPosition) -> bool;
+
+    fn seen_entities(&self, viewer: Entity) -> Vec<Entity>;
 
     fn is_mob(&self, e: Entity) -> bool {
         let ecs = self.ecs();
@@ -151,6 +153,8 @@ pub trait Mutate: Query + Sized {
 
     fn move_entity(&mut self, e: Entity, dir: Direction) -> CommandResult;
 
+    fn next_entity(&mut self) -> Option<Entity>;
+
     fn after_entity_moved(&mut self, e: Entity) {
         self.do_fov(e);
     }
@@ -168,7 +172,18 @@ pub trait Mutate: Query + Sized {
 
     fn run_action(&mut self, entity: Entity, action: Action);
 
-    /// Remove destroyed entities from system
+    /// Marks entities as dead based on health. Does not remove the entities
+    /// from the system.
+    fn update_killed(&mut self) {
+        let kill_list: Vec<Entity> =
+            self.entities().filter(|&&e| !self.is_alive(e)).cloned().collect();
+
+        for e in kill_list.into_iter() {
+            self.kill_entity(e);
+        }
+    }
+
+    /// Remove destroyed entities from the system.
     fn purge_dead(&mut self) {
         let kill_list: Vec<Entity> =
             self.entities().filter(|&&e| !self.is_alive(e)).cloned().collect();
@@ -199,4 +214,9 @@ pub trait ComponentQuery<C: Component> {
         where F: FnOnce(&C,) -> T;
 
     fn has(&self, e: Entity) -> bool;
+}
+
+pub trait ComponentMutate<C: Component> {
+    fn map_mut<F, T>(&mut self, callback: F, e: Entity) -> Option<T>
+        where F: FnOnce(&mut C,) -> T;
 }

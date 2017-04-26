@@ -30,23 +30,21 @@ pub fn move_closer(entity: Entity, world: &EcsWorld) -> Action {
     assert!(world.is_alive(target), "Target is already dead!");
 
     let my_pos = world.position(entity).unwrap();
-    let target_pos = world.position(entity).unwrap();
+    let target_pos = world.position(target).unwrap();
 
-    // assert!(entity.can_see(&target_pos), "Entity can't see target!");
+    assert!(world.can_see(entity, target_pos), "Entity can't see target!");
 
-    // Am I right next to the target?
-    match Direction::from_neighbors(my_pos, target_pos) {
-        Some(dir) => return Action::Move(dir),
-        None      => (),
+    if my_pos.is_next_to(target_pos) {
+        return Action::Move(Direction::from_neighbors(my_pos, target_pos).unwrap());
     }
 
     let mut path = Path::find(my_pos, target_pos, world, Walkability::MonstersBlocking);
 
-    // debug!(entity.logger, "My: {} target: {}, path: {:?}", my_pos, target_pos, path);
+    debug_ecs!(world, entity, "My: {} target: {}, path: {:?}", my_pos, target_pos, path);
 
     if path.len() == 0 {
         // TODO: Lost sight of target.
-        return Action::Wait;
+        return wander(entity, world);
     }
 
     let next_pos = path.next().unwrap();
