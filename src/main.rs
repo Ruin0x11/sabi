@@ -1,3 +1,4 @@
+#![feature(associated_consts)]
 #[macro_use] extern crate calx_ecs;
 #[macro_use] extern crate enum_derive;
 #[macro_use] extern crate lazy_static;
@@ -31,7 +32,6 @@ mod drawcalls;
 mod engine;
 // mod event;
 mod fov;
-mod gen;
 mod glyph;
 mod keys;
 mod log;
@@ -53,6 +53,7 @@ mod command;
 
 use slog::Logger;
 
+use ecs::Mutate;
 use engine::canvas;
 use point::Point;
 use state::GameState;
@@ -87,9 +88,11 @@ pub fn run() {
 }
 
 fn game_loop(mut ctxt: &mut GameContext) {
-    use ecs::Mutate;
     let e = ctxt.state.world.create(::ecs::prefab::mob("Dood", ::glyph::Glyph::Player), Point::new(1,1));
     ctxt.state.world.set_player(Some(e));
+
+    ctxt.state.world.create(::ecs::prefab::mob("Putit", ::glyph::Glyph::Putit), Point::new(1,10));
+
     while !canvas::window_closed() {
         state::process(ctxt);
     }

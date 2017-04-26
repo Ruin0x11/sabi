@@ -8,6 +8,9 @@ use drawcalls::Draw;
 use ecs::traits::*;
 use world::EcsWorld;
 
+// TODO: Allow variable arguments, since we have no need to follow a consistent
+// API?
+
 pub fn wander(_entity: Entity, _world: &EcsWorld) -> Action {
     Action::Move(Direction::choose8())
 }

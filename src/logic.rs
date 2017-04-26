@@ -34,7 +34,7 @@ fn post_tick_entity(world: &mut EcsWorld, entity: &Entity) {
         let delay = stats::formulas::calculate_delay(world, entity, 100);
         // debug!(entity.logger, "{} {}: delay {}, speed {}", entity.name(), name, delay, entity.speed);
         world.add_delay_for(entity, delay);
-        // entity.update_fov(world);
+        world.after_entity_moved(*entity);
     }
 }
 

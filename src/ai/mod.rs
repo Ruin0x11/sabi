@@ -85,7 +85,13 @@ thread_local! {
     static SENSORS: HashMap<AiProp, Sensor> = sensors::make_sensors();
 }
 
-pub fn update_memory(entity: &Entity, world: &EcsWorld) {
+pub fn run(entity: Entity, world: &EcsWorld) -> Action {
+    update_goal(entity, world);
+    update_memory(entity, world);
+    choose_action(entity, world)
+}
+
+pub fn update_memory(entity: Entity, world: &EcsWorld) {
     // let ref mut memory = actor.ai.memory.borrow_mut();
     // let wants_to_know = vec![AiProp::HasTarget, AiProp::TargetVisible,
     //                          AiProp::TargetDead, AiProp::NextToTarget, AiProp::HealthLow];
@@ -135,6 +141,7 @@ use goap::*;
 
 type AiPlanner = GoapPlanner<AiProp, bool, AiAction>;
 
+// FIXME: ugh?
 pub fn make_planner() -> AiPlanner {
     let mut actions = HashMap::new();
     let mut effects = GoapEffects::new(100);

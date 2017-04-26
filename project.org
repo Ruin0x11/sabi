@@ -1,7 +1,8 @@
 * Wanted ECS
 #+BEGIN_SRC rust
-assert_components!(e, [Health, Position, Turn], "Doesn't have components.");
-let health = world.get_or_err(e, Health).health;
+world.validate_components(e, [Health, Position, Turn]);
+let health = world.get(e, Health).health;
+let health = world.get_opt(e, Health).map_or(0, |h| h.health);
 #+END_SRC
 * Debt
 ** TODO Clean all imports

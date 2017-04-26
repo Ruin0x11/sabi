@@ -1,4 +1,3 @@
-mod cells;
 mod index;
 mod pos;
 pub mod serial;

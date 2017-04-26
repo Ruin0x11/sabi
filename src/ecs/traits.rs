@@ -17,6 +17,7 @@ use point::Point;
 use chunk::*;
 
 // FIXME: Move these appropriately.
+// FIXME: Refactor.
 
 pub trait WorldQuery {
     fn can_walk(&self, pos: Point, walkability: Walkability) -> bool;
@@ -32,7 +33,6 @@ pub trait WorldQuery {
 /// entities on top of it.
 pub trait TerrainQuery {
     fn chunk(&self, index: ChunkIndex) -> Option<&Chunk>;
-    fn chunk_indices(&self) -> Vec<ChunkIndex>;
 
     fn pos_valid(&self, pos: &WorldPosition) -> bool { self.cell(pos).is_some() }
 
@@ -57,9 +57,7 @@ pub trait TerrainMutate {
     fn prune_empty_regions(&mut self);
 
     fn insert_chunk(&mut self, index: ChunkIndex, chunk: Chunk);
-    fn unload_chunk(&mut self, index: &ChunkIndex) -> SerialResult<()>;
     fn chunk_mut(&mut self, index: ChunkIndex) -> Option<&mut Chunk>;
-    fn notify_chunk_creation(&mut self, index: &ChunkIndex);
 
     fn chunk_mut_from_world_pos(&mut self, pos: WorldPosition) -> Option<&mut Chunk> {
         let index = ChunkIndex::from_world_pos(pos);

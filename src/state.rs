@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 
-use infinigen::Chunked;
+use infinigen::ChunkedWorld;
 
 use ::GameContext;
 use action::*;
@@ -154,11 +154,7 @@ pub fn process_actors(world: &mut EcsWorld) {
             continue;
         }
 
-        let action = {
-            ai::update_goal(id, world);
-            ai::update_memory(&id, world);
-            ai::choose_action(id, world)
-        };
+        let action = ai::run(id, world);
 
         logic::run_action(world, id, action);
 

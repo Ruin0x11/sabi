@@ -1,6 +1,8 @@
+mod regions;
 mod terrain;
 
 pub use self::terrain::Terrain;
+use self::regions::Regions;
 
 use std::collections::HashSet;
 use std::fs::File;
@@ -158,85 +160,6 @@ impl Mutate for EcsWorld {
     }
 }
 
-const UPDATE_RADIUS: i32 = 3;
-
-impl<'a> Chunked<'a, File, ChunkIndex, SerialChunk, Region<ChunkIndex>> for EcsWorld {
-    fn load_chunk(&mut self, index: &ChunkIndex) -> Result<(), SerialError> {
-        if let Err(_) = self.terrain.load_chunk_from_save(index) {
-            if self.chunk_loaded(index) {
-                return Err(ChunkAlreadyLoaded(index.0.x, index.0.y));
-            }
-            // println!("Addding chunk at {}", index);
-            self.terrain.insert_chunk(index.clone(), Chunk::generate_basic(cell::FLOOR));
-
-            // The region this chunk was created in needs to know of the chunk
-            // that was created in-game but nonexistent on disk.
-            self.terrain.notify_chunk_creation(index);
-        }
-        Ok(())
-    }
-
-    fn unload_chunk(&mut self, index: &ChunkIndex) -> SerialResult<()> {
-        self.terrain.unload_chunk(index)
-    }
-
-    fn chunk_loaded(&self, index: &ChunkIndex) -> bool {
-        self.terrain.chunk(*index).is_some()
-    }
-
-    fn chunk_indices(&self) -> Vec<ChunkIndex> {
-        self.terrain.chunk_indices()
-    }
-
-    fn update_chunks(&mut self) -> Result<(), SerialError>{
-        let mut relevant: HashSet<ChunkIndex> = HashSet::new();
-
-        let center = ChunkIndex::from_world_pos(self.flags.camera);
-
-        relevant.insert(center);
-        let quadrant = |dx, dy, idxes: &mut HashSet<ChunkIndex>| {
-            for dr in 1..UPDATE_RADIUS+1 {
-                for i in 0..dr+1 {
-                    let ax = center.0.x + (dr - i) * dx;
-                    let ay = center.0.y + i * dy;
-                    let chunk_idx = ChunkIndex::new(ax, ay);
-                    idxes.insert(chunk_idx);
-                }
-            }
-        };
-        quadrant(-1,  1, &mut relevant);
-        quadrant(1,   1, &mut relevant);
-        quadrant(-1, -1, &mut relevant);
-        quadrant(1,  -1, &mut relevant);
-
-        for idx in relevant.iter() {
-            if !self.chunk_loaded(idx) {
-                // println!("Loading chunk {}", idx);
-                self.load_chunk(idx)?;
-            }
-        }
-
-        let indices = self.chunk_indices();
-        for idx in indices.iter() {
-            if !relevant.contains(idx) && self.chunk_loaded(idx) {
-                self.unload_chunk(idx)?;
-            }
-        }
-
-        self.terrain.prune_empty_regions();
-
-        Ok(())
-    }
-
-    fn save(mut self) -> Result<(), SerialError> {
-        let indices = self.chunk_indices();
-        for index in indices.iter() {
-            self.unload_chunk(index)?;
-        }
-        Ok(())
-    }
-}
-
 impl WorldQuery for EcsWorld {
     fn can_walk(&self, pos: Point, walkability: Walkability) -> bool {
         let cell_walkable = self.terrain.cell(&pos).map_or(false, |c| c.can_pass_through());
@@ -279,4 +202,64 @@ impl<C: Component> ComponentQuery<C> for ComponentData<C> {
         self.get(e).is_some()
     }
 
+}
+
+const UPDATE_RADIUS: i32 = 3;
+
+impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorld {
+    fn terrain(&mut self) -> &mut Terrain { &mut self.terrain }
+
+    fn generate_chunk(&mut self, index: &ChunkIndex) -> SerialResult<()> {
+        self.terrain.insert_chunk(index.clone(), Chunk::generate_basic(cell::FLOOR));
+
+        Ok(())
+    }
+
+    fn update_chunks(&mut self) -> Result<(), SerialError>{
+        let mut relevant: HashSet<ChunkIndex> = HashSet::new();
+
+        let center = ChunkIndex::from_world_pos(self.flags.camera);
+
+        relevant.insert(center);
+        let quadrant = |dx, dy, idxes: &mut HashSet<ChunkIndex>| {
+            for dr in 1..UPDATE_RADIUS+1 {
+                for i in 0..dr+1 {
+                    let ax = center.0.x + (dr - i) * dx;
+                    let ay = center.0.y + i * dy;
+                    let chunk_idx = ChunkIndex::new(ax, ay);
+                    idxes.insert(chunk_idx);
+                }
+            }
+        };
+        quadrant(-1,  1, &mut relevant);
+        quadrant(1,   1, &mut relevant);
+        quadrant(-1, -1, &mut relevant);
+        quadrant(1,  -1, &mut relevant);
+
+        for idx in relevant.iter() {
+            if !self.terrain.chunk_loaded(idx) {
+                // println!("Loading chunk {}", idx);
+                self.load_chunk(idx)?;
+            }
+        }
+
+        let indices = self.terrain.chunk_indices();
+        for idx in indices.iter() {
+            if !relevant.contains(idx) && self.terrain.chunk_loaded(idx) {
+                self.unload_chunk(idx)?;
+            }
+        }
+
+        self.terrain.prune_empty_regions();
+
+        Ok(())
+    }
+
+    fn save(mut self) -> Result<(), SerialError> {
+        let indices = self.terrain.chunk_indices();
+        for index in indices.iter() {
+            self.unload_chunk(index)?;
+        }
+        Ok(())
+    }
 }
