@@ -1,3 +1,4 @@
+mod generate;
 mod index;
 mod pos;
 pub mod serial;
@@ -15,14 +16,13 @@ use point::Point;
 /// care about the underlying Chunks.
 #[derive(Serialize, Deserialize)]
 pub struct Chunk {
-    dimensions: Point,
     cells: Vec<Cell>,
 }
 
 pub const CHUNK_WIDTH: i32 = 16;
 
 impl Chunk {
-    pub fn generate_basic(cell: Cell) -> Chunk {
+    pub fn new(cell: Cell) -> Chunk {
         let mut cells = Vec::new();
 
         for _ in 0..(CHUNK_WIDTH * CHUNK_WIDTH) {
@@ -30,13 +30,12 @@ impl Chunk {
         }
 
         Chunk {
-            dimensions: Point::new(CHUNK_WIDTH, CHUNK_WIDTH),
             cells: cells,
         }
     }
 
     fn index(&self, pos: ChunkPosition) -> usize {
-        (pos.0.y * self.dimensions.x + pos.0.x) as usize
+        (pos.0.y * CHUNK_WIDTH + pos.0.x) as usize
     }
 
     /// Gets an immutable cell reference relative to within this Chunk.
@@ -54,7 +53,7 @@ impl Chunk {
     pub fn iter(&self) -> Cells {
         Cells {
             index: 0,
-            width: self.dimensions.x,
+            width: CHUNK_WIDTH,
             inner: self.cells.iter(),
         }
     }

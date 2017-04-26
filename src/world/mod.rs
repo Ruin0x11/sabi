@@ -28,6 +28,12 @@ use point::RectangleArea;
 
 pub type WorldPosition = Point;
 
+impl WorldPosition {
+    pub fn from_chunk_index(index: ChunkIndex) -> Point {
+        Point::new(index.0.x * CHUNK_WIDTH, index.0.y * CHUNK_WIDTH)
+    }
+}
+
 pub type WorldIter = Iterator<Item=WorldPosition>;
 
 #[derive(Serialize, Deserialize)]
@@ -201,7 +207,6 @@ impl<C: Component> ComponentQuery<C> for ComponentData<C> {
     fn has(&self, e: Entity) -> bool {
         self.get(e).is_some()
     }
-
 }
 
 const UPDATE_RADIUS: i32 = 3;
@@ -210,22 +215,23 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
     fn terrain(&mut self) -> &mut Terrain { &mut self.terrain }
 
     fn load_chunk_internal(&mut self, chunk: SerialChunk, index: &ChunkIndex) -> Result<(), SerialError> {
-        self.terrain.insert_chunk(index.clone(), Chunk::generate_basic(cell::FLOOR));
+        self.terrain.insert_chunk(index.clone(), chunk.chunk);
 
         Ok(())
     }
 
     fn unload_chunk_internal(&mut self, index: &ChunkIndex) -> Result<SerialChunk, SerialError> {
-        let chunk = self.terrain.remove_chunk(index);
+        let chunk = self.terrain.remove_chunk(index)
+            .expect(&format!("Expected chunk at {}!", index));
 
         let serial = SerialChunk {
-            i: 0,
+            chunk: chunk,
         };
         Ok(serial)
     }
 
     fn generate_chunk(&mut self, index: &ChunkIndex) -> SerialResult<()> {
-        self.terrain.insert_chunk(index.clone(), Chunk::generate_basic(cell::FLOOR));
+        self.terrain.insert_chunk(index.clone(), Chunk::gen_perlin(index, self.flags.seed));
 
         Ok(())
     }
@@ -253,7 +259,6 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
 
         for idx in relevant.iter() {
             if !self.terrain.chunk_loaded(idx) {
-                // println!("Loading chunk {}", idx);
                 self.load_chunk(idx)?;
             }
         }

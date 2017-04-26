@@ -1,8 +1,10 @@
+use chunk::Chunk;
+
 use infinigen::ManagedChunk;
 
 #[derive(Serialize, Deserialize)]
 pub struct SerialChunk {
-    pub i: i32,
+    pub chunk: Chunk,
 }
 
 impl ManagedChunk for SerialChunk {

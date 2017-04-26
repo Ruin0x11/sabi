@@ -9,6 +9,7 @@ extern crate backtrace;
 extern crate chrono;
 extern crate goap;
 extern crate infinigen;
+extern crate noise;
 extern crate rand;
 extern crate serde;
 extern crate slog_stream;
@@ -25,12 +26,15 @@ extern crate glium;
 
 mod action;
 mod ai;
+mod cell;
 mod chunk;
 mod color;
+mod command;
+mod data;
 mod direction;
 mod drawcalls;
+mod ecs;
 mod engine;
-// mod event;
 mod fov;
 mod glyph;
 mod keys;
@@ -42,14 +46,9 @@ mod point;
 mod state;
 mod stats;
 mod testbed;
-mod cell;
 mod ui;
 mod util;
-mod data;
 mod world;
-
-mod ecs;
-mod command;
 
 use slog::Logger;
 
