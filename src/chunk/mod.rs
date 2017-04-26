@@ -50,6 +50,11 @@ impl Chunk {
         &mut self.cells[index]
     }
 
+    /// Calculates the position in the world the point in the chunk represents.
+    pub fn world_position_at(index: &ChunkIndex, pos: &ChunkPosition) -> Point {
+        Point::new(pos.0.x + index.0.x * CHUNK_WIDTH, pos.0.y + index.0.y * CHUNK_WIDTH)
+    }
+
     pub fn iter(&self) -> Cells {
         Cells {
             index: 0,

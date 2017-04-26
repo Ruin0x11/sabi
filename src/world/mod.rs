@@ -91,19 +91,15 @@ impl Query for EcsWorld {
     }
 
     fn seen_entities(&self, viewer: Entity) -> Vec<Entity> {
-        debug_ecs!(self, viewer, "Seeing!");
         if !self.ecs().fovs.has(viewer) {
             return vec![];
         }
 
-        let fov = self.ecs().fovs.get(viewer).unwrap();
-
         let mut seen = Vec::new();
-        for point in fov.iter() {
-            if let Some(e) = self.mob_at(*point) {
-                if e != viewer {
-                    debug_ecs!(self, viewer, "am: {:?} Saw {:?}", viewer, e);
-                    seen.push(e);
+        for entity in self.entities() {
+            if let Some(pos) = self.position(*entity) {
+                if self.can_see(viewer, pos) && *entity != viewer {
+                    seen.push(entity.clone());
                 }
             }
         }
@@ -155,6 +151,7 @@ impl Mutate for EcsWorld {
     }
 
     fn do_fov(&mut self, e: Entity) {
+        return;
         if !self.ecs().fovs.has(e) {
             return;
         }
@@ -181,7 +178,7 @@ impl Mutate for EcsWorld {
 
     fn advance_time(&mut self, ticks: i32) {
         let ids: Vec<Entity> = self.entities()
-            // TODO: Kludge to avoid removing entities first?
+        // TODO: Kludge to avoid removing entities first?
             .filter(|&&e| self.is_alive(e) && self.ecs().turns.get(e).is_some())
             .cloned().collect();
         for id in ids {
@@ -267,6 +264,18 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
 
     fn generate_chunk(&mut self, index: &ChunkIndex) -> SerialResult<()> {
         self.terrain.insert_chunk(index.clone(), Chunk::gen_perlin(index, self.flags.seed));
+
+        for i in 4..5 {
+            for j in 4..5 {
+                let chunk_pos = ChunkPosition::from(Point::new(i, j));
+                let cell_pos = Chunk::world_position_at(&index, &chunk_pos);
+                if self.can_walk(cell_pos, Walkability::MonstersBlocking) {
+                    self.create(::ecs::prefab::mob("Putit", 10,
+                                                   ::glyph::Glyph::Putit),
+                                cell_pos);
+                }
+            }
+        }
 
         Ok(())
     }

@@ -89,12 +89,26 @@ thread_local! {
 pub fn run(entity: Entity, world: &EcsWorld) -> Action {
     assert!(!world.is_player(entity), "Tried running AI on current player!");
 
+    check_target(entity, world);
     update_goal(entity, world);
     update_memory(entity, world);
     choose_action(entity, world)
 }
 
-pub fn update_memory(entity: Entity, world: &EcsWorld) {
+fn check_target(entity: Entity, world: &EcsWorld) {
+    // The entity reference could go stale, so make sure it isn't.
+    // TODO: Should this have to happen every time an entity reference is held
+    // by something?
+    let ai = world.ecs().ais.get_or_err(entity);
+
+    let mut target = ai.target.borrow_mut();
+    let dead = target.is_some() && !world.ecs().contains(target.unwrap());
+    if dead {
+        *target = None;
+    }
+}
+
+fn update_memory(entity: Entity, world: &EcsWorld) {
     let ai = world.ecs().ais.get_or_err(entity);
     let ref mut memory = ai.memory.borrow_mut();
     let wants_to_know = vec![AiProp::HasTarget, AiProp::TargetVisible,
@@ -109,26 +123,29 @@ pub fn update_memory(entity: Entity, world: &EcsWorld) {
     }
 }
 
-pub fn update_goal(entity: Entity, world: &EcsWorld) {
+fn update_goal(entity: Entity, world: &EcsWorld) {
     let ai = world.ecs().ais.get_or_err(entity);
     let actions = ai.planner.get_plan(&ai.memory.borrow(), &ai.goal.borrow());
 
     if ai.planner.goal_reached(&ai.memory.borrow(), &ai.goal.borrow()) {
         // TODO: Determine a new plan.
-        debug_ecs!(world, entity, "Plan reached!");
-        if let Some(target) = rand::thread_rng().choose(&world.seen_entities(entity)) {
-            state_kill(*target, ai);
-        }
+        // if let Some(target) = rand::thread_rng().choose(&world.seen_entities(entity)) {
+        //     state_kill(*target, ai);
+        // }
+        world.flags().player.map(|p| {
+                if world.seen_entities(entity).contains(&p) {
+                    state_kill(p, ai);
+                }
+        });
     }
 }
 
-pub fn choose_action(entity: Entity, world: &EcsWorld) -> Action {
+fn choose_action(entity: Entity, world: &EcsWorld) -> Action {
     // TEMP: Just save the whole plan and only update when something interesting
     // happens
     let ai = world.ecs().ais.get_or_err(entity);
     let actions = ai.planner.get_plan(&ai.memory.borrow(), &ai.goal.borrow());
     if let Some(action) = actions.first() {
-        debug_ecs!(world, entity, "the action: {:?}", action);
         match *action {
             AiAction::Wander => action::wander(entity, world),
             AiAction::MoveCloser => action::move_closer(entity, world),

@@ -27,8 +27,9 @@ impl TurnOrder {
     }
 
     pub fn remove(&mut self, id: &Entity) {
-        self.times_until_turn.remove(id)
-            .expect("Actor not in turn order map");
+        if let None = self.times_until_turn.remove(id) {
+            //warn!("Tried removing actor not in turn order map");
+        }
     }
 
     pub fn advance_time_for(&mut self, id: &Entity, diff: i32) {

@@ -47,6 +47,10 @@ impl Health {
     pub fn hurt(&mut self, amount: u32) {
         self.hit_points -= amount as i32;
     }
+
+    pub fn is_dead(&self) -> bool {
+        self.hit_points <= 0
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

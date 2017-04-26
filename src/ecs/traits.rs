@@ -109,6 +109,8 @@ pub trait Query {
 
     fn turn_order<'a>(&'a self) -> &'a TurnOrder;
 
+    // FIXME: This is confusing. "Dead" has both the meaning of "not on map" and
+    // "health is zero".
     fn is_alive(&self, e: Entity) -> bool { self.position(e).is_some() }
 
     fn can_see(&self, viewer: Entity, pos: WorldPosition) -> bool;
@@ -176,7 +178,9 @@ pub trait Mutate: Query + Sized {
     /// from the system.
     fn update_killed(&mut self) {
         let kill_list: Vec<Entity> =
-            self.entities().filter(|&&e| !self.is_alive(e)).cloned().collect();
+            self.entities().filter(|&&e| {
+                self.ecs().healths.map_or(false, |h| h.is_dead(), e)
+            }).cloned().collect();
 
         for e in kill_list.into_iter() {
             self.kill_entity(e);

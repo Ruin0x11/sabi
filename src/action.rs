@@ -5,6 +5,7 @@ use direction::Direction;
 #[derive(Clone, Debug)]
 pub enum Action {
     Move(Direction),
+    MoveOrAttack(Direction),
     Wait,
     Dood,
     Explod,

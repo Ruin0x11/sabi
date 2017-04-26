@@ -67,7 +67,7 @@ fn draw_world(world: &mut EcsWorld) {
             world.ecs().fovs.map_or(true, |f| f.is_visible(&point), p)
         });
 
-        if visible {
+        if true || visible {
             canvas::with(|c| c.print_glyph(point.x, point.y, cell.glyph) )
         }
     } );
@@ -118,7 +118,7 @@ fn process_player_command(command: &Command, context: &mut GameContext) {
     match *command {
         // TEMP: Commands can still be run even if there is no player?
         Command::Quit           => canvas::close_window(),
-        Command::Move(dir)      => context.state.add_action(Action::Move(dir)),
+        Command::Move(dir)      => context.state.add_action(Action::MoveOrAttack(dir)),
         Command::Wait           => context.state.add_action(Action::Dood),
         _                       => ()
     }

@@ -40,8 +40,6 @@ pub fn move_closer(entity: Entity, world: &EcsWorld) -> Action {
 
     let mut path = Path::find(my_pos, target_pos, world, Walkability::MonstersBlocking);
 
-    debug_ecs!(world, entity, "My: {} target: {}, path: {:?}", my_pos, target_pos, path);
-
     if path.len() == 0 {
         // TODO: Lost sight of target.
         return wander(entity, world);

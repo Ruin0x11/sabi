@@ -31,6 +31,8 @@ pub fn run_action(world: &mut EcsWorld, entity: Entity, action: Action) {
 }
 
 fn post_tick_entity(world: &mut EcsWorld, entity: Entity) {
+    world.update_killed();
+
     if world.is_alive(entity) {
         let delay = stats::formulas::calculate_delay(world, &entity, 100);
         world.add_delay_for(&entity, delay);
@@ -39,10 +41,10 @@ fn post_tick_entity(world: &mut EcsWorld, entity: Entity) {
 }
 
 fn post_tick(world: &mut EcsWorld) {
-    world.update_killed();
+
 }
 
-fn try_move(world: &mut EcsWorld, entity: Entity, dir: Direction) {
+fn move_or_attack(world: &mut EcsWorld, entity: Entity, dir: Direction) {
     let new_pos = world.position(entity).expect("No entity position") + dir;
     if let Some(id) = world.mob_at(new_pos) {
         swing_at(world, entity, id);
@@ -72,7 +74,8 @@ fn swing_at(world: &mut EcsWorld, attacker: Entity, other: Entity) {
 
 fn run_entity_action(world: &mut EcsWorld, entity: Entity, action: Action) {
     match action {
-        Action::Move(dir) => try_move(world, entity, dir),
+        Action::MoveOrAttack(dir) => move_or_attack(world, entity, dir),
+        Action::Move(dir) => { world.move_entity(entity, dir); },
         Action::SwingAt(target) => swing_at(world, entity, target),
         _ => (),
     }
