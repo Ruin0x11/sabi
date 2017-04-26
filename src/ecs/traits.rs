@@ -57,6 +57,7 @@ pub trait TerrainMutate {
     fn prune_empty_regions(&mut self);
 
     fn insert_chunk(&mut self, index: ChunkIndex, chunk: Chunk);
+    fn remove_chunk(&mut self, index: &ChunkIndex) -> Option<Chunk>;
     fn chunk_mut(&mut self, index: ChunkIndex) -> Option<&mut Chunk>;
 
     fn chunk_mut_from_world_pos(&mut self, pos: WorldPosition) -> Option<&mut Chunk> {

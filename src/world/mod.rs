@@ -209,6 +209,21 @@ const UPDATE_RADIUS: i32 = 3;
 impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorld {
     fn terrain(&mut self) -> &mut Terrain { &mut self.terrain }
 
+    fn load_chunk_internal(&mut self, chunk: SerialChunk, index: &ChunkIndex) -> Result<(), SerialError> {
+        self.terrain.insert_chunk(index.clone(), Chunk::generate_basic(cell::FLOOR));
+
+        Ok(())
+    }
+
+    fn unload_chunk_internal(&mut self, index: &ChunkIndex) -> Result<SerialChunk, SerialError> {
+        let chunk = self.terrain.remove_chunk(index);
+
+        let serial = SerialChunk {
+            i: 0,
+        };
+        Ok(serial)
+    }
+
     fn generate_chunk(&mut self, index: &ChunkIndex) -> SerialResult<()> {
         self.terrain.insert_chunk(index.clone(), Chunk::generate_basic(cell::FLOOR));
 
