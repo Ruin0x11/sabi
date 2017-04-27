@@ -1,8 +1,12 @@
+mod iter;
+
+pub use self::iter::*;
+
 use std::cmp::{max, Ordering};
 use std::fmt::{Display, Formatter, Error};
 use std::ops::{Add, AddAssign, Div, Sub};
 
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Copy, Clone, Debug, Hash, PartialEq, Eq, Ord)]
 pub struct Point {
     pub x: i32,
     pub y: i32,
@@ -21,7 +25,7 @@ impl Point {
     }
 
     /// Checks if this point is strictly a neighbor of a another point (not the same).
-    pub fn next_to<P: Into<Point>>(&self, other: P) -> bool {
+    pub fn is_next_to<P: Into<Point>>(&self, other: P) -> bool {
         let other = other.into();
         let res = *self - other;
         if *self == other {
@@ -35,6 +39,7 @@ impl Point {
         max((self.x - other.x).abs(), (self.y - other.y).abs())
     }
 
+    #[cfg(never)]
     pub fn circular_area(&self, radius: i32) -> CircleArea {
         CircleArea::new(*self, radius)
     }
@@ -173,126 +178,11 @@ impl Div<i32> for Point {
 }
 
 
-pub struct CircleArea {
-    pos: Point,
-    center: Point,
-    radius: i32,
-    initial_x: i32,
-    max: Point
-}
-
-impl CircleArea {
-    pub fn new<P: Into<Point>>(center: P, radius: i32) -> Self {
-        let center = center.into();
-        CircleArea {
-            pos: center - (radius, radius),
-            center: center,
-            radius: radius,
-            initial_x: center.x - radius,
-            max: center + (radius, radius),
-        }
-    }
-}
-
-impl Iterator for CircleArea {
-    type Item = Point;
-
-    fn next(&mut self) -> Option<Point> {
-        loop {
-            if (self.pos.y > self.max.y) || (self.pos.x > self.max.x) {
-                return None;
-            }
-            let current_point = self.pos;
-            self.pos.x += 1;
-            if self.pos.x > self.max.x {
-                self.pos.x = self.initial_x;
-                self.pos.y += 1;
-            }
-            if self.center.distance(current_point) < self.radius as f32 {
-                return Some(current_point)
-            } else {
-                // Keep looping for another point
-            }
-        }
-    }
-}
-
-pub struct PointArea {
-    pos: Point,
-    done: bool,
-}
-
-impl PointArea {
-    pub fn new<P: Into<Point>>(pos: P) -> Self {
-        PointArea {
-            pos: pos.into(),
-            done: false,
-        }
-    }
-}
-
-impl Iterator for PointArea {
-    type Item = Point;
-
-    fn next(&mut self) -> Option<Point> {
-        if self.done {
-            return None
-        }
-
-        self.done = true;
-        Some(self.pos)
-    }
-}
-
-/// A square area defined by its "half_side" or radius.
-/// A half_side of 0 means no points. Radius of 1 means the centre point.
-/// Radius of 2 means a square of 9 points, and so on.
-pub struct SquareArea {
-    pos: Point,
-    min_x: i32,
-    max: Point,
-    radius: i32,
-}
-
-impl SquareArea {
-    pub fn new<P: Into<Point>>(center: P, radius: i32) -> Self {
-        let center = center.into();
-        let half_side = radius - 1;
-        SquareArea {
-            radius: radius,
-            pos: center - (half_side, half_side),
-            min_x: center.x - half_side,
-            max: center + (half_side, half_side),
-        }
-    }
-}
-
-impl Iterator for SquareArea {
-    type Item = Point;
-
-    fn next(&mut self) -> Option<Point> {
-        if self.radius == 0 {
-            return None
-        }
-
-        if self.pos.y > self.max.y {
-            return None
-        }
-        let current_point = self.pos;
-        self.pos.x += 1;
-        if self.pos.x > self.max.x {
-            self.pos.y += 1;
-            self.pos.x = self.min_x;
-        }
-        return Some(current_point)
-    }
-}
-
 #[cfg(test)]
 mod test {
     use std::iter::FromIterator;
     use std::f32::EPSILON;
-    use super::{Point, SquareArea};
+    use super::Point;
 
     #[test]
     fn test_tile_distance() {
@@ -353,35 +243,8 @@ mod test {
         let actual = Point{x: 0, y: 0}.distance((-3, -4));
         let expected = 5.0;
         assert!((actual - expected).abs() <= EPSILON);
-}
-
-    #[test]
-    fn test_points_within_radius_of_zero() {
-        let actual: Vec<Point> = FromIterator::from_iter(SquareArea::new((3, 3), 0));
-        assert_eq!(actual, [(3, 3)]);
     }
 
-    #[test]
-    fn test_points_within_radius_of_one() {
-        let actual: Vec<Point> = FromIterator::from_iter(SquareArea::new((0, 0), 1));
-        let expected = [(-1, -1), (0, -1), (1, -1),
-                        (-1,  0), (0,  0), (1,  0),
-                        (-1,  1), (0,  1), (1,  1)];
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn test_points_within_radius_of_five() {
-        let actual: Vec<Point> = FromIterator::from_iter(SquareArea::new((0, 0), 5));
-
-        let mut expected = Vec::new();
-        for y in -5..6 {
-            for x in -5..6 {
-                expected.push(Point{x: x, y: y});
-            }
-        }
-        assert_eq!(actual, expected);
-    }
 
     #[test]
     fn test_point_comparison() {
@@ -448,20 +311,20 @@ mod test {
     }
 
     #[test]
-    fn test_next_to() {
+    fn test_is_next_to() {
         let center = Point::new(1, 1);
         for i in 0..2 {
             for j in 0..2 {
                 if i != 1 && j != 1 {
-                    assert_eq!(center.next_to(Point::new(i, j)), true);
+                    assert_eq!(center.is_next_to(Point::new(i, j)), true);
                 }
             }
         }
-        assert_eq!(center.next_to(Point::new(1, 1)), false);
-        assert_eq!(center.next_to(Point::new(-1, 2)), false);
-        assert_eq!(center.next_to(Point::new(-1, -1)), false);
-        assert_eq!(center.next_to(Point::new(1, 10)),  false);
-        assert_eq!(center.next_to(Point::new(10, 1)),  false);
-        assert_eq!(center.next_to(Point::new(10, 10)), false);
+        assert_eq!(center.is_next_to(Point::new(1, 1)), false);
+        assert_eq!(center.is_next_to(Point::new(-1, 2)), false);
+        assert_eq!(center.is_next_to(Point::new(-1, -1)), false);
+        assert_eq!(center.is_next_to(Point::new(1, 10)),  false);
+        assert_eq!(center.is_next_to(Point::new(10, 1)),  false);
+        assert_eq!(center.is_next_to(Point::new(10, 10)), false);
     }
 }

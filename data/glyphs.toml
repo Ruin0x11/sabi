@@ -10,6 +10,10 @@ color=[255, 0, 0]
 ch="p"
 color=[255, 255, 255]
 
+[Item]
+ch="%"
+color=[0, 255, 0]
+
 [Floor]
 ch="."
 color=[255, 255, 255]

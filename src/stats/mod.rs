@@ -27,6 +27,7 @@ impl Default for Stats {
 }
 
 impl Stats {
+    // TODO: Builder
     // It doesn't make sense to have 0 hp, so the number has to be checked. But
     // checking means passing in arguments to 'new', and the number of arguments
     // could grow largely.

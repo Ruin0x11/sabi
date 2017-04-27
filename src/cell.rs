@@ -1,7 +1,7 @@
 use glyph::{Glyph};
 
-#[derive(Debug, Copy, Clone)]
-pub enum TileType {
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+pub enum CellType {
     Wall,
     Floor,
     Air,
@@ -9,55 +9,55 @@ pub enum TileType {
     Lava
 }
 
-impl Tile {
+impl Cell {
     pub fn can_see_through(&self) -> bool {
         match self.type_ {
-            TileType::Wall |
-            TileType::Air  => false,
+            CellType::Wall |
+            CellType::Air  => false,
             _              => true,
         }
     }
 
     pub fn can_pass_through(&self) -> bool {
         match self.type_ {
-            TileType::Wall => false,
+            CellType::Wall => false,
             _              => true,
         }
     }
 }
 
-#[derive(Debug, Copy, Clone)]
-pub enum TileFeature {
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+pub enum CellFeature {
     Door(bool),
     StairsUp,
     StairsDown,
 }
 
-#[derive(Debug, Copy, Clone)]
-pub struct Tile {
-    pub type_: TileType,
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+pub struct Cell {
+    pub type_: CellType,
 
     // TEMP: Shouldn't go here, but is instead looked up
     pub glyph: Glyph,
 
-    pub feature: Option<TileFeature>,
+    pub feature: Option<CellFeature>,
 }
 
 // TEMP: A tile ID is all that should be needed, not type and glyph
-pub const WALL: Tile = Tile {
-    type_: TileType::Wall,
+pub const WALL: Cell = Cell {
+    type_: CellType::Wall,
     glyph: Glyph::Wall,
     feature: None,
 };
 
-pub const FLOOR: Tile = Tile {
-    type_: TileType::Floor,
+pub const FLOOR: Cell = Cell {
+    type_: CellType::Floor,
     glyph: Glyph::Floor,
     feature: None,
 };
 
-pub const AIR: Tile = Tile {
-    type_: TileType::Air,
+pub const AIR: Cell = Cell {
+    type_: CellType::Air,
     glyph: Glyph::None,
     feature: None,
 };

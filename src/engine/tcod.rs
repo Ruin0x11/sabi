@@ -55,7 +55,7 @@ impl TcodCanvas {
         root.set_default_background(color);
 
         TcodCanvas {
-            logger: log::make_logger("graphics").unwrap(),
+            logger: log::make_logger("graphics"),
             root: root,
             wants_close: false,
 

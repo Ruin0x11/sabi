@@ -2,6 +2,8 @@ use std::cell::RefCell;
 use std::collections::{HashSet, hash_set};
 use std::fmt::{self, Display};
 use std::f32;
+use world::traits::TerrainQuery;
+use world::Terrain;
 
 use point::*;
 
@@ -171,7 +173,7 @@ impl Light {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Represents a set of points that are visible.
 pub struct FieldOfView {
     visible: HashSet<Point>,
@@ -186,10 +188,14 @@ impl FieldOfView {
 
     /// Updates this field of view using the Precise Permissive Field of View
     /// algorithm.
-    pub fn update<F, G>(&mut self, center: &Point, radius: i32, in_bounds: F, blocked: G)
-        where F: Fn(&Point) -> bool,
-              G: Fn(&Point) -> bool {
+    pub fn update(&mut self, terrain: &Terrain, center: &Point, radius: i32) {
+        self.clear();
+
         self.visible.insert(center.clone());
+
+        let in_bounds = |pos: &Point| terrain.pos_valid(pos);
+        let blocked   = |pos: &Point| !terrain.cell(pos)
+                     .map_or(false, |c| c.can_pass_through());
 
         let mut quadrant = |dx, dy| {
             let mut light = Light::new(radius);
@@ -254,10 +260,11 @@ impl FieldOfView {
     }
 }
 
+#[cfg(never)]
 #[cfg(test)]
 mod tests {
     use super::*;
-    use testbed::make_grid_from_str;
+    use util::make_grid_from_str;
     use std::cell::RefCell;
     use std::iter::FromIterator;
 

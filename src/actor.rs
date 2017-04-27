@@ -1,9 +1,6 @@
 use std::cell::RefCell;
-use std::cmp;
 use std::fmt::{self, Display};
 
-use ai::{self, AiState};
-use action::Action;
 use direction::Direction;
 use glyph::Glyph;
 use log;
@@ -19,17 +16,7 @@ use stats::properties::Properties;
 
 const FOV_RADIUS: i32 = 10;
 
-lazy_static! {
-    static ref ACTOR_LOG: Logger = log::make_logger("actor").unwrap();
-}
-
 pub type ActorId = Uuid;
-
-#[derive(Eq, PartialEq)]
-pub enum Disposition {
-    Friendly,
-    Enemy,
-}
 
 pub struct Actor {
     // TEMP: The player can name things, names can have pre/suffixes, creatures
@@ -53,7 +40,6 @@ pub struct Actor {
     pub logger: Logger,
     pub stats: Stats,
     pub properties: Properties,
-    pub ai: AiState,
 
     fov: RefCell<FieldOfView>,
 }
@@ -68,12 +54,14 @@ impl Actor {
     // TODO: Should never be used. Use archetypes instead.
     pub fn new(x: i32, y: i32, glyph: Glyph) -> Self {
         let id = Uuid::new_v4();
+        let name = namegen::gen();
+        let logger = Actor::get_actor_log(&name, &id);
         Actor {
             // TEMP: Things that can be looked up in a hashmap.
             glyph: glyph,
 
             // TEMP: Things generated at creation.
-            name: namegen::gen(),
+            name: name,
             hit_points: 100,
             speed: 100,
 
@@ -81,12 +69,10 @@ impl Actor {
             properties: Properties::new(),
             disposition: Disposition::Enemy,
 
-            ai: AiState::new(),
-
             // Things needing instantiation.
             x: x,
             y: y,
-            logger: Actor::get_actor_log(&id),
+            logger: logger,
             uuid: id,
             fov: RefCell::new(FieldOfView::new()),
         }
@@ -95,10 +81,12 @@ impl Actor {
     pub fn from_archetype(x: i32, y: i32, archetype_name: &str) -> Self {
         let id = Uuid::new_v4();
         let archetype = archetype::load(archetype_name);
+        let name = namegen::gen();
+        let logger = Actor::get_actor_log(&name, &id);
         Actor {
             glyph: archetype.glyph,
 
-            name: namegen::gen(),
+            name: name,
             hit_points: archetype.stats.max_hp() as i32,
             speed: 100,
 
@@ -106,11 +94,9 @@ impl Actor {
             properties: archetype.properties,
             disposition: Disposition::Enemy,
 
-            ai: AiState::new(),
-
             x: x,
             y: y,
-            logger: Actor::get_actor_log(&id),
+            logger: logger,
             uuid: id,
             fov: RefCell::new(FieldOfView::new()),
         }
@@ -128,8 +114,8 @@ impl Actor {
         ids
     }
 
-    fn get_actor_log(id: &ActorId) -> Logger {
-        ACTOR_LOG.new(o!("id" => format!("{:.8}...", id.to_string())))
+    fn get_actor_log(name: &String, id: &ActorId) -> Logger {
+        ACTOR_LOG.new(o!("name" => name.clone(), "id" => format!("{:.8}...", id.to_string())))
     }
 
     pub fn name(&self) -> String {
@@ -137,7 +123,7 @@ impl Actor {
     }
 
     pub fn move_in_direction(&mut self, dir: Direction, world: &mut World) {
-        let pos = Direction::add_offset(self.get_pos(), dir);
+        let pos = self.get_pos() + dir;
 
         self.move_to(pos, world);
     }
