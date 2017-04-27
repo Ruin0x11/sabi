@@ -307,7 +307,6 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
 
         let entities = self.frozen_in_chunk(index);
         for e in entities {
-            println!("Unfreeze! {:?}", e);
             self.spatial.unfreeze(e);
             self.turn_order.resume(e);
         }
@@ -492,7 +491,7 @@ mod tests {
 
         assert!(context.state.world.entities_in_chunk(&mob_chunk).contains(&mob));
 
-        state::run_action(&mut context, Action::TeleportUnchecked(WorldPosition::new(1023, 1023)));
+        state::run_action_only(&mut context, Action::TeleportUnchecked(WorldPosition::new(1023, 1023)));
 
         assert_eq!(
             context.state.world.frozen_in_chunk(&ChunkIndex::new(0, 0)),
@@ -503,7 +502,7 @@ mod tests {
             Some(Place::Unloaded(mob_pos))
         );
 
-        state::run_action(&mut context, Action::TeleportUnchecked(WorldPosition::new(0, 0)));
+        state::run_action_only(&mut context, Action::TeleportUnchecked(WorldPosition::new(0, 0)));
 
         assert_eq!(
             context.state.world.position(mob),

@@ -32,7 +32,7 @@ impl GameState {
 
     pub fn player_action(&mut self, action: Action) {
         if let Some(player) = self.world.player() {
-            logic::run_action(&mut self.world, player, action);
+            process_action(&mut self.world, player, action);
         }
     }
 }
@@ -116,6 +116,15 @@ fn render_world(world: &mut EcsWorld) {
     // draw_overlays(world);
 }
 
+fn process_action(world: &mut EcsWorld, entity: Entity, action: Action) {
+    logic::run_action(world, entity, action);
+
+    if world.is_alive(entity) {
+        let delay = stats::formulas::calculate_delay(world, &entity, 100);
+        world.add_delay_for(&entity, delay);
+    }
+}
+
 fn process_actors(world: &mut EcsWorld) {
     while let Some(entity) = world.next_entity() {
         if !world.is_alive(entity) {
@@ -185,15 +194,6 @@ fn update_camera(world: &mut EcsWorld) {
     }
 }
 
-fn process_action(world: &mut EcsWorld, entity: Entity, action: Action) {
-    logic::run_action(world, entity, action);
-
-    if world.is_alive(entity) {
-        let delay = stats::formulas::calculate_delay(world, &entity, 100);
-        world.add_delay_for(&entity, delay);
-    }
-}
-
 pub fn run_command(context: &mut GameContext, command: Command) {
     process_player_command(context, command);
     run_action_queue(context);
@@ -204,6 +204,11 @@ pub fn run_action(context: &mut GameContext, action: Action) {
     context.state.player_action(action);
     run_action_queue(context);
     process(context);
+}
+
+pub fn run_action_only(context: &mut GameContext, action: Action) {
+    context.state.player_action(action);
+    run_action_queue(context);
 }
 
 pub fn run_action_on(context: &mut GameContext, entity: Entity, action: Action) {
@@ -241,5 +246,4 @@ pub fn game_step(context: &mut GameContext) {
         canvas::close_window();
         return;
     }
-    ;
 }

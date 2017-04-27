@@ -4,6 +4,7 @@ use std::cmp;
 
 use calx_ecs::Entity;
 
+// NOTE: This could be implemented with priority queues, but whatever.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TurnOrder {
     times_until_turn: BTreeMap<Entity, i32>,

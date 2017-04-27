@@ -1,7 +1,7 @@
 use std::fmt;
 
 use serde::de::{self, Deserialize, Deserializer, Visitor};
-use serde::ser::{Serialize, Serializer, SerializeStruct};
+use serde::ser::{Serialize, Serializer};
 
 use slog::Logger;
 
