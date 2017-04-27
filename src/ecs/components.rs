@@ -48,6 +48,10 @@ impl Health {
         self.hit_points -= amount as i32;
     }
 
+    pub fn kill(&mut self) {
+        self.hit_points = 0;
+    }
+
     pub fn is_dead(&self) -> bool {
         self.hit_points <= 0
     }

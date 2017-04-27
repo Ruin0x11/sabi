@@ -177,7 +177,7 @@ pub trait Mutate: Query + Sized {
         self.spawn(&prefab.loadout, pos)
     }
 
-    fn run_action(&mut self, entity: Entity, action: Action);
+    fn kill(&mut self, entity: Entity);
 
     /// Marks entities as dead based on health. Does not remove the entities
     /// from the system.

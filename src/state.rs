@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 
+use calx_ecs::Entity;
 use infinigen::ChunkedWorld;
 
 use ::GameContext;
@@ -116,35 +117,30 @@ fn render_world(world: &mut EcsWorld) {
 }
 
 fn process_actors(world: &mut EcsWorld) {
-    while let Some(id) = world.next_entity() {
-        if !world.is_alive(id) {
+    while let Some(entity) = world.next_entity() {
+        if !world.is_alive(entity) {
             panic!("Killed actor remained in turn order!");
         }
 
-        let leftover_ticks = world.turn_order().get_time_for(&id);
+        let leftover_ticks = world.turn_order().get_time_for(&entity);
         if leftover_ticks > 0 {
             world.advance_time(leftover_ticks);
         }
 
-        if world.is_player(id) {
+        if world.is_player(entity) {
             break
         }
 
-        if !world.ecs().ais.has(id) {
-            if world.turn_order().contains(id) {
+        if !world.ecs().ais.has(entity) {
+            if world.turn_order().contains(entity) {
                 panic!("Entity without ai in turn order!");
             }
             continue;
         }
 
-        let action = ai::run(id, world);
+        let action = ai::run(entity, world);
 
-        logic::run_action(world, id, action);
-
-        if world.is_alive(id) {
-            let delay = stats::formulas::calculate_delay(world, &id, 100);
-            world.add_delay_for(&id, delay);
-        }
+        process_action(world, entity, action);
 
         process_events(world);
     }
@@ -189,6 +185,15 @@ fn update_camera(world: &mut EcsWorld) {
     }
 }
 
+fn process_action(world: &mut EcsWorld, entity: Entity, action: Action) {
+    logic::run_action(world, entity, action);
+
+    if world.is_alive(entity) {
+        let delay = stats::formulas::calculate_delay(world, &entity, 100);
+        world.add_delay_for(&entity, delay);
+    }
+}
+
 pub fn run_command(context: &mut GameContext, command: Command) {
     process_player_command(context, command);
     run_action_queue(context);
@@ -199,6 +204,10 @@ pub fn run_action(context: &mut GameContext, action: Action) {
     context.state.player_action(action);
     run_action_queue(context);
     process(context);
+}
+
+pub fn run_action_on(context: &mut GameContext, entity: Entity, action: Action) {
+    process_action(&mut context.state.world, entity, action);
 }
 
 // TEMP: Just to bootstrap things dirtily.
@@ -216,6 +225,11 @@ pub fn render(context: &mut GameContext) {
     canvas::present();
 }
 
+pub fn init(context: &mut GameContext) {
+    update_world_terrain(&mut context.state.world);
+    render(context);
+}
+
 pub fn game_step(context: &mut GameContext) {
     if let Some(command) = get_player_command(context) {
         run_command(context, command);
@@ -227,5 +241,5 @@ pub fn game_step(context: &mut GameContext) {
         canvas::close_window();
         return;
     }
-;
+    ;
 }

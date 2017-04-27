@@ -107,8 +107,7 @@ impl Query for EcsWorld {
     }
 
     fn is_alive(&self, e: Entity) -> bool {
-        self.is_active(e)
-            && self.ecs().healths.map_or(false, |h| h.hit_points > 0, e)
+        self.ecs().healths.map_or(false, |h| h.hit_points > 0, e)
     }
 
     fn is_active(&self, e: Entity) -> bool {
@@ -124,7 +123,6 @@ impl Query for EcsWorld {
                 }
             }
         }
-        debug!(self.logger, "In {:?}", result);
         result
     }
 
@@ -137,7 +135,6 @@ impl Query for EcsWorld {
                 }
             }
         }
-        debug!(self.logger,"Froz {:?}", result);
         result
     }
 
@@ -227,8 +224,8 @@ impl Mutate for EcsWorld {
         entity
     }
 
-    fn run_action(&mut self, entity: Entity, action: Action) {
-        logic::run_action(self, entity, action);
+    fn kill(&mut self, entity: Entity) {
+        self.ecs_mut().healths.map_mut(|h| h.kill(), entity);
     }
 
     fn advance_time(&mut self, ticks: i32) {
@@ -310,6 +307,7 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
 
         let entities = self.frozen_in_chunk(index);
         for e in entities {
+            println!("Unfreeze! {:?}", e);
             self.spatial.unfreeze(e);
             self.turn_order.resume(e);
         }
@@ -327,7 +325,6 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
                 continue;
             }
 
-            println!("Freezing! {:?}", e);
             self.spatial.freeze(e);
             self.turn_order.pause(e);
         }
@@ -339,7 +336,15 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
     }
 
     fn generate_chunk(&mut self, index: &ChunkIndex) -> SerialResult<()> {
-        self.terrain.insert_chunk(index.clone(), Chunk::gen_perlin(index, self.flags.seed));
+        self.terrain.insert_chunk(index.clone(),
+                                  Chunk::gen_perlin(index, self.flags.seed));
+
+        let chunk_pos = ChunkPosition::from(Point::new(0, 0));
+        let cell_pos = Chunk::world_position_at(&index, &chunk_pos);
+        if self.can_walk(cell_pos, Walkability::MonstersBlocking) {
+            self.create(::ecs::prefab::mob("Putit", 10, ::glyph::Glyph::Putit),
+                        cell_pos);
+        }
 
         Ok(())
     }
@@ -407,41 +412,107 @@ mod tests {
     fn test_persistence() {
         let mut context = test_context_bounded(64, 64);
 
-        let e = {
+        let mob = {
             let world_mut = &mut context.state.world;
-
             place_mob(world_mut, WorldPosition::new(1, 1))
         };
 
         let world = &context.state.world;
 
         assert_eq!(is_persistent(world, world.player().unwrap()), true);
-        assert_eq!(is_persistent(world, e), false);
+        assert_eq!(is_persistent(world, mob), false);
+    }
+
+
+    #[test]
+    fn test_alive_active() {
+        let mut context = test_context_bounded(64, 64);
+        let mob_pos = WorldPosition::new(1, 1);
+        let mob_chunk = ChunkIndex::from_world_pos(mob_pos);
+
+        let mob = {
+            let world_mut = &mut context.state.world;
+            place_mob(world_mut, mob_pos)
+        };
+
+        {
+            let world = &context.state.world;
+            assert_eq!(world.is_alive(mob), true);
+            assert_eq!(world.is_active(mob), true);
+            assert_eq!(world.ecs().contains(mob), true);
+        }
+
+        context.state.world.unload_chunk(&mob_chunk).unwrap();
+
+        {
+            let world = &context.state.world;
+            assert_eq!(world.is_alive(mob), true);
+            assert_eq!(world.is_active(mob), false);
+            assert_eq!(world.ecs().contains(mob), true);
+        }
+
+        context.state.world.load_chunk(&mob_chunk).unwrap();
+        context.state.world.kill(mob);
+
+        {
+            let world = &context.state.world;
+            assert_eq!(world.is_alive(mob), false);
+            assert_eq!(world.is_active(mob), true);
+            assert_eq!(world.ecs().contains(mob), true);
+        }
+
+        context.state.world.update_killed();
+
+        {
+            let world = &context.state.world;
+            assert_eq!(world.is_alive(mob), false);
+            assert_eq!(world.is_active(mob), false);
+            assert_eq!(world.ecs().contains(mob), true);
+        }
+
+        context.state.world.purge_dead();
+
+        {
+            let world = &context.state.world;
+            assert_eq!(world.is_alive(mob), false);
+            assert_eq!(world.is_active(mob), false);
+            assert_eq!(world.ecs().contains(mob), false);
+        }
     }
 
     #[test]
     fn test_frozen() {
         let mut context = test_context_bounded(1024, 1024);
-        let e = {
+        let mob_pos = WorldPosition::new(1, 1);
+        let mob_chunk = ChunkIndex::from_world_pos(mob_pos);
+        let mob = {
             let mut world = &mut context.state.world;
-
-            place_mob(&mut world, WorldPosition::new(1, 1))
+            place_mob(&mut world, mob_pos)
         };
 
-        assert!(context.state.world.entities_in_chunk(&ChunkIndex::new(0, 0)).contains(&e));
+        assert!(context.state.world.entities_in_chunk(&mob_chunk).contains(&mob));
 
         state::run_action(&mut context, Action::TeleportUnchecked(WorldPosition::new(1023, 1023)));
 
-        {
-            let world = &context.state.world;
-
-            for e in world.entities() {
-                println!("{:?}", world.spatial.get(*e));
-            }
-        }
-
-        assert_eq!(context.state.world.frozen_in_chunk(&ChunkIndex::new(0, 0)), vec![e]);
+        assert_eq!(
+            context.state.world.frozen_in_chunk(&ChunkIndex::new(0, 0)),
+            vec![mob]
+        );
+        assert_eq!(
+            context.state.world.spatial.get(mob),
+            Some(Place::Unloaded(mob_pos))
+        );
 
         state::run_action(&mut context, Action::TeleportUnchecked(WorldPosition::new(0, 0)));
+
+        assert_eq!(
+            context.state.world.position(mob),
+            Some(mob_pos)
+        );
+        assert_eq!(
+            context.state.world.spatial.get(mob),
+            Some(Place::At(mob_pos))
+        );
+        assert!(context.state.world.entities_in_chunk(&mob_chunk).contains(&mob));
     }
 }

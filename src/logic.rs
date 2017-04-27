@@ -2,7 +2,7 @@ use calx_ecs::Entity;
 use action::Action;
 use direction::Direction;
 use stats;
-use world::traits::{ComponentMutate, Mutate, WorldQuery, Query};
+use world::traits::*;
 use world::{EcsWorld, WorldPosition};
 use data::Walkability;
 
@@ -80,11 +80,11 @@ fn try_teleport(world: &mut EcsWorld, entity: Entity, pos: WorldPosition) {
 // TODO: Return result.
 fn run_entity_action(world: &mut EcsWorld, entity: Entity, action: Action) {
     match action {
-        Action::MoveOrAttack(dir) => move_or_attack(world, entity, dir),
-        Action::Move(dir) => { world.move_entity(entity, dir); },
-        Action::Teleport(pos) => try_teleport(world, entity, pos),
+        Action::MoveOrAttack(dir)      => move_or_attack(world, entity, dir),
+        Action::Move(dir)              => { world.move_entity(entity, dir); },
+        Action::Teleport(pos)          => try_teleport(world, entity, pos),
         Action::TeleportUnchecked(pos) => world.set_entity_location(entity, pos),
-        Action::SwingAt(target) => swing_at(world, entity, target),
+        Action::SwingAt(target)        => swing_at(world, entity, target),
         _ => (),
     }
 }

@@ -98,6 +98,8 @@ fn game_loop(mut ctxt: &mut GameContext) {
     let e = ctxt.state.world.create(::ecs::prefab::mob("Player", 100000, ::glyph::Glyph::Player), Point::new(1,1));
     ctxt.state.world.set_player(Some(e));
 
+    state::init(ctxt);
+
     while !canvas::window_closed() {
         state::game_step(ctxt);
     }
