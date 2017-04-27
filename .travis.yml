@@ -39,7 +39,7 @@ after_success:
   - travis-cargo --only stable doc-upload
   # doesn't work and no updates to travis-cargo in half a year, so:
   # - travis-cargo coveralls --no-sudo --verify
-  kcov --coveralls-id=$TRAVIS_JOB_ID --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/sabi
+  - kcov --coveralls-id=$TRAVIS_JOB_ID --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/sabi
 
 env:
   global:
