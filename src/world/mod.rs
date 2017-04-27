@@ -129,6 +129,7 @@ impl Query for EcsWorld {
     fn frozen_in_chunk(&self, index: &ChunkIndex) -> Vec<Entity> {
         let mut result = Vec::new();
         for (e, p) in self.spatial.iter() {
+            println!("{:?} {:?}", e, p);
             if let Place::Unloaded(pos) = *p {
                 if ChunkIndex::from_world_pos(pos) == *index {
                     result.push(e.clone());
@@ -179,7 +180,7 @@ impl Mutate for EcsWorld {
     fn kill_entity(&mut self, e: Entity) {
         debug_ecs!(self, e, "Removing {:?} from turn order", e);
         self.spatial.remove(e);
-        self.turn_order.remove(&e)
+        self.turn_order.remove(e).unwrap();
     }
 
     fn ecs_mut<'a>(&'a mut self) -> &'a mut Ecs { &mut self.ecs_ }
@@ -234,11 +235,11 @@ impl Mutate for EcsWorld {
             .filter(|&&e| self.is_active(e) && self.ecs().turns.get(e).is_some())
             .cloned().collect();
         for id in ids {
-            self.turn_order.advance_time_for(&id, ticks);
+            self.turn_order.advance_time_for(id, ticks);
         }
     }
 
-    fn add_delay_for(&mut self, id: &Entity, amount: i32) {
+    fn add_delay_for(&mut self, id: Entity, amount: i32) {
         self.turn_order.add_delay_for(id, amount);
     }
 }
@@ -491,7 +492,7 @@ mod tests {
 
         assert!(context.state.world.entities_in_chunk(&mob_chunk).contains(&mob));
 
-        state::run_action_only(&mut context, Action::TeleportUnchecked(WorldPosition::new(1023, 1023)));
+        state::run_action_no_ai(&mut context, Action::TeleportUnchecked(WorldPosition::new(1023, 1023)));
 
         assert_eq!(
             context.state.world.frozen_in_chunk(&ChunkIndex::new(0, 0)),
@@ -502,7 +503,7 @@ mod tests {
             Some(Place::Unloaded(mob_pos))
         );
 
-        state::run_action_only(&mut context, Action::TeleportUnchecked(WorldPosition::new(0, 0)));
+        state::run_action_no_ai(&mut context, Action::TeleportUnchecked(WorldPosition::new(0, 0)));
 
         assert_eq!(
             context.state.world.position(mob),

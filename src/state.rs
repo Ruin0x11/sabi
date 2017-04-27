@@ -121,7 +121,7 @@ fn process_action(world: &mut EcsWorld, entity: Entity, action: Action) {
 
     if world.is_alive(entity) {
         let delay = stats::formulas::calculate_delay(world, &entity, 100);
-        world.add_delay_for(&entity, delay);
+        world.add_delay_for(entity, delay);
     }
 }
 
@@ -131,7 +131,7 @@ fn process_actors(world: &mut EcsWorld) {
             panic!("Killed actor remained in turn order!");
         }
 
-        let leftover_ticks = world.turn_order().get_time_for(&entity);
+        let leftover_ticks = world.turn_order().get_time_for(entity).unwrap();
         if leftover_ticks > 0 {
             world.advance_time(leftover_ticks);
         }
@@ -206,9 +206,12 @@ pub fn run_action(context: &mut GameContext, action: Action) {
     process(context);
 }
 
-pub fn run_action_only(context: &mut GameContext, action: Action) {
+/// Treats all actors as frozen and only updates the world/chunk loading.
+pub fn run_action_no_ai(context: &mut GameContext, action: Action) {
     context.state.player_action(action);
     run_action_queue(context);
+
+    update_world_terrain(&mut context.state.world);
 }
 
 pub fn run_action_on(context: &mut GameContext, entity: Entity, action: Action) {

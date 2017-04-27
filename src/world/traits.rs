@@ -204,7 +204,7 @@ pub trait Mutate: Query + Sized {
 
     fn advance_time(&mut self, ticks: i32);
 
-    fn add_delay_for(&mut self, id: &Entity, amount: i32);
+    fn add_delay_for(&mut self, id: Entity, amount: i32);
 
     // Drop in a predefined room.
     // fn create_terrain_prefab()

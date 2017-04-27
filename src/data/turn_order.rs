@@ -4,145 +4,256 @@ use std::cmp;
 
 use calx_ecs::Entity;
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum TurnOrderError {
+    NoSuchEntity,
+    EntityPaused,
+    EntityActive,
+    AlreadyExists,
+}
+
+use self::TurnOrderError::*;
+
+pub type TurnOrderResult<T> = Result<T, TurnOrderError>;
+
 // NOTE: This could be implemented with priority queues, but whatever.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TurnOrder {
-    times_until_turn: BTreeMap<Entity, i32>,
+    active: BTreeMap<Entity, i32>,
     paused: BTreeMap<Entity, i32>,
 }
 
 impl TurnOrder {
     pub fn new() -> Self {
         TurnOrder {
-            times_until_turn: BTreeMap::new(),
+            active: BTreeMap::new(),
             paused: BTreeMap::new(),
         }
     }
 
-    pub fn pause(&mut self, id: Entity) {
-        assert!(self.times_until_turn.contains_key(&id),
-                "Tried pausing actor not in turn order map");
-        let time = self.times_until_turn.remove(&id).unwrap();
+    pub fn pause(&mut self, id: Entity) -> TurnOrderResult<()> {
+        if self.paused.contains_key(&id) {
+            return Err(EntityPaused)
+        }
+        if !self.active.contains_key(&id) {
+            return Err(NoSuchEntity);
+        }
+        let time = self.active.remove(&id).unwrap();
         self.paused.insert(id, time);
+        Ok(())
     }
 
-    pub fn resume(&mut self, id: Entity) {
-        assert!(self.paused.contains_key(&id),
-                "Tried resuming actor that wasn't paused");
+    pub fn resume(&mut self, id: Entity) -> TurnOrderResult<()> {
+        if self.active.contains_key(&id) {
+            return Err(EntityActive)
+        }
+        if !self.paused.contains_key(&id) {
+            return Err(NoSuchEntity)
+        }
+
         let time = self.paused.remove(&id).unwrap();
-        self.times_until_turn.insert(id, time);
+        self.active.insert(id, time);
+        Ok(())
+    }
+
+    pub fn paused_contains(&self, id: Entity) -> bool {
+        self.paused.contains_key(&id)
     }
 
     pub fn contains(&self, id: Entity) -> bool {
-        self.times_until_turn.contains_key(&id)
+        self.active.contains_key(&id)
     }
 
-    pub fn insert(&mut self, id: Entity, time: i32) {
-        assert!(!self.times_until_turn.contains_key(&id),
-                "Entity already exists in turn order!");
-        self.times_until_turn.insert(id, time);
-    }
-
-    pub fn remove(&mut self, id: &Entity) {
-        let res = self.times_until_turn.remove(id);
-        if let None = res {
-            //warn!("Tried removing actor not in turn order map");
+    pub fn insert(&mut self, id: Entity, time: i32) -> TurnOrderResult<()> {
+        if self.paused.contains_key(&id) || self.active.contains_key(&id) {
+            return Err(AlreadyExists)
         }
+
+        self.active.insert(id, time);
+        Ok(())
     }
 
-    pub fn advance_time_for(&mut self, id: &Entity, diff: i32) {
-        let time_until_turn = self.times_until_turn.get_mut(id)
-            .expect("Tried advancing time of actor not in turn order");
+    pub fn remove(&mut self, id: Entity) -> TurnOrderResult<()> {
+        let res = self.active.remove(&id);
+        if let None = res {
+            let res = self.paused.remove(&id);
+            if let None = res {
+                return Err(NoSuchEntity);
+            }
+        }
+        Ok(())
+    }
+
+    pub fn advance_time_for(&mut self, id: Entity, diff: i32) -> TurnOrderResult<()> {
+        if self.paused_contains(id) {
+            return Err(EntityPaused);
+        }
+
+        let time_until_turn = match self.active.get_mut(&id) {
+            Some(time) => time,
+            None       => return Err(NoSuchEntity)
+        };
+
         *time_until_turn -= diff;
+        Ok(())
     }
 
-    pub fn add_delay_for(&mut self, id: &Entity, diff: i32) {
-        let time_until_turn = self.times_until_turn.get_mut(id)
-            .expect("Tried delaying time of actor not in turn order");
+    pub fn add_delay_for(&mut self, id: Entity, diff: i32) -> TurnOrderResult<()> {
+        if self.paused_contains(id) {
+            return Err(EntityPaused);
+        }
+
+        let time_until_turn = match self.active.get_mut(&id) {
+            Some(time) => time,
+            None       => return Err(NoSuchEntity)
+        };
+
         *time_until_turn = cmp::max(0, *time_until_turn);
         *time_until_turn += diff;
+        Ok(())
     }
 
-    pub fn get_time_for(&self, id: &Entity) -> i32 {
-        *self.times_until_turn.get(id)
-            .expect("Actor not in turn order map")
+    pub fn get_time_for(&self, id: Entity) -> TurnOrderResult<i32> {
+        if self.paused_contains(id) {
+            return Err(EntityPaused);
+        }
+
+        match self.active.get(&id) {
+            Some(time) => Ok(*time),
+            None       => Err(NoSuchEntity)
+        }
     }
 }
 
 impl Iterator for TurnOrder {
     type Item = Entity;
     fn next(&mut self) -> Option<Entity> {
-        if self.times_until_turn.len() == 0 {
+        if self.active.len() == 0 {
             return None;
         }
 
-        self.times_until_turn.iter()
+        self.active.iter()
             .min_by_key(|a| a.1)
             .map(|(a, _)| *a)
     }
 }
 
-#[cfg(never)]
 #[cfg(test)]
 mod tests {
     use super::*;
-    use world::*;
-    use tile;
-    use point::Point;
-
-    fn get_world<'a>() -> World {
-        let mut world = World::generate(WorldType::Instanced(WorldPosition::new(32, 32)),
-                            16, tile::WALL);
-        world.draw_square(WorldPosition::new(15, 15), 10, tile::FLOOR);
-        world
-    }
+    use test::get_ecs;
 
     #[test]
     fn test_single_id() {
+        let mut ecs = get_ecs();
         let mut turn_order = TurnOrder::new();
-        let actor = Entity::new_v4();
-        turn_order.add_actor(actor, 0);
+        let entity = ecs.make();
+        turn_order.insert(entity, 0);
 
-        assert_eq!(turn_order.next().unwrap(), actor);
+        assert_eq!(turn_order.next(), Some(entity));
 
-        turn_order.add_delay_for(&actor, 100);
+        turn_order.add_delay_for(entity, 100);
 
-        assert_eq!(turn_order.next().unwrap(), actor);
+        assert_eq!(turn_order.next(), Some(entity));
     }
 
     #[test]
     fn test_two_ids() {
+        let mut ecs = get_ecs();
         let mut turn_order = TurnOrder::new();
-        let actor_a = Entity::new_v4();
-        let actor_b = Entity::new_v4();
-        turn_order.add_actor(actor_a, 0);
-        turn_order.add_actor(actor_b, 10);
 
-        assert_eq!(turn_order.next().unwrap(), actor_a);
+        let first_entity = ecs.make();
+        let second_entity = ecs.make();
+        turn_order.insert(first_entity, 0);
+        turn_order.insert(second_entity, 10);
 
-        turn_order.add_delay_for(&actor_a, 100);
-        assert_eq!(turn_order.next().unwrap(), actor_b);
+        assert_eq!(turn_order.next(), Some(first_entity));
 
-        turn_order.add_delay_for(&actor_b, 100);
-        assert_eq!(turn_order.next().unwrap(), actor_a);
+        turn_order.add_delay_for(first_entity, 100);
+        assert_eq!(turn_order.next(), Some(second_entity));
 
-        turn_order.advance_time_for(&actor_b, 100);
-        assert_eq!(turn_order.next().unwrap(), actor_b);
+        turn_order.add_delay_for(second_entity, 100);
+        assert_eq!(turn_order.next(), Some(first_entity));
+
+        turn_order.advance_time_for(second_entity, 100);
+        assert_eq!(turn_order.next(), Some(second_entity));
     }
-
-    use actor::*;
-    use glyph::Glyph;
 
     #[test]
-    fn test_two_actors() {
-        let mut world = get_world();
+    fn test_pause_resume() {
+        let mut ecs = get_ecs();
+        let mut turn_order = TurnOrder::new();
 
-        let mut player = Actor::new(6, 6, Glyph::Player);
-        player.speed = 300;
+        let fast = ecs.make();
+        let slow = ecs.make();
+        turn_order.insert(fast, 1);
+        turn_order.insert(slow, 10000);
 
-        let mut other = Actor::new(10, 10, Glyph::Player);
-        other.speed = 100;
-        world.actors.add(other);
-        world.draw_square(Point::new(15, 15), 10, tile::FLOOR);
+        assert_eq!(turn_order.next(), Some(fast));
+
+        turn_order.pause(fast);
+        assert_eq!(turn_order.next(), Some(slow));
+        assert_eq!(turn_order.get_time_for(fast), Err(EntityPaused));
+        assert_eq!(turn_order.add_delay_for(fast, 100), Err(EntityPaused));
+
+        turn_order.resume(fast);
+        assert_eq!(turn_order.next(), Some(fast));
+        assert_eq!(turn_order.get_time_for(fast), Ok(1));
+        assert_eq!(turn_order.add_delay_for(fast, 100), Ok(()));
     }
+
+    #[test]
+    fn test_insert() {
+        let mut ecs = get_ecs();
+        let mut turn_order = TurnOrder::new();
+
+        let entity = ecs.make();
+
+        assert_eq!(turn_order.insert(entity, 1), Ok(()));
+        assert_eq!(turn_order.insert(entity, 100), Err(AlreadyExists));
+
+        turn_order.pause(entity);
+        assert_eq!(turn_order.insert(entity, 100), Err(AlreadyExists));
+    }
+
+    #[test]
+    fn test_remove() {
+        let mut ecs = get_ecs();
+        let mut turn_order = TurnOrder::new();
+
+        let entity = ecs.make();
+        turn_order.insert(entity, 1);
+
+        assert_eq!(turn_order.remove(entity), Ok(()));
+        assert_eq!(turn_order.remove(entity), Err(NoSuchEntity));
+
+        turn_order.insert(entity, 1);
+        turn_order.pause(entity);
+        assert_eq!(turn_order.remove(entity), Ok(()));
+        assert_eq!(turn_order.remove(entity), Err(NoSuchEntity));
+    }
+
+    #[test]
+    fn test_pause_resume_twice() {
+        let mut ecs = get_ecs();
+        let mut turn_order = TurnOrder::new();
+
+        let fast = ecs.make();
+        let slow = ecs.make();
+
+        assert_eq!(turn_order.pause(fast), Err(NoSuchEntity));
+        assert_eq!(turn_order.resume(fast), Err(NoSuchEntity));
+
+        turn_order.insert(fast, 1);
+        turn_order.insert(slow, 10000);
+
+        assert_eq!(turn_order.resume(fast), Err(EntityActive));
+
+        assert_eq!(turn_order.pause(fast), Ok(()));
+        assert_eq!(turn_order.pause(fast), Err(EntityPaused));
+
+        assert_eq!(turn_order.resume(fast), Ok(()));
+        assert_eq!(turn_order.resume(fast), Err(EntityActive));
+    }
+
 }
