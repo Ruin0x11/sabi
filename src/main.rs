@@ -6,6 +6,7 @@
 #[macro_use] extern crate serde_derive;
 #[macro_use] extern crate slog;
 extern crate backtrace;
+extern crate bincode;
 extern crate chrono;
 extern crate goap;
 extern crate infinigen;
@@ -52,9 +53,12 @@ mod ui;
 mod util;
 mod world;
 
+#[cfg(test)]
+mod test;
+
 use slog::Logger;
 
-use ecs::Mutate;
+use world::traits::Mutate;
 use engine::canvas;
 use point::Point;
 use state::GameState;
@@ -62,6 +66,15 @@ use state::GameState;
 pub struct GameContext {
     logger: Logger,
     state: GameState,
+}
+
+impl GameContext {
+    pub fn new() -> Self {
+        GameContext {
+            logger: log::make_logger("main"),
+            state: GameState::new(),
+        }
+    }
 }
 
 fn main() {
@@ -72,17 +85,10 @@ fn init() {
     log::init_panic_hook();
 }
 
-pub fn get_context() -> GameContext {
-    GameContext {
-        logger: log::make_logger("main"),
-        state: GameState::new(),
-    }
-}
-
 pub fn run() {
     init();
     // setup();
-    let mut context = get_context();
+    let mut context = GameContext::new();
     game_loop(&mut context);
     // info!(context.logger, "Exited cleanly.");
     println!("Done.");
@@ -93,6 +99,6 @@ fn game_loop(mut ctxt: &mut GameContext) {
     ctxt.state.world.set_player(Some(e));
 
     while !canvas::window_closed() {
-        state::process(ctxt);
+        state::game_step(ctxt);
     }
 }

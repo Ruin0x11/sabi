@@ -3,16 +3,15 @@ use std::slice;
 use calx_ecs::Entity;
 
 use action::Action;
-use direction::Direction;
-use ecs::*;
-use ecs::flags::Flags;
-use ecs::prefab::*;
+use cell::{Cell, CellFeature};
 use command::CommandResult;
 use data::{TurnOrder, Walkability};
-use cell::{Cell, CellFeature};
+use direction::Direction;
+use ecs::*;
+use ecs::prefab::*;
 use world::WorldPosition;
+use world::flags::Flags;
 
-use infinigen::SerialResult;
 use point::Point;
 use chunk::*;
 
@@ -103,6 +102,10 @@ pub trait Query {
 
     fn entities_at(&self, loc: Point) -> Vec<Entity>;
 
+    fn entities_in_chunk(&self, index: &ChunkIndex) -> Vec<Entity>;
+
+    fn frozen_in_chunk(&self, index: &ChunkIndex) -> Vec<Entity>;
+
     fn ecs<'a>(&'a self) -> &'a Ecs;
 
     fn flags<'a>(&'a self) -> &'a Flags;
@@ -111,7 +114,9 @@ pub trait Query {
 
     // FIXME: This is confusing. "Dead" has both the meaning of "not on map" and
     // "health is zero".
-    fn is_alive(&self, e: Entity) -> bool { self.position(e).is_some() }
+    fn is_alive(&self, e: Entity) -> bool;
+
+    fn is_active(&self, e: Entity) -> bool;
 
     fn can_see(&self, viewer: Entity, pos: WorldPosition) -> bool;
 

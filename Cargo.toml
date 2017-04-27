@@ -24,6 +24,7 @@ env_logger = "0.3"
 chrono = "0.3.0" # REMOVE?
 
 # Game data serialization
+bincode = "0.7.0"
 toml = "0.3.2"
 serde = "0.9.11"
 serde_derive = "0.9.11"

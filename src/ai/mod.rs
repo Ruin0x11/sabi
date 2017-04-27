@@ -8,7 +8,7 @@ use rand::{self, Rng, ThreadRng};
 
 use action::Action;
 use ai::sensors::{Sensor};
-use ecs::traits::{ComponentQuery, Query};
+use world::traits::{ComponentQuery, Query};
 use world::EcsWorld;
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -102,8 +102,8 @@ fn check_target(entity: Entity, world: &EcsWorld) {
     let ai = world.ecs().ais.get_or_err(entity);
 
     let mut target = ai.target.borrow_mut();
-    let dead = target.is_some() && !world.ecs().contains(target.unwrap());
-    if dead {
+    let dead = target.map_or(true, |t| world.position(t).is_none());
+    if target.is_some() && dead {
         *target = None;
     }
 }

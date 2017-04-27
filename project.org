@@ -5,6 +5,7 @@ let health = world.get(e, Health).health;
 let health = world.get_opt(e, Health).map_or(0, |h| h.health);
 #+END_SRC
 * Debt
+** TODO Rename point::iter structs to <XXX>Iter
 ** TODO Disambiguate "AiAction" and "Action"
 ** TODO Clean all imports
 ** TODO Make all warnings go away

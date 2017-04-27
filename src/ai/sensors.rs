@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use calx_ecs::Entity;
 
 use ai::{Ai, AiProp};
-use ecs::traits::Query;
+use world::traits::Query;
 use world::EcsWorld;
 
 pub struct Sensor {

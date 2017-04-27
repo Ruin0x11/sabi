@@ -1,13 +1,9 @@
 pub mod components;
-pub mod prefab;
-pub mod traits;
-pub mod flags;
 pub mod instantiate;
+pub mod prefab;
 
 use ai;
 use fov;
-
-pub use self::traits::*;
 
 Ecs! {
     healths: components::Health,

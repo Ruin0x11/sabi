@@ -2,8 +2,9 @@ use calx_ecs::Entity;
 use action::Action;
 use direction::Direction;
 use stats;
-use ecs::traits::{ComponentMutate, ComponentQuery, Mutate, Query};
-use world::EcsWorld;
+use world::traits::{ComponentMutate, Mutate, WorldQuery, Query};
+use world::{EcsWorld, WorldPosition};
+use data::Walkability;
 
 fn pre_tick(_world: &mut EcsWorld) {
 
@@ -34,8 +35,6 @@ fn post_tick_entity(world: &mut EcsWorld, entity: Entity) {
     world.update_killed();
 
     if world.is_alive(entity) {
-        let delay = stats::formulas::calculate_delay(world, &entity, 100);
-        world.add_delay_for(&entity, delay);
         world.after_entity_moved(entity);
     }
 }
@@ -72,10 +71,19 @@ fn swing_at(world: &mut EcsWorld, attacker: Entity, other: Entity) {
     world.ecs_mut().healths.map_mut(|h| h.hurt(damage), other);
 }
 
+fn try_teleport(world: &mut EcsWorld, entity: Entity, pos: WorldPosition) {
+    if world.can_walk(pos, Walkability::MonstersBlocking) {
+        world.set_entity_location(entity, pos);
+    }
+}
+
+// TODO: Return result.
 fn run_entity_action(world: &mut EcsWorld, entity: Entity, action: Action) {
     match action {
         Action::MoveOrAttack(dir) => move_or_attack(world, entity, dir),
         Action::Move(dir) => { world.move_entity(entity, dir); },
+        Action::Teleport(pos) => try_teleport(world, entity, pos),
+        Action::TeleportUnchecked(pos) => world.set_entity_location(entity, pos),
         Action::SwingAt(target) => swing_at(world, entity, target),
         _ => (),
     }

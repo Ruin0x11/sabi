@@ -84,7 +84,7 @@ pub struct SquareArea {
 impl SquareArea {
     pub fn new<P: Into<Point>>(center: P, radius: i32) -> Self {
         let center = center.into();
-        let half_side = radius - 1;
+        let half_side = radius;
         SquareArea {
             radius: radius,
             pos: center - (half_side, half_side),
@@ -98,13 +98,16 @@ impl Iterator for SquareArea {
     type Item = Point;
 
     fn next(&mut self) -> Option<Point> {
-        if self.radius == 0 {
-            return None
-        }
-
         if self.pos.y > self.max.y {
             return None
         }
+
+        if self.radius == 0 {
+            let res = self.pos.clone();
+            self.pos.y += 1;
+            return Some(res)
+        }
+
         let current_point = self.pos;
         self.pos.x += 1;
         if self.pos.x > self.max.x {
@@ -214,9 +217,28 @@ impl BorderArea {
 #[cfg(test)]
 mod test {
     use std::iter::FromIterator;
-    use std::f32::EPSILON;
     use point::Point;
     use super::*;
+
+    #[test]
+    fn test_rectangle() {
+        let actual: Vec<Point> = FromIterator::from_iter(RectangleArea::new((-1, -1), (1, 2)));
+        let expected = [(-1, -1), (0, -1), (1, -1),
+                        (-1,  0), (0,  0), (1,  0),
+                        (-1,  1), (0,  1), (1,  1),
+                        (-1,  2), (0,  2), (1,  2)];
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_border() {
+        let actual: Vec<Point> = FromIterator::from_iter(BorderArea::new((-1, -1), (1, 2)));
+        let expected = [(-1, -1), (0, -1), (1, -1),
+                        (-1,  0),          (1,  0),
+                        (-1,  1),          (1,  1),
+                        (-1,  2), (0,  2), (1,  2)];
+        assert_eq!(actual, expected);
+    }
 
     #[test]
     fn test_points_within_radius_of_zero() {

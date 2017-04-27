@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::collections::{HashSet, hash_set};
 use std::fmt::{self, Display};
 use std::f32;
-use ecs::traits::TerrainQuery;
+use world::traits::TerrainQuery;
 use world::Terrain;
 
 use point::*;
@@ -260,10 +260,11 @@ impl FieldOfView {
     }
 }
 
+#[cfg(never)]
 #[cfg(test)]
 mod tests {
     use super::*;
-    use testbed::make_grid_from_str;
+    use util::make_grid_from_str;
     use std::cell::RefCell;
     use std::iter::FromIterator;
 

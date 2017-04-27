@@ -4,8 +4,7 @@ use direction::Direction;
 use action::Action;
 use data::Walkability;
 use pathfinding::Path;
-use drawcalls::Draw;
-use ecs::traits::*;
+use world::traits::*;
 use world::EcsWorld;
 
 // TODO: Allow variable arguments, since we have no need to follow a consistent

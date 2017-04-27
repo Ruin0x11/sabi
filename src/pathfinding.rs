@@ -4,7 +4,7 @@ use std::f32;
 
 use data::Walkability;
 use drawcalls::Draw;
-use ecs::traits::{Query, WorldQuery};
+use world::traits::{Query, WorldQuery};
 use point::Point;
 use world::EcsWorld;
 
@@ -198,7 +198,7 @@ impl PartialOrd for State {
 mod test {
     use super::Path;
     use ecs::EcsWorld;
-    use ecs::traits::*;
+    use world::traits::*;
     use point::{Point, POINT_ZERO};
     use data::Walkability;
     use testbed::make_grid_from_str;

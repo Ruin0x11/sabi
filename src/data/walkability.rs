@@ -1,5 +1,5 @@
 use world::{EcsWorld, WorldPosition};
-use ecs::traits::Query;
+use world::traits::Query;
 
 #[derive(Eq, PartialEq, Copy, Clone)]
 pub enum Walkability {

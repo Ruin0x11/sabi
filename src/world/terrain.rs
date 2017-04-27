@@ -2,14 +2,31 @@ use std::collections::{HashSet, HashMap};
 use std::fs::File;
 
 use world::regions::Regions;
+use world::traits::*;
 
 use chunk::*;
 use chunk::serial::SerialChunk;
 use cell;
+use world::WorldPosition;
 
-use ecs::traits::*;
+use world::traits::*;
 
 use infinigen::*;
+
+#[derive(Serialize, Deserialize)]
+pub enum Bounds {
+    Unbounded,
+    Bounded(WorldPosition),
+}
+
+impl Bounds {
+    pub fn in_bounds(&self, pos: &WorldPosition) -> bool {
+        match *self {
+            Bounds::Unbounded => true,
+            Bounds::Bounded(bounds) => *pos < bounds
+        }
+    }
+}
 
 impl Index for ChunkIndex {
     fn x(&self) -> i32 { self.0.x }
@@ -24,13 +41,15 @@ pub struct Terrain {
     regions: Regions,
 
     chunks: HashMap<ChunkIndex, Chunk>,
+    bounds: Bounds,
 }
 
 impl Terrain {
-    pub fn new() -> Self {
+    pub fn new(bounds: Bounds) -> Self {
         Terrain {
             regions: Regions::new(),
             chunks: HashMap::new(),
+            bounds: bounds,
         }
     }
 }
@@ -42,6 +61,10 @@ pub fn get_region_filename(index: &RegionIndex) -> String {
 impl TerrainQuery for Terrain {
     fn chunk(&self, index: ChunkIndex) -> Option<&Chunk> {
         self.chunks.get(&index)
+    }
+
+    fn pos_valid(&self, pos: &WorldPosition) -> bool {
+        self.cell(pos).is_some() && self.bounds.in_bounds(pos)
     }
 }
 

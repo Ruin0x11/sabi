@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, btree_map};
 use serde;
 use calx_ecs::Entity;
 
@@ -8,6 +8,7 @@ use self::Place::*;
 
 #[derive(Copy, Eq, PartialEq, Clone, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub enum Place {
+    Unloaded(Point),
     At(Point),
     In(Entity),
 }
@@ -110,12 +111,40 @@ impl Spatial {
         self.single_remove(e);
     }
 
+    pub fn freeze(&mut self, e: Entity) {
+        if !self.entity_to_place.contains_key(&e) {
+            return;
+        }
+
+        match self.get(e) {
+            Some(At(pos)) => {
+                self.insert(e, Unloaded(pos));
+            },
+            _ => (),
+        }
+    }
+
+    pub fn unfreeze(&mut self, e: Entity) {
+        if !self.entity_to_place.contains_key(&e) {
+            return;
+        }
+
+        match self.get(e) {
+            Some(Unloaded(pos)) => {
+                self.insert(e, At(pos));
+            },
+            _ => (),
+        }
+    }
+
     fn entities(&self, p: Place) -> Vec<Entity> {
         match self.place_to_entities.get(&p) {
             None => vec![],
             Some(v) => v.clone(),
         }
     }
+
+    pub fn iter(&self) -> btree_map::Iter<Entity, Place> { self.entity_to_place.iter() }
 
     /// List entities at a location.
     pub fn entities_at(&self, loc: Point) -> Vec<Entity> { self.entities(At(loc)) }
@@ -182,7 +211,6 @@ impl serde::Deserialize for Spatial {
     }
 }
 
-#[cfg(never)]
 #[cfg(test)]
 mod test {
     use super::{Place, Spatial};
@@ -190,6 +218,7 @@ mod test {
     use calx_ecs::Entity;
     use point::Point;
 
+    #[cfg(never)]
     #[test]
     fn test_place_adjacency() {
         let mut ecs = Ecs::new();
@@ -226,13 +255,13 @@ mod test {
 
         let mut ecs = Ecs::new();
         let e1 = ecs.make();
-        let e2 = ecs.make();
+        // let e2 = ecs.make();
 
         let mut spatial = Spatial::new();
-        let p1 = Place::At(Point::new(10, 10, 0));
-        let p2 = Place::In(e1, None);
+        let p1 = Place::At(Point::new(10, 10));
+        // let p2 = Place::In(e1, None);
         spatial.insert(e1, p1);
-        spatial.insert(e2, p2);
+        // spatial.insert(e2, p2);
 
         let saved = bincode::serialize(&spatial, bincode::Infinite)
                         .expect("Spatial serialization failed");
@@ -240,6 +269,22 @@ mod test {
                            .expect("Spatial deserialization failed");
 
         assert_eq!(spatial2.get(e1), Some(p1));
-        assert_eq!(spatial2.get(e2), Some(p2));
+        // assert_eq!(spatial2.get(e2), Some(p2));
+    }
+
+    #[test]
+    fn test_freeze_unfreeze() {
+        let mut ecs = Ecs::new();
+        let e1 = ecs.make();
+
+        let mut spatial = Spatial::new();
+        let p1 = Place::At(Point::new(10, 10));
+        spatial.insert(e1, p1);
+
+        spatial.freeze(e1);
+        assert_eq!(spatial.get(e1), Some(Place::Unloaded(Point::new(10, 10))));
+        assert_eq!(spatial.entity_to_place.len(), 1);
+        spatial.unfreeze(e1);
+        assert_eq!(spatial.get(e1), Some(p1))
     }
 }

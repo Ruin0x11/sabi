@@ -7,27 +7,44 @@ use calx_ecs::Entity;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TurnOrder {
     times_until_turn: BTreeMap<Entity, i32>,
+    paused: BTreeMap<Entity, i32>,
 }
 
 impl TurnOrder {
     pub fn new() -> Self {
         TurnOrder {
             times_until_turn: BTreeMap::new(),
+            paused: BTreeMap::new(),
         }
+    }
+
+    pub fn pause(&mut self, id: Entity) {
+        assert!(self.times_until_turn.contains_key(&id),
+                "Tried pausing actor not in turn order map");
+        let time = self.times_until_turn.remove(&id).unwrap();
+        self.paused.insert(id, time);
+    }
+
+    pub fn resume(&mut self, id: Entity) {
+        assert!(self.paused.contains_key(&id),
+                "Tried resuming actor that wasn't paused");
+        let time = self.paused.remove(&id).unwrap();
+        self.times_until_turn.insert(id, time);
     }
 
     pub fn contains(&self, id: Entity) -> bool {
         self.times_until_turn.contains_key(&id)
     }
 
-    pub fn add(&mut self, id: Entity, time: i32) {
+    pub fn insert(&mut self, id: Entity, time: i32) {
         assert!(!self.times_until_turn.contains_key(&id),
                 "Entity already exists in turn order!");
         self.times_until_turn.insert(id, time);
     }
 
     pub fn remove(&mut self, id: &Entity) {
-        if let None = self.times_until_turn.remove(id) {
+        let res = self.times_until_turn.remove(id);
+        if let None = res {
             //warn!("Tried removing actor not in turn order map");
         }
     }

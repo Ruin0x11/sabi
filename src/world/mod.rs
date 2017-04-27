@@ -1,11 +1,14 @@
+pub mod flags;
 mod regions;
 mod terrain;
+pub mod traits;
 
-pub use self::terrain::Terrain;
+pub use self::terrain::{Bounds, Terrain};
 use self::regions::Regions;
+use self::traits::*;
+use self::flags::Flags;
 
 use std::collections::HashSet;
-use std::fs::File;
 use std::slice;
 
 use calx_ecs::{ComponentData, Entity};
@@ -20,13 +23,10 @@ use data::spatial::{Spatial, Place};
 use data::{TurnOrder, Walkability};
 use direction::Direction;
 use ecs::*;
-use ecs::flags::Flags;
-use ecs::traits::*;
 use infinigen::*;
 use log;
 use logic;
-use point::Point;
-use point::RectangleArea;
+use point::{POINT_ZERO, Point, RectangleArea};
 
 pub type WorldPosition = Point;
 
@@ -36,7 +36,14 @@ impl WorldPosition {
     }
 }
 
-pub type WorldIter = Iterator<Item=WorldPosition>;
+lazy_static! {
+    static ref WORLD_LOG: Logger = log::make_logger("world");
+}
+
+fn get_world_log() -> Logger {
+    WORLD_LOG.new(o!())
+}
+
 
 #[derive(Serialize, Deserialize)]
 pub struct EcsWorld {
@@ -45,17 +52,34 @@ pub struct EcsWorld {
     spatial: Spatial,
     turn_order: TurnOrder,
     flags: Flags,
+
+    #[serde(skip_serializing)]
+    #[serde(skip_deserializing)]
+    #[serde(default="get_world_log")]
+    logger: Logger,
 }
 
 impl EcsWorld {
-    pub fn new(seed: u32) -> EcsWorld {
+    pub fn new(bounds: Bounds, seed: u32) -> EcsWorld {
         EcsWorld {
             ecs_: Ecs::new(),
-            terrain: Terrain::new(),
+            terrain: Terrain::new(bounds),
             spatial: Spatial::new(),
             turn_order: TurnOrder::new(),
             flags: Flags::new(seed),
+            logger: get_world_log(),
         }
+    }
+
+    pub fn new_blank(w: i32, h: i32) -> EcsWorld {
+        let bounds = Point::new(w, h);
+        let mut world = EcsWorld::new(Bounds::Bounded(bounds), 0);
+        // FIXME: If chunks aren't loaded, doesn't do anything.
+        // Temporarily load the chunks at the given points and unload after.
+        for point in RectangleArea::new(POINT_ZERO, bounds) {
+            world.terrain.set_cell(point, cell::FLOOR);
+        }
+        world
     }
 }
 
@@ -83,7 +107,38 @@ impl Query for EcsWorld {
     }
 
     fn is_alive(&self, e: Entity) -> bool {
-        self.ecs().healths.map_or(false, |h| h.hit_points > 0, e)
+        self.is_active(e)
+            && self.ecs().healths.map_or(false, |h| h.hit_points > 0, e)
+    }
+
+    fn is_active(&self, e: Entity) -> bool {
+        self.position(e).is_some()
+    }
+
+    fn entities_in_chunk(&self, index: &ChunkIndex) -> Vec<Entity> {
+        let mut result = Vec::new();
+        for e in self.entities() {
+            if let Some(pos) = self.position(*e) {
+                if ChunkIndex::from_world_pos(pos) == *index {
+                    result.push(e.clone());
+                }
+            }
+        }
+        debug!(self.logger, "In {:?}", result);
+        result
+    }
+
+    fn frozen_in_chunk(&self, index: &ChunkIndex) -> Vec<Entity> {
+        let mut result = Vec::new();
+        for (e, p) in self.spatial.iter() {
+            if let Place::Unloaded(pos) = *p {
+                if ChunkIndex::from_world_pos(pos) == *index {
+                    result.push(e.clone());
+                }
+            }
+        }
+        debug!(self.logger,"Froz {:?}", result);
+        result
     }
 
     fn can_see(&self, viewer: Entity, pos: WorldPosition) -> bool {
@@ -168,7 +223,7 @@ impl Mutate for EcsWorld {
     fn spawn(&mut self, loadout: &Loadout, pos: WorldPosition) -> Entity {
         let entity = loadout.make(&mut self.ecs_);
         self.place_entity(entity, pos);
-        self.turn_order.add(entity, 0);
+        self.turn_order.insert(entity, 0);
         entity
     }
 
@@ -179,7 +234,7 @@ impl Mutate for EcsWorld {
     fn advance_time(&mut self, ticks: i32) {
         let ids: Vec<Entity> = self.entities()
         // TODO: Kludge to avoid removing entities first?
-            .filter(|&&e| self.is_alive(e) && self.ecs().turns.get(e).is_some())
+            .filter(|&&e| self.is_active(e) && self.ecs().turns.get(e).is_some())
             .cloned().collect();
         for id in ids {
             self.turn_order.advance_time_for(&id, ticks);
@@ -243,11 +298,21 @@ impl<C: Component> ComponentMutate<C> for ComponentData<C> {
 
 const UPDATE_RADIUS: i32 = 3;
 
+fn is_persistent(world: &EcsWorld, entity: Entity) -> bool {
+    world.player().map_or(false, |p| entity == p)
+}
+
 impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorld {
     fn terrain(&mut self) -> &mut Terrain { &mut self.terrain }
 
     fn load_chunk_internal(&mut self, chunk: SerialChunk, index: &ChunkIndex) -> Result<(), SerialError> {
         self.terrain.insert_chunk(index.clone(), chunk.chunk);
+
+        let entities = self.frozen_in_chunk(index);
+        for e in entities {
+            self.spatial.unfreeze(e);
+            self.turn_order.resume(e);
+        }
 
         Ok(())
     }
@@ -255,6 +320,17 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
     fn unload_chunk_internal(&mut self, index: &ChunkIndex) -> Result<SerialChunk, SerialError> {
         let chunk = self.terrain.remove_chunk(index)
             .expect(&format!("Expected chunk at {}!", index));
+
+        let entities = self.entities_in_chunk(index);
+        for e in entities {
+            if is_persistent(self, e) {
+                continue;
+            }
+
+            println!("Freezing! {:?}", e);
+            self.spatial.freeze(e);
+            self.turn_order.pause(e);
+        }
 
         let serial = SerialChunk {
             chunk: chunk,
@@ -265,32 +341,25 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
     fn generate_chunk(&mut self, index: &ChunkIndex) -> SerialResult<()> {
         self.terrain.insert_chunk(index.clone(), Chunk::gen_perlin(index, self.flags.seed));
 
-        for i in 4..5 {
-            for j in 4..5 {
-                let chunk_pos = ChunkPosition::from(Point::new(i, j));
-                let cell_pos = Chunk::world_position_at(&index, &chunk_pos);
-                if self.can_walk(cell_pos, Walkability::MonstersBlocking) {
-                    self.create(::ecs::prefab::mob("Putit", 10,
-                                                   ::glyph::Glyph::Putit),
-                                cell_pos);
-                }
-            }
-        }
-
         Ok(())
     }
 
     fn update_chunks(&mut self) -> Result<(), SerialError>{
         let mut relevant: HashSet<ChunkIndex> = HashSet::new();
 
-        let center = ChunkIndex::from_world_pos(self.flags.camera);
+        let center = match self.player() {
+            Some(p) => self.position(p).map_or(POINT_ZERO, |p| p),
+            None    => POINT_ZERO,
+        };
 
-        relevant.insert(center);
+        let start = ChunkIndex::from_world_pos(center);
+
+        relevant.insert(start);
         let quadrant = |dx, dy, idxes: &mut HashSet<ChunkIndex>| {
             for dr in 1..UPDATE_RADIUS+1 {
                 for i in 0..dr+1 {
-                    let ax = center.0.x + (dr - i) * dx;
-                    let ay = center.0.y + i * dy;
+                    let ax = start.0.x + (dr - i) * dx;
+                    let ay = start.0.y + i * dy;
                     let chunk_idx = ChunkIndex::new(ax, ay);
                     idxes.insert(chunk_idx);
                 }
@@ -325,5 +394,54 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
             self.unload_chunk(index)?;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use test::*;
+    use state;
+
+    #[test]
+    fn test_persistence() {
+        let mut context = test_context_bounded(64, 64);
+
+        let e = {
+            let world_mut = &mut context.state.world;
+
+            place_mob(world_mut, WorldPosition::new(1, 1))
+        };
+
+        let world = &context.state.world;
+
+        assert_eq!(is_persistent(world, world.player().unwrap()), true);
+        assert_eq!(is_persistent(world, e), false);
+    }
+
+    #[test]
+    fn test_frozen() {
+        let mut context = test_context_bounded(1024, 1024);
+        let e = {
+            let mut world = &mut context.state.world;
+
+            place_mob(&mut world, WorldPosition::new(1, 1))
+        };
+
+        assert!(context.state.world.entities_in_chunk(&ChunkIndex::new(0, 0)).contains(&e));
+
+        state::run_action(&mut context, Action::TeleportUnchecked(WorldPosition::new(1023, 1023)));
+
+        {
+            let world = &context.state.world;
+
+            for e in world.entities() {
+                println!("{:?}", world.spatial.get(*e));
+            }
+        }
+
+        assert_eq!(context.state.world.frozen_in_chunk(&ChunkIndex::new(0, 0)), vec![e]);
+
+        state::run_action(&mut context, Action::TeleportUnchecked(WorldPosition::new(0, 0)));
     }
 }
