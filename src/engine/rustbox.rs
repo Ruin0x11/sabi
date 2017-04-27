@@ -101,7 +101,7 @@ impl RustboxCanvas {
         };
 
         let canvas = RustboxCanvas {
-            logger: log::make_logger("graphics").unwrap(),
+            logger: log::make_logger("graphics"),
             root: root,
             wants_close: false,
             output_mode: output_mode,

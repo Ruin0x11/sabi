@@ -3,7 +3,7 @@ use std::collections::hash_map::Entry::*;
 use self::PropErr::*;
 use self::Prop::*;
 
-use actor::ActorId;
+use calx_ecs::Entity;
 
 // TEMP: Experiment with different stat architectures and see what works.
 //  - Static/baked in
@@ -11,10 +11,11 @@ use actor::ActorId;
 //    - Sets of required and optional properties?
 //  - Lua tables?
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum PropType {
     Bool(bool),
     Num(i64),
-    Id(ActorId),
+    Id(Entity),
 }
 
 // This can be refactored to have type checking later.
@@ -26,7 +27,7 @@ pub enum PropType {
 // The properties that are most important can be moved into the respective
 // struct, and everything less important can live here.
 macro_attr! {
-    #[derive(Eq, PartialEq, Hash, Clone, Debug, EnumFromStr!)]
+    #[derive(Serialize, Deserialize, Eq, PartialEq, Hash, Clone, Debug, EnumFromStr!)]
     pub enum Prop {
         Explosive,
 
@@ -44,6 +45,7 @@ pub enum PropErr {
 
 /// Arbitrary key-value properties. Use when modeling things that don't fit
 /// into the baked-in structs.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Properties {
     // poor-man's polymorphism
     props: HashMap<Prop, PropType>,

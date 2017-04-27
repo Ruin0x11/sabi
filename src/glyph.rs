@@ -58,14 +58,13 @@ pub struct RenderGlyph {
     pub color_fg: Color,
     pub color_bg: Color,
 
-
     // In the future, could hold information on how to draw the character in
     // graphically based rendering tagets.
     //pub graphical_data: Option<char>,
 }
 
 macro_attr!(
-    #[derive(Hash, Eq, PartialEq, Debug, Copy, Clone, EnumFromStr!)]
+    #[derive(Hash, Eq, PartialEq, Debug, Copy, Clone, EnumFromStr!, Serialize, Deserialize)]
     pub enum Glyph {
         Player,
 

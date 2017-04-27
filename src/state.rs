@@ -1,34 +1,29 @@
-use std::cell::RefCell;
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 
-use action::*;
-use actor::*;
-use direction::Direction;
-use ai::{self};
-use event;
-use keys::*;
-use point::Point;
-use logic;
-use world::{World, WorldType};
-use engine::canvas;
-use uuid::Uuid;
+use calx_ecs::Entity;
+use infinigen::ChunkedWorld;
+
 use ::GameContext;
+use action::*;
+use ai;
+use command::Command;
+use world::traits::*;
+use engine::canvas;
+use logic;
+use stats;
+use world::{Bounds, EcsWorld};
 
 pub struct GameState {
-    pub world: World,
+    pub world: EcsWorld,
     action_queue: VecDeque<Action>,
 }
 
 impl GameState {
     pub fn new() -> Self {
         GameState {
-            world: World::new_empty(WorldType::Nothing, 0),
+            world: EcsWorld::new(Bounds::Unbounded, 1),
             action_queue: VecDeque::new(),
         }
-    }
-
-    pub fn set_world(&mut self, world: World) {
-        self.world = world;
     }
 
     pub fn add_action(&mut self, action: Action) {
@@ -36,45 +31,36 @@ impl GameState {
     }
 
     pub fn player_action(&mut self, action: Action) {
-        let id = self.world.player_id();
-        if !self.world.was_killed(&id) {
-            logic::run_action(&mut self.world, &id, action);
+        if let Some(player) = self.world.player() {
+            process_action(&mut self.world, player, action);
         }
     }
-
-    pub fn advance_time(& mut self, diff: i32) {
-        let world = &mut self.world;
-        world.advance_time(diff)
-    }
 }
 
-pub enum Command {
-    Move(Direction),
-    Wait,
-    Quit,
-}
-
-pub enum NextState {
-    Inventory,
-    Quit,
-}
-
-fn draw_overlays(world: &mut World) {
+#[cfg(never)]
+fn draw_overlays(world: &mut EcsWorld) {
     world.draw_calls.draw_all();
     world.draw_calls.clear();
 }
 
-fn draw_world(world: &mut World) {
-    let fov = world.player().fov();
-    world.with_cells(Point::new(0, 0), Point::new(128, 128),
-                     |point, ref cell| {
-                         if fov.is_visible(&point) {
-                             canvas::with(|c| c.print_glyph(point.x, point.y, cell.tile.glyph.clone()) )
-                         }
-                     });
+fn draw_world(world: &mut EcsWorld) {
+    let size = canvas::size();
+
+    let center = world.flags().camera - size/2;
+
+    world.with_cells(center, size, |point, ref cell| {
+        let visible = world.player().map_or(true, |p| {
+            world.ecs().fovs.map_or(true, |f| f.is_visible(&point), p)
+        });
+
+        if true || visible {
+            canvas::with(|c| c.print_glyph(point.x, point.y, cell.glyph) )
+        }
+    } );
 }
 
-fn show_messages(world: &mut World) {
+#[cfg(never)]
+fn show_messages(world: &mut EcsWorld) {
     canvas::with_mut(|c| {
         let messages = world.pop_messages(c.width() as usize);
         debug!(world.logger, "Showing messages, len: {}", messages.len());
@@ -82,173 +68,185 @@ fn show_messages(world: &mut World) {
     });
 }
 
-fn draw_items(world: &World) {
-    let fov = world.player().fov();
-    for item in world.items_in_map() {
-        let pos = item.get_pos();
-        if fov.is_visible(&pos) {
-            canvas::with(|c| c.print_glyph(pos.x, pos.y, item.desc.glyph));
-        }
-    }
-}
-
-fn draw_actors(world: &mut World) {
+fn draw_entities(world: &mut EcsWorld) {
     // TODO: Make trait for pos queryable?
-    let fov = world.player().fov();
-    for actor in world.actors() {
-        let pos = actor.get_pos();
-        if fov.is_visible(&pos) {
-            canvas::with(|c| c.print_glyph(pos.x, pos.y, actor.glyph));
+    for e in world.entities() {
+        if let Some(pos) = world.position(*e) {
+            if let Some(a) = world.ecs().appearances.get(*e) {
+                canvas::with(|c| c.print_glyph(pos.x, pos.y, a.glyph));
+            }
         }
     }
 }
 
-fn get_command_for_key(context: &GameContext, key: Key) -> Command {
-    if let KeyCode::Unknown(c) = key.code {
-        warn!(context.logger, "Unknown was returned, {}", c);
-    }
-    debug!(context.logger, "Key: {:?}", key);
-    match key {
-        Key { code: KeyCode::Esc,     .. } => Command::Quit,
-        Key { code: KeyCode::Left,    .. } |
-        Key { code: KeyCode::H,       .. } |
-        Key { code: KeyCode::NumPad4, .. } => Command::Move(Direction::W),
-        Key { code: KeyCode::Right,   .. } |
-        Key { code: KeyCode::L,       .. } |
-        Key { code: KeyCode::NumPad6, .. } => Command::Move(Direction::E),
-        Key { code: KeyCode::Up,      .. } |
-        Key { code: KeyCode::K,       .. } |
-        Key { code: KeyCode::NumPad8, .. } => Command::Move(Direction::N),
-        Key { code: KeyCode::Down,    .. } |
-        Key { code: KeyCode::J,       .. } |
-        Key { code: KeyCode::NumPad2, .. } => Command::Move(Direction::S),
-        Key { code: KeyCode::NumPad1, .. } => Command::Move(Direction::SW),
-        Key { code: KeyCode::NumPad3, .. } => Command::Move(Direction::SE),
-        Key { code: KeyCode::NumPad7, .. } => Command::Move(Direction::NW),
-        Key { code: KeyCode::NumPad9, .. } => Command::Move(Direction::NE),
-        _                                  => Command::Wait
-    }
-}
-
-pub fn get_commands_from_input(context: &mut GameContext) -> Vec<Command> {
-    let mut commands = Vec::new();
-
+fn get_player_command(context: &mut GameContext) -> Option<Command> {
     let mut keys = canvas::with(|c| c.get_input());
 
-    while let Some(key) = keys.pop() {
-        commands.push(get_command_for_key(context, key));
+    let mut command = None;
+
+    if let Some(key) = keys.pop() {
+        info!(context.logger, "Key: {:?}", key);
+        command = Some(Command::from_key(key));
     }
-    commands
+    command
 }
 
-pub fn process_player_commands(context: &mut GameContext) {
-    let commands = get_commands_from_input(context);
-
-    if let Some(first) = commands.iter().next() {
-        process_player_command(first, context);
-    }
-}
-
-fn process_player_command(command: &Command, context: &mut GameContext) {
-    match *command {
+fn process_player_command(context: &mut GameContext, command: Command) {
+    match command {
         // TEMP: Commands can still be run even if there is no player?
         Command::Quit           => canvas::close_window(),
-        Command::Move(dir)      => context.state.add_action(Action::Move(dir)),
+        Command::Move(dir)      => context.state.add_action(Action::MoveOrAttack(dir)),
         Command::Wait           => context.state.add_action(Action::Dood),
         _                       => ()
     }
 }
 
-fn process_player_input<'a>(context: &'a mut GameContext) {
-    process_player_commands(context);
-
+fn run_action_queue<'a>(context: &'a mut GameContext) {
     while let Some(action) = context.state.action_queue.pop_front() {
         context.state.player_action(action)
     }
 }
 
-pub fn render_all(world: &mut World) {
+fn render_world(world: &mut EcsWorld) {
     canvas::clear();
-    let camera_pos = world.player().get_pos();
+    let camera_pos = world.flags().camera;
     canvas::with_mut(|c| c.set_camera(camera_pos.x, camera_pos.y));
     draw_world(world);
-    draw_items(world);
-    draw_actors(world);
-    draw_overlays(world);
+    draw_entities(world);
+    // draw_overlays(world);
 }
 
-pub fn process_actors(world: &mut World) {
-    while let Some(ref id) = world.next_actor() {
-        let leftover_ticks = world.time_until_turn_for(id);
+fn process_action(world: &mut EcsWorld, entity: Entity, action: Action) {
+    logic::run_action(world, entity, action);
+
+    if world.is_alive(entity) {
+        let delay = stats::formulas::calculate_delay(world, &entity, 100);
+        world.add_delay_for(entity, delay);
+    }
+}
+
+fn process_actors(world: &mut EcsWorld) {
+    while let Some(entity) = world.next_entity() {
+        if !world.is_alive(entity) {
+            panic!("Killed actor remained in turn order!");
+        }
+
+        let leftover_ticks = world.turn_order().get_time_for(entity).unwrap();
         if leftover_ticks > 0 {
             world.advance_time(leftover_ticks);
         }
 
-        if world.is_player(id) {
+        if world.is_player(entity) {
             break
         }
 
-        if world.was_killed(id) {
-            panic!("Killed actor remained in turn order! {}", id);
+        if !world.ecs().ais.has(entity) {
+            if world.turn_order().contains(entity) {
+                panic!("Entity without ai in turn order!");
+            }
+            continue;
         }
 
-        let action = {
-            let actor = world.actor(id);
-            ai::update_goal(actor, world);
-            ai::update_memory(&actor, world);
-            ai::choose_action(actor, world)
-        };
+        let action = ai::run(entity, world);
 
-        logic::run_action(world, id, action);
+        process_action(world, entity, action);
 
         process_events(world);
     }
+
+    world.purge_dead();
 }
 
-pub fn check_player_dead(world: &mut World) -> bool {
-    let id = world.player_id();
-    let res = world.was_killed(&id);
+fn check_player_dead(world: &mut EcsWorld) -> bool {
+    let res = world.player().is_none();
     if res {
-        info!(world.logger, "Player has died.");
-        world.message("You're dead!".to_string());
-        show_messages(world);
+        // info!(world.logger, "Player has died.");
+        // world.message("You're dead!".to_string());
+        // show_messages(world);
         canvas::present();
         canvas::get_input();
     }
     res
 }
 
-pub fn process_events(world: &mut World) {
-    let mut responses = event::check_all(world);
-    while responses.len() != 0 {
-        world.events.clear();
-        while let Some((action, id)) = responses.pop() {
-            // FIXME: don't delay actors here.
-            logic::run_action(world, &id, action);
+fn process_events(world: &mut EcsWorld) {
+    // let mut responses = event::check_all(world);
+    // while responses.len() != 0 {
+    //     world.events.clear();
+    //     while let Some((action, id)) = responses.pop() {
+    //         // FIXME: don't delay actors here.
+    //         logic::run_action(world, &id, action);
+    //     }
+    //     //render_all(world, canvas);
+    //     responses.extend(event::check_all(world));
+    // }
+}
+
+fn update_world_terrain(world: &mut EcsWorld) {
+    world.update_chunks().unwrap();
+}
+
+fn update_camera(world: &mut EcsWorld) {
+    if let Some(player) = world.flags().player {
+        if let Some(pos) = world.position(player) {
+            world.flags_mut().camera = pos;
         }
-        //render_all(world, canvas);
-        responses.extend(event::check_all(world));
     }
+}
+
+pub fn run_command(context: &mut GameContext, command: Command) {
+    process_player_command(context, command);
+    run_action_queue(context);
+    process(context);
+}
+
+pub fn run_action(context: &mut GameContext, action: Action) {
+    context.state.player_action(action);
+    run_action_queue(context);
+    process(context);
+}
+
+/// Treats all actors as frozen and only updates the world/chunk loading.
+pub fn run_action_no_ai(context: &mut GameContext, action: Action) {
+    context.state.player_action(action);
+    run_action_queue(context);
+
+    update_world_terrain(&mut context.state.world);
+}
+
+pub fn run_action_on(context: &mut GameContext, entity: Entity, action: Action) {
+    process_action(&mut context.state.world, entity, action);
 }
 
 // TEMP: Just to bootstrap things dirtily.
 pub fn process(context: &mut GameContext) {
+    update_world_terrain(&mut context.state.world);
+
     process_actors(&mut context.state.world);
+}
+
+pub fn render(context: &mut GameContext) {
+    update_camera(&mut context.state.world);
+
+    render_world(&mut context.state.world);
+    // show_messages(&mut context.state.world);
+    canvas::present();
+}
+
+pub fn init(context: &mut GameContext) {
+    update_world_terrain(&mut context.state.world);
+    render(context);
+}
+
+pub fn game_step(context: &mut GameContext) {
+    if let Some(command) = get_player_command(context) {
+        run_command(context, command);
+    }
+    render(context);
 
     let dead = check_player_dead(&mut context.state.world);
     if dead {
         canvas::close_window();
         return;
     }
-
-    render_all(&mut context.state.world);
-    show_messages(&mut context.state.world);
-    canvas::present();
-
-    process_player_input(context);
-}
-
-pub fn step(context: &mut GameContext) {
-    process_actors(&mut context.state.world);
-    process_actors(&mut context.state.world);
 }

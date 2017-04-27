@@ -5,12 +5,6 @@ use std::path::Path;
 
 use rand::{self, Rng};
 
-// Intended to read names and name parts from a file. For now, just use a simple
-// list of names.
-struct NameGen {
-
-}
-
 fn lines_from_file<P>(filename: P) -> Vec<String>
     where P: AsRef<Path> {
     let file = File::open(filename).expect("no such file");

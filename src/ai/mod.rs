@@ -1,37 +1,48 @@
+mod action;
 mod sensors;
 
 use std::cell::RefCell;
 
-use goap::{Planner};
-use rand::{self, Rng};
+use calx_ecs::Entity;
+use rand::{self, Rng, ThreadRng};
 
-use actor::{Actor, ActorId};
-use direction::Direction;
 use action::Action;
-use world::{World, Walkability};
-use pathfinding::Path;
-use drawcalls::Draw;
 use ai::sensors::{Sensor};
+use world::traits::{ComponentQuery, Query};
+use world::EcsWorld;
 
-pub fn state_kill(id: &ActorId, state: &AiState) {
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
+pub enum Disposition {
+    Friendly,
+    Enemy,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Ai {
+    #[serde(default="make_planner")]
+    #[serde(skip_serializing)]
+    #[serde(skip_deserializing)]
+    planner: AiPlanner,
+
+    target: RefCell<Option<Entity>>,
+    memory: RefCell<AiMemory>,
+    goal:   RefCell<AiMemory>,
+
+    pub disposition: Disposition,
+}
+
+pub fn state_kill(target: Entity, state: &Ai) {
     let mut goal_c =  BTreeMap::new();
     goal_c.insert(AiProp::TargetDead, true);
 
     let goal = GoapState { facts: goal_c };
     *state.goal.borrow_mut() = goal;
-    *state.target.borrow_mut() = Some(id.clone());
-}
-
-pub struct AiState {
-    planner: AiPlanner,
-    target: RefCell<Option<ActorId>>,
-    memory: RefCell<AiMemory>,
-    goal:   RefCell<AiMemory>,
+    *state.target.borrow_mut() = Some(target);
 }
 
 type AiMemory = GoapState<AiProp, bool>;
 
-impl AiState {
+impl Ai {
     pub fn new() -> Self {
         //TEMP: Figure out how to work with defaults.
         let mut facts = GoapFacts::new();
@@ -40,7 +51,7 @@ impl AiState {
         facts.insert(AiProp::TargetVisible, false);
         facts.insert(AiProp::TargetDead, false);
         facts.insert(AiProp::NextToTarget, false);
-        AiState {
+        Ai {
             planner: make_planner(),
             target: RefCell::new(None),
             goal: RefCell::new(AiMemory {
@@ -48,12 +59,13 @@ impl AiState {
             }),
             memory: RefCell::new(AiMemory {
                 facts: facts,
-            })
+            }),
+            disposition: Disposition::Friendly,
         }
     }
 }
 
-#[derive(Hash, Ord, PartialOrd, Eq, PartialEq, Debug, Clone)]
+#[derive(Serialize, Deserialize, Hash, Ord, PartialOrd, Eq, PartialEq, Debug, Clone)]
 pub enum AiProp {
     HealthLow,
     HasTarget,
@@ -62,7 +74,7 @@ pub enum AiProp {
     NextToTarget,
 }
 
-#[derive(Hash, Ord, PartialOrd, Eq, PartialEq, Debug, Clone)]
+#[derive(Serialize, Deserialize, Hash, Ord, PartialOrd, Eq, PartialEq, Debug, Clone)]
 pub enum AiAction {
     Wander,
     MoveCloser,
@@ -74,93 +86,76 @@ thread_local! {
     static SENSORS: HashMap<AiProp, Sensor> = sensors::make_sensors();
 }
 
-pub fn update_memory(actor: &Actor, world: &World) {
-    let ref mut memory = actor.ai.memory.borrow_mut();
+pub fn run(entity: Entity, world: &EcsWorld) -> Action {
+    assert!(!world.is_player(entity), "Tried running AI on current player!");
+
+    check_target(entity, world);
+    update_goal(entity, world);
+    update_memory(entity, world);
+    choose_action(entity, world)
+}
+
+fn check_target(entity: Entity, world: &EcsWorld) {
+    // The entity reference could go stale, so make sure it isn't.
+    // TODO: Should this have to happen every time an entity reference is held
+    // by something?
+    let ai = world.ecs().ais.get_or_err(entity);
+
+    let mut target = ai.target.borrow_mut();
+    let dead = target.map_or(true, |t| world.position(t).is_none());
+    if target.is_some() && dead {
+        *target = None;
+    }
+}
+
+fn update_memory(entity: Entity, world: &EcsWorld) {
+    let ai = world.ecs().ais.get_or_err(entity);
+    let ref mut memory = ai.memory.borrow_mut();
     let wants_to_know = vec![AiProp::HasTarget, AiProp::TargetVisible,
                              AiProp::TargetDead, AiProp::NextToTarget, AiProp::HealthLow];
     for fact in wants_to_know.iter() {
         SENSORS.with(|s| {
             let sensor = s.get(fact).unwrap();
-            let result = (sensor.callback)(world, actor);
-            debug!(actor.logger, "{:?}, {}", fact, result);
+            let result = (sensor.callback)(world, &entity, ai);
+            // debug_ecs!(world, entity, "{:?}, {}", fact, result);
             memory.facts.insert(fact.clone(), result);
         });
     }
 }
 
-pub fn update_goal(actor: &Actor, world: &World) {
-    if actor.ai.planner.plan_found(&actor.ai.memory.borrow(), &actor.ai.goal.borrow()) {
-        // The current plan has been finished. We need a new one.
-        if let Some(id) = rand::thread_rng().choose(&actor.seen_actors(world)) {
-            state_kill(id, &actor.ai);
-        }
+fn update_goal(entity: Entity, world: &EcsWorld) {
+    let ai = world.ecs().ais.get_or_err(entity);
+    let actions = ai.planner.get_plan(&ai.memory.borrow(), &ai.goal.borrow());
+
+    if ai.planner.goal_reached(&ai.memory.borrow(), &ai.goal.borrow()) {
+        // TODO: Determine a new plan.
+        // if let Some(target) = rand::thread_rng().choose(&world.seen_entities(entity)) {
+        //     state_kill(*target, ai);
+        // }
+        world.flags().player.map(|p| {
+                if world.seen_entities(entity).contains(&p) {
+                    state_kill(p, ai);
+                }
+        });
     }
 }
 
-pub fn choose_action(actor: &Actor, world: &World) -> Action {
+fn choose_action(entity: Entity, world: &EcsWorld) -> Action {
     // TEMP: Just save the whole plan and only update when something interesting
     // happens
-    let actions = actor.ai.planner.get_plan(&actor.ai.memory.borrow(), &actor.ai.goal.borrow());
+    let ai = world.ecs().ais.get_or_err(entity);
+    let actions = ai.planner.get_plan(&ai.memory.borrow(), &ai.goal.borrow());
     if let Some(action) = actions.first() {
-        debug!(actor.logger, "the action: {:?}", action);
         match *action {
-            AiAction::Wander => action_wander(actor, world),
-            AiAction::MoveCloser => action_move_closer(actor, world),
-            AiAction::SwingAt => action_swing_at(actor, world),
-            AiAction::Run => action_run(actor, world),
+            AiAction::Wander => action::wander(entity, world),
+            AiAction::MoveCloser => action::move_closer(entity, world),
+            AiAction::SwingAt => action::swing_at(entity, world),
+            AiAction::Run => action::run_away(entity, world),
         }
     } else {
-        warn!(actor.logger, "I can't figure out what to do!");
-        Action::Wait
+        warn_ecs!(world, entity, "I can't figure out what to do!");
+        action::wander(entity, world)
     }
-}
-
-fn action_wander(_actor: &Actor, _world: &World) -> Action {
-    Action::Move(Direction::choose8())
-}
-
-fn action_swing_at(actor: &Actor, _world: &World) -> Action {
-    Action::SwingAt(actor.ai.target.borrow().unwrap())
-}
-
-fn action_move_closer(actor: &Actor, world: &World) -> Action {
-    let target = world.actor(&actor.ai.target.borrow().unwrap());
-    assert!(!target.is_dead(), "Target is already dead!");
-
-    let my_pos = actor.get_pos();
-    let target_pos = target.get_pos();
-
-    assert!(actor.can_see(&target_pos), "Actor can't see target!");
-
-    // Am I right next to the target?
-    match Direction::from_neighbors(my_pos, target_pos) {
-        Some(dir) => return Action::Move(dir),
-        None      => (),
-    }
-
-    let mut path = Path::find(my_pos, target_pos, &world, Walkability::MonstersBlocking);
-
-    debug!(actor.logger, "My: {} target: {}, path: {:?}", my_pos, target_pos, path);
-
-    if path.len() == 0 {
-        // TODO: Lost sight of target.
-        return Action::Wait;
-    }
-
-    let next_pos = path.next().unwrap();
-
-    for pt in path {
-        world.draw_calls.push(Draw::Point(pt.x, pt.y));
-    }
-
-    match Direction::from_neighbors(my_pos, next_pos) {
-        Some(dir) => Action::Move(dir),
-        None      => panic!("Can't traverse path: {} {}", my_pos, next_pos),
-    }
-}
-
-fn action_run(_actor: &Actor, _world: &World) -> Action {
-    Action::Move(Direction::choose8())
 }
 
 use std::collections::{BTreeMap, HashMap};
@@ -168,6 +163,7 @@ use goap::*;
 
 type AiPlanner = GoapPlanner<AiProp, bool, AiAction>;
 
+// FIXME: ugh?
 pub fn make_planner() -> AiPlanner {
     let mut actions = HashMap::new();
     let mut effects = GoapEffects::new(100);
