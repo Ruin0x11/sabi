@@ -1,4 +1,5 @@
 #![feature(associated_consts)]
+#![feature(test)]
 #[macro_use] extern crate calx_ecs;
 #[macro_use] extern crate enum_derive;
 #[macro_use] extern crate lazy_static;
@@ -17,6 +18,8 @@ extern crate slog_stream;
 extern crate toml;
 extern crate uuid;
 pub extern crate tcod;
+
+extern crate test;
 
 // #[cfg(feature = "with-rustbox")]
 extern crate rustbox;
@@ -54,7 +57,7 @@ mod util;
 mod world;
 
 #[cfg(test)]
-mod test;
+mod testing;
 
 use slog::Logger;
 

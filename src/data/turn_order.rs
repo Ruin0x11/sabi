@@ -141,7 +141,7 @@ impl Iterator for TurnOrder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use test::get_ecs;
+    use testing::get_ecs;
 
     #[test]
     fn test_single_id() {

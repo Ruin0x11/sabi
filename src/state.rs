@@ -7,6 +7,7 @@ use ::GameContext;
 use action::*;
 use ai;
 use command::Command;
+use chunk::generator::ChunkType;
 use world::traits::*;
 use engine::canvas;
 use logic;
@@ -21,7 +22,7 @@ pub struct GameState {
 impl GameState {
     pub fn new() -> Self {
         GameState {
-            world: EcsWorld::new(Bounds::Unbounded, 1),
+            world: EcsWorld::new(Bounds::Unbounded, ChunkType::Blank, 1),
             action_queue: VecDeque::new(),
         }
     }
@@ -233,8 +234,12 @@ pub fn render(context: &mut GameContext) {
     canvas::present();
 }
 
-pub fn init(context: &mut GameContext) {
+pub fn init_headless(context: &mut GameContext) {
     update_world_terrain(&mut context.state.world);
+}
+
+pub fn init(context: &mut GameContext) {
+    init_headless(context);
     render(context);
 }
 

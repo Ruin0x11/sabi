@@ -19,6 +19,10 @@ impl Sensor {
     }
 }
 
+trait Sense {
+    fn sense(world: &EcsWorld, entity: &Entity, ai: &Ai) -> bool;
+}
+
 fn target_visible(world: &EcsWorld, entity: &Entity, ai: &Ai) -> bool {
     ai.target.borrow()
         .map_or(false, |t| {

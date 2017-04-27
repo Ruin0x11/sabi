@@ -17,6 +17,7 @@ use slog::Logger;
 use action::Action;
 use cell::{self, Cell};
 use chunk::*;
+use chunk::generator::ChunkType;
 use chunk::serial::SerialChunk;
 use command::CommandResult;
 use data::spatial::{Spatial, Place};
@@ -25,7 +26,6 @@ use direction::Direction;
 use ecs::*;
 use infinigen::*;
 use log;
-use logic;
 use point::{POINT_ZERO, Point, RectangleArea};
 
 pub type WorldPosition = Point;
@@ -53,6 +53,8 @@ pub struct EcsWorld {
     turn_order: TurnOrder,
     flags: Flags,
 
+    chunk_type: ChunkType,
+
     #[serde(skip_serializing)]
     #[serde(skip_deserializing)]
     #[serde(default="get_world_log")]
@@ -60,20 +62,21 @@ pub struct EcsWorld {
 }
 
 impl EcsWorld {
-    pub fn new(bounds: Bounds, seed: u32) -> EcsWorld {
+    pub fn new(bounds: Bounds, chunk_type: ChunkType, seed: u32) -> EcsWorld {
         EcsWorld {
             ecs_: Ecs::new(),
             terrain: Terrain::new(bounds),
             spatial: Spatial::new(),
             turn_order: TurnOrder::new(),
             flags: Flags::new(seed),
+            chunk_type: chunk_type,
             logger: get_world_log(),
         }
     }
 
     pub fn new_blank(w: i32, h: i32) -> EcsWorld {
         let bounds = Point::new(w, h);
-        let mut world = EcsWorld::new(Bounds::Bounded(bounds), 0);
+        let mut world = EcsWorld::new(Bounds::Bounded(bounds), ChunkType::Blank, 0);
         // FIXME: If chunks aren't loaded, doesn't do anything.
         // Temporarily load the chunks at the given points and unload after.
         for point in RectangleArea::new(POINT_ZERO, bounds) {
@@ -129,7 +132,6 @@ impl Query for EcsWorld {
     fn frozen_in_chunk(&self, index: &ChunkIndex) -> Vec<Entity> {
         let mut result = Vec::new();
         for (e, p) in self.spatial.iter() {
-            println!("{:?} {:?}", e, p);
             if let Place::Unloaded(pos) = *p {
                 if ChunkIndex::from_world_pos(pos) == *index {
                     result.push(e.clone());
@@ -180,7 +182,7 @@ impl Mutate for EcsWorld {
     fn kill_entity(&mut self, e: Entity) {
         debug_ecs!(self, e, "Removing {:?} from turn order", e);
         self.spatial.remove(e);
-        self.turn_order.remove(e).unwrap();
+        self.turn_order.remove(e);
     }
 
     fn ecs_mut<'a>(&'a mut self) -> &'a mut Ecs { &mut self.ecs_ }
@@ -336,8 +338,7 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
     }
 
     fn generate_chunk(&mut self, index: &ChunkIndex) -> SerialResult<()> {
-        self.terrain.insert_chunk(index.clone(),
-                                  Chunk::gen_perlin(index, self.flags.seed));
+        self.terrain.insert_chunk(index.clone(), self.chunk_type.generate(index));
 
         let chunk_pos = ChunkPosition::from(Point::new(0, 0));
         let cell_pos = Chunk::world_position_at(&index, &chunk_pos);
@@ -405,7 +406,7 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
 #[cfg(test)]
 mod tests {
     use super::*;
-    use test::*;
+    use testing::*;
     use state;
 
     #[test]

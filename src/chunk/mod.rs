@@ -1,4 +1,4 @@
-mod generate;
+pub mod generator;
 mod index;
 mod pos;
 pub mod serial;
