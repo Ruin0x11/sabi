@@ -246,7 +246,7 @@ impl Mutate for EcsWorld {
 impl WorldQuery for EcsWorld {
     fn can_walk(&self, pos: Point, walkability: Walkability) -> bool {
         let cell_walkable = self.terrain.cell(&pos).map_or(false, |c| c.can_pass_through());
-        // TODO: Should be anything blocking
+        // TODO: Should be anything blocking, like blocking terrain features
         let no_mob = walkability.can_walk(self, &pos);
         cell_walkable && no_mob
     }
