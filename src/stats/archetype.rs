@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use toml::Value;
 
-use glyph::Glyph;
+use graphics::Glyph;
 use stats::*;
 use stats::properties::*;
 use util::toml::*;

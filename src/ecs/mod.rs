@@ -3,7 +3,7 @@ pub mod instantiate;
 pub mod prefab;
 
 use ai;
-use fov;
+use data::fov;
 
 Ecs! {
     healths: components::Health,

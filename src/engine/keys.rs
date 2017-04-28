@@ -1,6 +1,3 @@
-use std::collections::VecDeque;
-use std::iter::IntoIterator;
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Key {
     pub code: KeyCode,

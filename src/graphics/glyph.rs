@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use color::{self, Color};
+use graphics::color::{self, Color};
 use toml::Value;
 use util::toml::*;
 
@@ -42,17 +42,6 @@ fn make_glyph_table() -> HashMap<Glyph, RenderGlyph> {
     glyphs
 }
 
-pub fn lookup_ascii<'a>(glyph: Glyph) -> &'a RenderGlyph {
-    match GLYPH_TABLE.get(&glyph) {
-        Some(rg) => rg,
-        None     => panic!("Glyph name {:?} is specified, but no corresponding glyph was found!", glyph)
-    }
-}
-
-lazy_static! {
-    static ref GLYPH_TABLE: HashMap<Glyph, RenderGlyph> = make_glyph_table();
-}
-
 pub struct RenderGlyph {
     pub ch: char,
     pub color_fg: Color,
@@ -61,6 +50,19 @@ pub struct RenderGlyph {
     // In the future, could hold information on how to draw the character in
     // graphically based rendering tagets.
     //pub graphical_data: Option<char>,
+}
+
+lazy_static! {
+    static ref GLYPH_TABLE: HashMap<Glyph, RenderGlyph> = make_glyph_table();
+}
+
+impl Glyph {
+    pub fn lookup_ascii<'a>(&self) -> &'a RenderGlyph {
+        match GLYPH_TABLE.get(self) {
+            Some(rg) => rg,
+            None     => panic!("Glyph name {:?} is specified, but no corresponding glyph was found!", self)
+        }
+    }
 }
 
 macro_attr!(

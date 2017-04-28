@@ -8,3 +8,4 @@ pub mod rustbox;
 pub mod tcod;
 
 pub mod canvas;
+pub mod keys;

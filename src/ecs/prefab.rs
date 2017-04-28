@@ -1,17 +1,11 @@
 use ai::Ai;
 use ecs::Loadout;
 use ecs::components::*;
-use fov::FieldOfView;
-use glyph::Glyph;
+use data::fov::FieldOfView;
+use graphics::Glyph;
 
 pub struct Prefab {
     pub loadout: Loadout,
-}
-
-impl Prefab {
-    pub fn new() -> Prefab {
-        mob("Mob", 10, Glyph::Putit)
-    }
 }
 
 pub fn mob(name: &str, health: i32, glyph: Glyph) -> Prefab {

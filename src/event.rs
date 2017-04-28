@@ -1,5 +1,5 @@
 use actor::{Actor, ActorId};
-use action::Action;
+use logic::Action;
 use world::*;
 use point::{PointArea, SquareArea};
 use drawcalls::*;

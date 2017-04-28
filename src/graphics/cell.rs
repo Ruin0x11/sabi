@@ -1,4 +1,4 @@
-use glyph::{Glyph};
+use graphics::Glyph;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub enum CellType {
@@ -53,11 +53,5 @@ pub const WALL: Cell = Cell {
 pub const FLOOR: Cell = Cell {
     type_: CellType::Floor,
     glyph: Glyph::Floor,
-    feature: None,
-};
-
-pub const AIR: Cell = Cell {
-    type_: CellType::Air,
-    glyph: Glyph::None,
     feature: None,
 };

@@ -1,6 +1,6 @@
 use test::Bencher;
 
-use action::Action;
+use logic::Action;
 use testing::*;
 use state;
 use world::WorldPosition;

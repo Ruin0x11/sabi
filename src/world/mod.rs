@@ -16,19 +16,18 @@ use std::slice;
 use calx_ecs::{ComponentData, Entity};
 use slog::Logger;
 
-use action::Action;
-use cell::{self, Cell};
+use graphics::Glyph;
+use graphics::cell::{self, Cell};
 use chunk::*;
 use chunk::generator::ChunkType;
 use chunk::serial::SerialChunk;
-use command::CommandResult;
 use data::spatial::{Spatial, Place};
 use data::{TurnOrder, Walkability};
-use direction::Direction;
 use ecs::*;
 use infinigen::*;
 use log;
-use point::{POINT_ZERO, Point, RectangleArea};
+use logic::{Action, CommandResult};
+use point::{Direction, POINT_ZERO, Point, RectangleIter};
 
 pub type WorldPosition = Point;
 
@@ -74,17 +73,6 @@ impl EcsWorld {
             chunk_type: chunk_type,
             logger: get_world_log(),
         }
-    }
-
-    pub fn new_blank(w: i32, h: i32) -> EcsWorld {
-        let bounds = Point::new(w, h);
-        let mut world = EcsWorld::new(Bounds::Bounded(bounds), ChunkType::Blank, 0);
-        // FIXME: If chunks aren't loaded, doesn't do anything.
-        // Temporarily load the chunks at the given points and unload after.
-        for point in RectangleArea::new(POINT_ZERO, bounds) {
-            world.terrain.set_cell(point, cell::FLOOR);
-        }
-        world
     }
 }
 
@@ -143,7 +131,7 @@ impl Query for EcsWorld {
         result
     }
 
-    fn can_see(&self, viewer: Entity, pos: WorldPosition) -> bool {
+    fn can_see(&self, _viewer: Entity, _pos: WorldPosition) -> bool {
         true
     }
 
@@ -264,7 +252,7 @@ impl WorldQuery for EcsWorld {
                      dimensions: Point,
                      mut callback: F) where F: FnMut(Point, &Cell) {
         let bottom_right = top_left + dimensions;
-        for point in RectangleArea::new(top_left, bottom_right) {
+        for point in RectangleIter::new(top_left, bottom_right) {
             if let Some(cell) = self.terrain.cell(&point) {
                 callback(point, cell);
             }
@@ -345,7 +333,7 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
         let chunk_pos = ChunkPosition::from(Point::new(0, 0));
         let cell_pos = Chunk::world_position_at(&index, &chunk_pos);
         if self.can_walk(cell_pos, Walkability::MonstersBlocking) {
-            self.create(::ecs::prefab::mob("Putit", 10, ::glyph::Glyph::Putit),
+            self.create(::ecs::prefab::mob("Putit", 10, Glyph::Putit),
                         cell_pos);
         }
 

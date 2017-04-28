@@ -1,6 +1,5 @@
 use std::cell::RefCell;
-use std::collections::{HashSet, hash_set};
-use std::fmt::{self, Display};
+use std::collections::HashSet;
 use std::f32;
 use world::traits::TerrainQuery;
 use world::Terrain;
@@ -249,10 +248,6 @@ impl FieldOfView {
 
     pub fn clear(&mut self) {
         self.visible.clear()
-    }
-
-    pub fn iter(&self) -> hash_set::Iter<Point> {
-        self.visible.iter()
     }
 
     pub fn is_visible(&self, pt: &Point) -> bool {

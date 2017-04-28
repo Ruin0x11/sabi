@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-use glyph::Glyph;
+use graphics::Glyph;
 use world::WorldPosition;
 
 const ITEM_PILE_LIMIT: usize = 9999;

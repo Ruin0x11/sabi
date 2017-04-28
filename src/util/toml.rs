@@ -3,8 +3,7 @@ use std::io::Read;
 use std::path::PathBuf;
 
 use serde::Deserialize;
-use toml::{self, Value};
-use toml::de::Error;
+use toml::Value;
 
 pub fn toml_string_from_file(filename: &str) -> String {
     let path = PathBuf::from(filename);

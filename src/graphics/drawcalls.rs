@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::collections::VecDeque;
 
 use engine::canvas::{self, Canvas};
-use glyph::Glyph;
+use graphics::Glyph;
 
 pub struct DrawCalls {
     draw_calls: RefCell<VecDeque<Draw>>

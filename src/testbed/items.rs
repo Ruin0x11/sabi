@@ -133,17 +133,13 @@ impl Items {
     pub fn at_pos(&self, pos: &WorldPosition) -> Option<&Item> {
         self.pos_to_item_stacks.get(pos).map(|idx| self.get(idx))
     }
-
-    pub fn iter(&self) -> hash_map::Values<ItemIdx, Item> {
-        self.item_list.values()
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use testbed::item::*;
-    use glyph::*;
+    use graphics::Glyph;
 
     lazy_static! {
         static ref DESCS: Vec<ItemDesc>  = vec![ItemDesc { name: "dream",

@@ -4,9 +4,8 @@ mod sensors;
 use std::cell::RefCell;
 
 use calx_ecs::Entity;
-use rand::{self, Rng, ThreadRng};
 
-use action::Action;
+use logic::Action;
 use ai::sensors::{Sensor};
 use world::traits::{ComponentQuery, Query};
 use world::EcsWorld;
@@ -125,7 +124,6 @@ fn update_memory(entity: Entity, world: &EcsWorld) {
 
 fn update_goal(entity: Entity, world: &EcsWorld) {
     let ai = world.ecs().ais.get_or_err(entity);
-    let actions = ai.planner.get_plan(&ai.memory.borrow(), &ai.goal.borrow());
 
     if ai.planner.goal_reached(&ai.memory.borrow(), &ai.goal.borrow()) {
         // TODO: Determine a new plan.

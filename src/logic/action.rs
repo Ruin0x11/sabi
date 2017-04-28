@@ -1,7 +1,6 @@
 use calx_ecs::Entity;
 
-use direction::Direction;
-use world::WorldPosition;
+use point::{Direction, Point};
 
 #[derive(Clone, Debug)]
 pub enum Action {
@@ -13,6 +12,6 @@ pub enum Action {
     Hurt(u32),
     SwingAt(Entity),
 
-    Teleport(WorldPosition),
-    TeleportUnchecked(WorldPosition),
+    Teleport(Point),
+    TeleportUnchecked(Point),
 }

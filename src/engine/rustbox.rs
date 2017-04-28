@@ -1,7 +1,5 @@
 use std::cell::RefCell;
 use std::collections::VecDeque;
-use std::error::Error;
-use std::default::Default;
 
 use point::Point;
 use rustbox::{self, RustBox, Event};
@@ -9,10 +7,10 @@ use rustbox::Color as RustboxColor;
 use rustbox::Key as RustboxKey;
 use slog::Logger;
 
-use color::{Color, Color216, Color16};
+use graphics::color::{Color216, Color16};
 use engine::canvas::Canvas_;
-use glyph::{self, Glyph};
-use keys::{self, Key, KeyCode, NumkeyType};
+use engine::keys::{self, Key, KeyCode, NumkeyType};
+use graphics::Glyph;
 use log;
 use ui::{WindowKind};
 
@@ -80,7 +78,6 @@ pub struct RustboxCanvas {
     logger: Logger,
     root: RefCell<RustBox>,
     wants_close: bool,
-    output_mode: rustbox::OutputMode,
     message_buffer: VecDeque<String>,
 
     camera_x: i32,
@@ -90,10 +87,8 @@ pub struct RustboxCanvas {
 impl RustboxCanvas {
     pub fn new(_display_size: Point,
                _window_title: &str) -> RustboxCanvas {
-        let output_mode = rustbox::OutputMode::Normal;
 
         let root = match RustBox::init(rustbox::InitOptions {
-            output_mode: output_mode,
             ..Default::default()
         }) {
             Result::Ok(v) => RefCell::new(v),
@@ -104,13 +99,12 @@ impl RustboxCanvas {
             logger: log::make_logger("graphics"),
             root: root,
             wants_close: false,
-            output_mode: output_mode,
             message_buffer: VecDeque::new(),
             camera_x: 0,
             camera_y: 0,
         };
 
-        info!(canvas.logger, "Rustbox canvas initialized, output mode: {:?}", output_mode);
+        info!(canvas.logger, "Rustbox canvas initialized");
 
         canvas
     }
@@ -166,7 +160,7 @@ impl Canvas_ for RustboxCanvas {
 
     fn print_glyph(&self, x: i32, y: i32, glyph: Glyph) {
         let (x, y) = self.translate_pos(x, y);
-        let rend_glyph = glyph::lookup_ascii(glyph);
+        let rend_glyph = glyph.lookup_ascii();
         let color_fg = Color16::from(rend_glyph.color_fg.clone()).into();
         let color_bg = Color16::from(rend_glyph.color_bg.clone()).into();
         self.root.borrow_mut().print_char(x as usize,

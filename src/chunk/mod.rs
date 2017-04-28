@@ -6,9 +6,7 @@ pub mod serial;
 pub use self::index::*;
 pub use self::pos::*;
 
-use std::collections::HashSet;
-
-use cell::Cell;
+use graphics::cell::Cell;
 use point::Point;
 
 /// Represents a piece of terrain that is part of a larger World. Looking up
@@ -22,18 +20,6 @@ pub struct Chunk {
 pub const CHUNK_WIDTH: i32 = 16;
 
 impl Chunk {
-    pub fn new(cell: Cell) -> Chunk {
-        let mut cells = Vec::new();
-
-        for _ in 0..(CHUNK_WIDTH * CHUNK_WIDTH) {
-            cells.push(cell.clone());
-        }
-
-        Chunk {
-            cells: cells,
-        }
-    }
-
     fn index(&self, pos: ChunkPosition) -> usize {
         (pos.0.y * CHUNK_WIDTH + pos.0.x) as usize
     }

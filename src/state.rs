@@ -4,14 +4,14 @@ use calx_ecs::Entity;
 use infinigen::ChunkedWorld;
 
 use ::GameContext;
-use action::*;
 use ai;
-use command::Command;
 use chunk::generator::ChunkType;
-use world::traits::*;
 use engine::canvas;
+use graphics::Glyph;
+use logic::{Action, Command};
 use logic;
 use stats;
+use world::traits::*;
 use world::{self, Bounds, EcsWorld, WorldPosition};
 
 pub struct GameState {
@@ -169,7 +169,7 @@ fn check_player_dead(world: &mut EcsWorld) -> bool {
     res
 }
 
-fn process_events(world: &mut EcsWorld) {
+fn process_events(_world: &mut EcsWorld) {
     // let mut responses = event::check_all(world);
     // while responses.len() != 0 {
     //     world.events.clear();
@@ -245,7 +245,7 @@ pub fn load_context() -> GameContext {
     if let Ok(world) = world::serial::load_world() {
         context.state.world = world;
     } else {
-        let e = context.state.world.create(::ecs::prefab::mob("Player", 100000, ::glyph::Glyph::Player), WorldPosition::new(1,1));
+        let e = context.state.world.create(::ecs::prefab::mob("Player", 100000, Glyph::Player), WorldPosition::new(1,1));
         context.state.world.set_player(Some(e));
     }
 

@@ -1,15 +1,11 @@
-use std::collections::{HashSet, HashMap};
-use std::fs::File;
+use std::collections::HashMap;
 
 use world::regions::Regions;
 use world::traits::*;
 
 use chunk::*;
 use chunk::serial::SerialChunk;
-use cell;
 use world::WorldPosition;
-
-use world::traits::*;
 
 use infinigen::*;
 

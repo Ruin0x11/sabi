@@ -4,10 +4,10 @@ pub use world::terrain_traits::*;
 
 use calx_ecs::Entity;
 
-use command::CommandResult;
-use cell::Cell;
+use logic::CommandResult;
+use graphics::cell::Cell;
 use data::{TurnOrder, Walkability};
-use direction::Direction;
+use point::Direction;
 use ecs::*;
 use ecs::prefab::*;
 use world::WorldPosition;

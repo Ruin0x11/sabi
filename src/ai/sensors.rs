@@ -30,7 +30,7 @@ fn target_visible(world: &EcsWorld, entity: &Entity, ai: &Ai) -> bool {
         })
 }
 
-fn target_dead(world: &EcsWorld, entity: &Entity, ai: &Ai) -> bool {
+fn target_dead(world: &EcsWorld, _entity: &Entity, ai: &Ai) -> bool {
     ai.target.borrow()
         .map_or(false, |t| {
             !world.is_alive(t)
@@ -44,11 +44,11 @@ fn next_to_target(world: &EcsWorld, entity: &Entity, ai: &Ai) -> bool {
         })
 }
 
-fn has_target(_world: &EcsWorld, entity: &Entity, ai: &Ai) -> bool {
+fn has_target(_world: &EcsWorld, _entity: &Entity, ai: &Ai) -> bool {
     ai.target.borrow().is_some()
 }
 
-fn health_low(_world: &EcsWorld, entity: &Entity, ai: &Ai) -> bool {
+fn health_low(_world: &EcsWorld, _entity: &Entity, ai: &Ai) -> bool {
     false
 }
 

@@ -5,7 +5,7 @@ use serde::ser::{Serialize, Serializer};
 
 use slog::Logger;
 
-use glyph::Glyph;
+use graphics::Glyph;
 use log;
 use stats::properties::Properties;
 

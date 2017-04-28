@@ -1,7 +1,7 @@
 use std::fmt::{self, Display};
 
 use calx_ecs::Entity;
-use rand::{self, Rng};
+use rand;
 use rand::distributions::{Range, IndependentSample};
 
 use world::traits::{ComponentQuery, Query};
@@ -52,11 +52,11 @@ pub fn calculate_delay(world: &EcsWorld, actor: &Entity, action_cost: u32) -> i3
     (100*action_cost / speed) as i32
 }
 
-pub fn check_evasion(world: &EcsWorld, attacker: &Entity, defender: &Entity) -> bool {
+pub fn check_evasion(_world: &EcsWorld, _attacker: &Entity, _defender: &Entity) -> bool {
     false
 }
 
-pub fn calculate_damage(world: &EcsWorld, attacker: &Entity, defender: &Entity) -> u32 {
+pub fn calculate_damage(_world: &EcsWorld, _attacker: &Entity, _defender: &Entity) -> u32 {
     let dice = Dice::new(2, 4, 4);
     // debug!(attacker.logger, "{}: attacking {} with {}", attacker, defender, dice);
 

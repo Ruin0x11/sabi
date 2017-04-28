@@ -5,18 +5,21 @@ let health = world.get(e, Health).health;
 let health = world.get_opt(e, Health).map_or(0, |h| h.health);
 #+END_SRC
 * Debt
-** TODO Rename point::iter structs to <XXX>Iter
+** DONE Rename point::iter structs to <XXX>Iter
+CLOSED: [2017-04-27 Thu 19:56]
 ** TODO Disambiguate "AiAction" and "Action"
 ** TODO Clean all imports
 ** TODO Make all warnings go away
-** TODO Refactor modules to live in tighter namespaced groups
+** DONE Refactor modules to live in tighter namespaced groups
+CLOSED: [2017-04-27 Thu 19:55]
 ** DONE Refactor Cell to be Tile
 CLOSED: [2017-04-24 Mon 20:43]
 ** TODO Remove all warnings
 ** DONE Add logging again
 CLOSED: [2017-04-26 Wed 00:06]
 ** TODO Check all #[cfg(never)]
-** TODO I guess remove World/Actor?
+** DONE I guess remove World/Actor?
+CLOSED: [2017-04-27 Thu 19:56]
 ** TODO Indent all function headers below 80 lines
 ** TODO Replace ThreadRng with singular Rng for determinism
 * It happens.

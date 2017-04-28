@@ -1,9 +1,9 @@
 use calx_ecs::Entity;
 
-use direction::Direction;
-use action::Action;
+use point::Direction;
+use logic::Action;
 use data::Walkability;
-use pathfinding::Path;
+use point::Path;
 use world::traits::*;
 use world::EcsWorld;
 
@@ -40,14 +40,17 @@ pub fn move_closer(entity: Entity, world: &EcsWorld) -> Action {
     let mut path = Path::find(my_pos, target_pos, world, Walkability::MonstersBlocking);
 
     if path.len() == 0 {
-        // TODO: Lost sight of target.
-        return wander(entity, world);
+        path = Path::find(my_pos, target_pos, world, Walkability::MonstersWalkable);
+
+        if path.len() == 0 {
+            return wander(entity, world);
+        }
     }
 
     let next_pos = path.next().unwrap();
 
     // for pt in path {
-        // world.draw_calls.push(Draw::Point(pt.x, pt.y));
+    // world.draw_calls.push(Draw::Point(pt.x, pt.y));
     // }
 
     match Direction::from_neighbors(my_pos, next_pos) {

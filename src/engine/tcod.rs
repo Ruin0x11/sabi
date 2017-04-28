@@ -11,7 +11,7 @@ use glyph::{self, Glyph};
 use keys::{self, Key, KeyCode};
 use log;
 
-use color::Color;
+use graphics::color::Color;
 
 // bitflags! {
 //     pub flags Attrs: u8 {

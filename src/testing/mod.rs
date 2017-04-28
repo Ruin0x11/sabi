@@ -3,11 +3,13 @@ mod bench;
 use calx_ecs::Entity;
 
 use ecs::Ecs;
-use ecs::prefab::Prefab;
-use point::Point;
+use ecs::prefab;
+use graphics::Glyph;
 use state;
+use point::Point;
+use chunk::generator::ChunkType;
 use world::traits::Mutate;
-use world::{EcsWorld, WorldPosition};
+use world::{Bounds, EcsWorld, WorldPosition};
 
 use ::GameContext;
 
@@ -15,9 +17,15 @@ pub fn get_ecs() -> Ecs {
     Ecs::new()
 }
 
+pub fn blank_world(w: i32, h: i32) -> EcsWorld {
+    let bounds = Point::new(w, h);
+    let world = EcsWorld::new(Bounds::Bounded(bounds), ChunkType::Blank, 0);
+    world
+}
+
 pub fn get_world_bounded(w: i32, h: i32) -> EcsWorld {
-    let mut world = EcsWorld::new_blank(w, h);
-    let e = world.create(::ecs::prefab::mob("Player", 100000, ::glyph::Glyph::Player), Point::new(0,0));
+    let mut world = blank_world(w, h);
+    let e = world.create(prefab::mob("Player", 100000, Glyph::Player), Point::new(0,0));
     world.set_player(Some(e));
     world
 }
@@ -30,5 +38,5 @@ pub fn test_context_bounded(w: i32, h: i32) -> GameContext {
 }
 
 pub fn place_mob(world: &mut EcsWorld, pos: WorldPosition) -> Entity {
-    world.create(Prefab::new(), pos)
+    world.create(prefab::mob("Mob", 100, Glyph::Putit), pos)
 }

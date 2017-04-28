@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 
-use keys::Key;
-use glyph::Glyph;
+use engine::keys::Key;
+use graphics::Glyph;
 use point::Point;
 use ui::*;
 

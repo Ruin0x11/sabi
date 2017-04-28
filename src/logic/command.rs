@@ -1,5 +1,5 @@
-use direction::Direction;
-use keys::{Key, KeyCode};
+use point::Direction;
+use engine::keys::{Key, KeyCode};
 
 pub type CommandResult = Result<(), ()>;
 

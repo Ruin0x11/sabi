@@ -1,20 +1,7 @@
-use std::slice;
-
-use calx_ecs::Entity;
-
-use action::Action;
-use cell::{Cell, CellFeature};
-use command::CommandResult;
-use data::{TurnOrder, Walkability};
-use direction::Direction;
-use ecs::*;
-use ecs::prefab::*;
+use graphics::cell::{Cell, CellFeature};
 use world::WorldPosition;
-use world::flags::Flags;
 
-use point::Point;
 use chunk::*;
-
 
 /// Queries that are directly related to the terrain itself, and not the
 /// entities on top of it.

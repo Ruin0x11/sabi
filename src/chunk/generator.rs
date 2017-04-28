@@ -1,7 +1,6 @@
-use cell;
+use graphics::cell;
 use chunk::{CHUNK_WIDTH, Chunk, ChunkIndex};
 use world::WorldPosition;
-use serde::{Serialize, Deserialize};
 
 use noise::{NoiseModule, Perlin, Seedable};
 
@@ -25,8 +24,8 @@ impl ChunkType {
 fn generate_flat() -> Chunk {
     let mut cells = Vec::new();
 
-    for j in 0..(CHUNK_WIDTH) {
-        for i in 0..(CHUNK_WIDTH) {
+    for _ in 0..(CHUNK_WIDTH) {
+        for _ in 0..(CHUNK_WIDTH) {
             cells.push(cell::FLOOR);
         }
     }

@@ -3,7 +3,6 @@ use std::collections::{BinaryHeap, HashMap};
 use std::f32;
 
 use data::Walkability;
-use drawcalls::Draw;
 use world::traits::{Query, WorldQuery};
 use point::Point;
 use world::EcsWorld;

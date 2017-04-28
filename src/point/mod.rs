@@ -1,6 +1,10 @@
+mod direction;
 mod iter;
+mod pathfinding;
 
+pub use self::direction::Direction;
 pub use self::iter::*;
+pub use self::pathfinding::Path;
 
 use std::cmp::{max, Ordering};
 use std::fmt::{Display, Formatter, Error};

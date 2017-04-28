@@ -1,6 +1,6 @@
 use point::Point;
 
-pub struct CircleArea {
+pub struct CircleIter {
     pos: Point,
     center: Point,
     radius: i32,
@@ -8,10 +8,10 @@ pub struct CircleArea {
     max: Point
 }
 
-impl CircleArea {
+impl CircleIter {
     pub fn new<P: Into<Point>>(center: P, radius: i32) -> Self {
         let center = center.into();
-        CircleArea {
+        CircleIter {
             pos: center - (radius, radius),
             center: center,
             radius: radius,
@@ -21,7 +21,7 @@ impl CircleArea {
     }
 }
 
-impl Iterator for CircleArea {
+impl Iterator for CircleIter {
     type Item = Point;
 
     fn next(&mut self) -> Option<Point> {
@@ -44,21 +44,21 @@ impl Iterator for CircleArea {
     }
 }
 
-pub struct PointArea {
+pub struct PointIter {
     pos: Point,
     done: bool,
 }
 
-impl PointArea {
+impl PointIter {
     pub fn new<P: Into<Point>>(pos: P) -> Self {
-        PointArea {
+        PointIter {
             pos: pos.into(),
             done: false,
         }
     }
 }
 
-impl Iterator for PointArea {
+impl Iterator for PointIter {
     type Item = Point;
 
     fn next(&mut self) -> Option<Point> {
@@ -74,18 +74,18 @@ impl Iterator for PointArea {
 /// A square area defined by its "half_side" or radius.
 /// A half_side of 0 means no points. Radius of 1 means the centre point.
 /// Radius of 2 means a square of 9 points, and so on.
-pub struct SquareArea {
+pub struct SquareIter {
     pos: Point,
     min_x: i32,
     max: Point,
     radius: i32,
 }
 
-impl SquareArea {
+impl SquareIter {
     pub fn new<P: Into<Point>>(center: P, radius: i32) -> Self {
         let center = center.into();
         let half_side = radius;
-        SquareArea {
+        SquareIter {
             radius: radius,
             pos: center - (half_side, half_side),
             min_x: center.x - half_side,
@@ -94,7 +94,7 @@ impl SquareArea {
     }
 }
 
-impl Iterator for SquareArea {
+impl Iterator for SquareIter {
     type Item = Point;
 
     fn next(&mut self) -> Option<Point> {
@@ -118,17 +118,17 @@ impl Iterator for SquareArea {
     }
 }
 
-pub struct RectangleArea {
+pub struct RectangleIter {
     pos: Point,
     top_left: Point,
     bottom_right: Point,
     done: bool,
 }
 
-impl RectangleArea {
+impl RectangleIter {
     pub fn new<P: Into<Point>>(top_left: P, bottom_right: P) -> Self {
         let start = top_left.into();
-        RectangleArea {
+        RectangleIter {
             pos: start.clone(),
             top_left: start.clone(),
             bottom_right: bottom_right.into(),
@@ -137,7 +137,7 @@ impl RectangleArea {
     }
 }
 
-impl Iterator for RectangleArea {
+impl Iterator for RectangleIter {
     type Item = Point;
 
     fn next(&mut self) -> Option<Point> {
@@ -161,14 +161,14 @@ impl Iterator for RectangleArea {
     }
 }
 
-pub struct BorderArea {
+pub struct BorderIter {
     pos: Point,
     top_left: Point,
     bottom_right: Point,
     done: bool,
 }
 
-impl Iterator for BorderArea {
+impl Iterator for BorderIter {
     type Item = Point;
 
     fn next(&mut self) -> Option<Point> {
@@ -202,10 +202,10 @@ impl Iterator for BorderArea {
     }
 }
 
-impl BorderArea {
+impl BorderIter {
     pub fn new<P: Into<Point>>(top_left: P, bottom_right: P) -> Self {
         let start = top_left.into();
-        BorderArea {
+        BorderIter {
             pos: start.clone(),
             top_left: start.clone(),
             bottom_right: bottom_right.into(),
@@ -222,7 +222,7 @@ mod test {
 
     #[test]
     fn test_rectangle() {
-        let actual: Vec<Point> = FromIterator::from_iter(RectangleArea::new((-1, -1), (1, 2)));
+        let actual: Vec<Point> = FromIterator::from_iter(RectangleIter::new((-1, -1), (1, 2)));
         let expected = [(-1, -1), (0, -1), (1, -1),
                         (-1,  0), (0,  0), (1,  0),
                         (-1,  1), (0,  1), (1,  1),
@@ -232,7 +232,7 @@ mod test {
 
     #[test]
     fn test_border() {
-        let actual: Vec<Point> = FromIterator::from_iter(BorderArea::new((-1, -1), (1, 2)));
+        let actual: Vec<Point> = FromIterator::from_iter(BorderIter::new((-1, -1), (1, 2)));
         let expected = [(-1, -1), (0, -1), (1, -1),
                         (-1,  0),          (1,  0),
                         (-1,  1),          (1,  1),
@@ -242,13 +242,13 @@ mod test {
 
     #[test]
     fn test_points_within_radius_of_zero() {
-        let actual: Vec<Point> = FromIterator::from_iter(SquareArea::new((3, 3), 0));
+        let actual: Vec<Point> = FromIterator::from_iter(SquareIter::new((3, 3), 0));
         assert_eq!(actual, [(3, 3)]);
     }
 
     #[test]
     fn test_points_within_radius_of_one() {
-        let actual: Vec<Point> = FromIterator::from_iter(SquareArea::new((0, 0), 1));
+        let actual: Vec<Point> = FromIterator::from_iter(SquareIter::new((0, 0), 1));
         let expected = [(-1, -1), (0, -1), (1, -1),
                         (-1,  0), (0,  0), (1,  0),
                         (-1,  1), (0,  1), (1,  1)];
@@ -257,7 +257,7 @@ mod test {
 
     #[test]
     fn test_points_within_radius_of_five() {
-        let actual: Vec<Point> = FromIterator::from_iter(SquareArea::new((0, 0), 5));
+        let actual: Vec<Point> = FromIterator::from_iter(SquareIter::new((0, 0), 5));
 
         let mut expected = Vec::new();
         for y in -5..6 {

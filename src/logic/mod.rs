@@ -1,6 +1,11 @@
+mod action;
+mod command;
+
+pub use self::action::Action;
+pub use self::command::{Command, CommandResult};
+
 use calx_ecs::Entity;
-use action::Action;
-use direction::Direction;
+use point::Direction;
 use stats;
 use world::traits::*;
 use world::{EcsWorld, WorldPosition};
@@ -39,52 +44,61 @@ fn post_tick_entity(world: &mut EcsWorld, entity: Entity) {
     }
 }
 
-fn post_tick(world: &mut EcsWorld) {
+fn post_tick(_world: &mut EcsWorld) {
 
 }
 
-fn move_or_attack(world: &mut EcsWorld, entity: Entity, dir: Direction) {
+fn move_or_attack(world: &mut EcsWorld, entity: Entity, dir: Direction) -> CommandResult {
     let new_pos = world.position(entity).expect("No entity position") + dir;
     if let Some(id) = world.mob_at(new_pos) {
-        swing_at(world, entity, id);
+        swing_at(world, entity, id)
     } else {
-        world.move_entity(entity, dir);
+        world.move_entity(entity, dir)
     }
 }
 
-fn swing_at(world: &mut EcsWorld, attacker: Entity, other: Entity) {
+fn swing_at(world: &mut EcsWorld, attacker: Entity, other: Entity) -> CommandResult {
     let damage;
     let evaded;
     {
         // if attacker.disposition == other.disposition {
         //     return;
         // }
-        assert!(world.position(attacker).unwrap().is_next_to(world.position(other).unwrap()), "Tried swinging from out of range! (could be implemented)");
+        if !world.position(attacker).unwrap().is_next_to(world.position(other).unwrap()) {
+            return Err(())
+        }
         evaded = stats::formulas::check_evasion(world, &attacker, &other);
         if evaded {
             // world.message("Evaded!".to_string());
-            return;
+            return Ok(());
         }
         damage = stats::formulas::calculate_damage(world, &attacker, &other);
     }
     debug_ecs!(world, attacker, "Damage: {}", damage);
     world.ecs_mut().healths.map_mut(|h| h.hurt(damage), other);
+    Ok(())
 }
 
-fn try_teleport(world: &mut EcsWorld, entity: Entity, pos: WorldPosition) {
+fn try_teleport(world: &mut EcsWorld, entity: Entity, pos: WorldPosition) -> CommandResult {
     if world.can_walk(pos, Walkability::MonstersBlocking) {
         world.set_entity_location(entity, pos);
+        Ok(())
+    } else {
+        Err(())
     }
 }
 
 // TODO: Return result.
-fn run_entity_action(world: &mut EcsWorld, entity: Entity, action: Action) {
+fn run_entity_action(world: &mut EcsWorld, entity: Entity, action: Action) -> CommandResult {
     match action {
         Action::MoveOrAttack(dir)      => move_or_attack(world, entity, dir),
-        Action::Move(dir)              => { world.move_entity(entity, dir); },
+        Action::Move(dir)              => world.move_entity(entity, dir),
         Action::Teleport(pos)          => try_teleport(world, entity, pos),
-        Action::TeleportUnchecked(pos) => world.set_entity_location(entity, pos),
+        Action::TeleportUnchecked(pos) => {
+            world.set_entity_location(entity, pos);
+            Ok(())
+        }
         Action::SwingAt(target)        => swing_at(world, entity, target),
-        _ => (),
+        _ => Err(()),
     }
 }

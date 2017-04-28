@@ -117,7 +117,7 @@ pub fn make_logger(system_name: &str) -> Logger {
     } else {
         let version = VERSION.unwrap_or("unknown");
         let drain = slog_stream::stream(root_logfile, SabiLogFormat).fuse();
-        Logger::root(drain, o!("system" => system_name.to_string()))
+        Logger::root(drain, o!("v" => version, "system" => system_name.to_string()))
     };
 
     info!(logger, "Log for {} initialized.", system_name);
