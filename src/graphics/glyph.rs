@@ -77,6 +77,9 @@ macro_attr!(
         Wall,
         DebugDraw,
 
+        StairsUp,
+        StairsDown,
+
         Item,
 
         None,

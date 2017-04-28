@@ -8,9 +8,10 @@ use ai;
 use chunk::generator::ChunkType;
 use engine::canvas;
 use graphics::Glyph;
-use logic::{Action, Command};
-use logic;
+use logic::command;
+use logic::{self, Action, Command};
 use stats;
+use world::serial::SaveManifest;
 use world::traits::*;
 use world::{self, Bounds, EcsWorld, WorldPosition};
 
@@ -55,7 +56,7 @@ fn draw_world(world: &mut EcsWorld) {
         });
 
         if true || visible {
-            canvas::with(|c| c.print_glyph(point.x, point.y, cell.glyph) )
+            canvas::with(|c| c.print_glyph(point.x, point.y, cell.glyph()) )
         }
     } );
 }
@@ -98,6 +99,7 @@ fn process_player_command(context: &mut GameContext, command: Command) {
         Command::Quit           => canvas::close_window(),
         Command::Move(dir)      => context.state.add_action(Action::MoveOrAttack(dir)),
         Command::Wait           => context.state.add_action(Action::Dood),
+        Command::UseStairs(dir) => {command::try_use_stairs(dir, &mut context.state.world);},
     }
 }
 
@@ -160,7 +162,7 @@ fn process_actors(world: &mut EcsWorld) {
 fn check_player_dead(world: &mut EcsWorld) -> bool {
     let res = world.player().is_none();
     if res {
-        // info!(world.logger, "Player has died.");
+        info!(world.logger, "Player has died.");
         // world.message("You're dead!".to_string());
         // show_messages(world);
         canvas::present();
@@ -237,12 +239,19 @@ pub fn init_headless(context: &mut GameContext) {
     update_world_terrain(&mut context.state.world);
 }
 
-
 pub fn load_context() -> GameContext {
-    let mut context = GameContext::new();
-    world::serial::init_paths().unwrap();
+    let manifest = match world::serial::load_manifest() {
+        Ok(m) => m,
+        Err(_) => SaveManifest {
+            map_id: 0,
+            max_map_id: 0,
+            seed: 0,
+        }
+    };
 
-    if let Ok(world) = world::serial::load_world() {
+    let mut context = GameContext::new();
+
+    if let Ok(world) = world::serial::load_world(manifest.map_id) {
         context.state.world = world;
     } else {
         let e = context.state.world.create(::ecs::prefab::mob("Player", 100000, Glyph::Player), WorldPosition::new(1,1));

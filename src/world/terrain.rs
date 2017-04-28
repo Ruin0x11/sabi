@@ -12,14 +12,14 @@ use infinigen::*;
 #[derive(Serialize, Deserialize)]
 pub enum Bounds {
     Unbounded,
-    Bounded(WorldPosition),
+    Bounded(i32, i32),
 }
 
 impl Bounds {
     pub fn in_bounds(&self, pos: &WorldPosition) -> bool {
         match *self {
             Bounds::Unbounded => true,
-            Bounds::Bounded(bounds) => *pos < bounds
+            Bounds::Bounded(w, h) => *pos < WorldPosition::new(w, h)
         }
     }
 }
@@ -38,6 +38,7 @@ pub struct Terrain {
 
     chunks: HashMap<ChunkIndex, Chunk>,
     bounds: Bounds,
+    id: u32,
 }
 
 impl Terrain {
@@ -46,7 +47,13 @@ impl Terrain {
             regions: Regions::new(),
             chunks: HashMap::new(),
             bounds: bounds,
+            id: 0,
         }
+    }
+
+    pub fn set_id(&mut self, id: u32) {
+        self.id = id;
+        self.regions.set_id(id);
     }
 }
 

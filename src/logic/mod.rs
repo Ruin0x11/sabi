@@ -1,5 +1,5 @@
 mod action;
-mod command;
+pub mod command;
 
 pub use self::action::Action;
 pub use self::command::{Command, CommandResult};

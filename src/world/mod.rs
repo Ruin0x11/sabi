@@ -4,6 +4,7 @@ mod terrain;
 mod terrain_traits;
 pub mod traits;
 pub mod serial;
+mod transition;
 
 pub use self::terrain::{Bounds, Terrain};
 use self::regions::Regions;
@@ -17,7 +18,7 @@ use calx_ecs::{ComponentData, Entity};
 use slog::Logger;
 
 use graphics::Glyph;
-use graphics::cell::{self, Cell};
+use graphics::cell::{CellFeature, Cell, StairDir};
 use chunk::*;
 use chunk::generator::ChunkType;
 use chunk::serial::SerialChunk;
@@ -29,6 +30,7 @@ use log;
 use logic::{Action, CommandResult};
 use point::{Direction, POINT_ZERO, Point, RectangleIter};
 
+pub type MapId = u32;
 pub type WorldPosition = Point;
 
 impl WorldPosition {
@@ -59,7 +61,7 @@ pub struct EcsWorld {
     #[serde(skip_serializing)]
     #[serde(skip_deserializing)]
     #[serde(default="get_world_log")]
-    logger: Logger,
+    pub logger: Logger,
 }
 
 impl EcsWorld {
@@ -293,7 +295,8 @@ fn is_persistent(world: &EcsWorld, entity: Entity) -> bool {
 }
 
 impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorld {
-    fn terrain(&mut self) -> &mut Terrain { &mut self.terrain }
+    fn terrain(&self) -> &Terrain { &self.terrain }
+    fn terrain_mut(&mut self) -> &mut Terrain { &mut self.terrain }
 
     fn load_chunk_internal(&mut self, chunk: SerialChunk, index: &ChunkIndex) -> Result<(), SerialError> {
         self.terrain.insert_chunk(index.clone(), chunk.chunk);
@@ -335,6 +338,15 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
         if self.can_walk(cell_pos, Walkability::MonstersBlocking) {
             self.create(::ecs::prefab::mob("Putit", 10, Glyph::Putit),
                         cell_pos);
+        }
+
+        let stair_pos = cell_pos + (0, 1);
+        if self.can_walk(stair_pos, Walkability::MonstersWalkable) {
+            self.flags.max_map_id += 1;
+            self.terrain.cell_mut(&stair_pos).unwrap().feature =
+                Some(CellFeature::Stairs(StairDir::Descending,
+                                         self.flags.max_map_id,
+                                         None));
         }
 
         Ok(())

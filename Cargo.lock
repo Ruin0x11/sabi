@@ -375,7 +375,7 @@ dependencies = [
 [[package]]
 name = "infinigen"
 version = "0.1.0"
-source = "git+https://github.com/ruin0x11/infinigen-rs.git#49afcd59f29f7a86387da8a1dc94bc1420320238"
+source = "git+https://github.com/ruin0x11/infinigen-rs.git#1110142ec63707558288dea59b69e6de80d1b12e"
 dependencies = [
  "bincode 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "flate2 0.2.19 (registry+https://github.com/rust-lang/crates.io-index)",

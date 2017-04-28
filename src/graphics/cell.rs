@@ -1,4 +1,6 @@
 use graphics::Glyph;
+use point::Point;
+use world::MapId;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub enum CellType {
@@ -7,6 +9,32 @@ pub enum CellType {
     Air,
     Water,
     Lava
+}
+
+#[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Copy, Clone)]
+pub enum StairDir {
+    Ascending,
+    Descending,
+}
+
+use self::StairDir::*;
+
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+pub enum CellFeature {
+    Door(bool),
+    Stairs(StairDir, MapId, Option<Point>),
+}
+
+use self::CellFeature::*;
+
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+pub struct Cell {
+    pub type_: CellType,
+
+    // TEMP: Shouldn't be owned, but instead looked up
+    glyph: Glyph,
+
+    pub feature: Option<CellFeature>,
 }
 
 impl Cell {
@@ -24,23 +52,23 @@ impl Cell {
             _              => true,
         }
     }
-}
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
-pub enum CellFeature {
-    Door(bool),
-    StairsUp,
-    StairsDown,
-}
+    pub fn stair_dest(&self) -> Option<Point> {
+        match self.feature {
+            Some(Stairs(_, _, dest)) => dest,
+            _                        => None,
+        }
+    }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
-pub struct Cell {
-    pub type_: CellType,
-
-    // TEMP: Shouldn't go here, but is instead looked up
-    pub glyph: Glyph,
-
-    pub feature: Option<CellFeature>,
+    pub fn glyph(&self) -> Glyph {
+        match self.feature {
+            Some(Stairs(dir, _, _)) => match dir {
+                Ascending  => Glyph::StairsUp,
+                Descending => Glyph::StairsDown,
+            },
+            _ => self.glyph
+        }
+    }
 }
 
 // TEMP: A tile ID is all that should be needed, not type and glyph

@@ -7,7 +7,6 @@ use chunk::*;
 /// entities on top of it.
 pub trait TerrainQuery {
     fn chunk(&self, index: ChunkIndex) -> Option<&Chunk>;
-
     fn pos_valid(&self, pos: &WorldPosition) -> bool { self.cell(pos).is_some() }
 
     fn chunk_from_world_pos(&self, pos: WorldPosition) -> Option<&Chunk> {

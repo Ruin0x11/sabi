@@ -1,6 +1,8 @@
 use std::slice;
 
 pub use world::terrain_traits::*;
+// TODO: infinigen::traits::*;
+pub use infinigen::*;
 
 use calx_ecs::Entity;
 

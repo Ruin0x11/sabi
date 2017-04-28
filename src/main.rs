@@ -85,6 +85,8 @@ pub fn run() {
 }
 
 fn game_loop() {
+    world::serial::init_paths().unwrap();
+
     let mut context = state::load_context();
 
     while !canvas::window_closed() {
@@ -92,4 +94,5 @@ fn game_loop() {
     }
 
     world::serial::save_world(&mut context.state.world).unwrap();
+    world::serial::save_manifest(&mut context.state.world).unwrap();
 }

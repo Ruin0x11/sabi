@@ -61,6 +61,9 @@ pub enum KeyCode {
     PageUp,
     PageDown,
 
+    GreaterThan,
+    LessThan,
+
     Unknown(char),
 }
 
@@ -107,6 +110,9 @@ impl From<char> for KeyCode {
                 'x' => KeyCode::X,
                 'y' => KeyCode::Y,
                 'z' => KeyCode::Z,
+
+                '>' => KeyCode::GreaterThan,
+                '<' => KeyCode::LessThan,
 
                 _   => KeyCode::Unknown(ch_lower),
             },

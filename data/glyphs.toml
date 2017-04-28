@@ -22,6 +22,14 @@ color=[255, 255, 255]
 ch="#"
 color=[255, 255, 255]
 
+[StairsUp]
+ch="<"
+color=[255, 255, 255]
+
+[StairsDown]
+ch=">"
+color=[255, 255, 255]
+
 [None]
 ch=" "
 color=[0, 0, 0]
