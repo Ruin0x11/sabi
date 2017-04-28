@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use world::regions::Regions;
 use world::traits::*;
+use world::Bounds;
 
 use chunk::*;
 use chunk::serial::SerialChunk;
@@ -9,18 +10,13 @@ use world::WorldPosition;
 
 use infinigen::*;
 
-#[derive(Serialize, Deserialize)]
-pub enum Bounds {
-    Unbounded,
-    Bounded(i32, i32),
-}
+impl BoundedTerrain<WorldPosition, ChunkIndex> for Terrain {
+    fn in_bounds(&self, pos: &WorldPosition) -> bool {
+        self.bounds.in_bounds(pos)
+    }
 
-impl Bounds {
-    pub fn in_bounds(&self, pos: &WorldPosition) -> bool {
-        match *self {
-            Bounds::Unbounded => true,
-            Bounds::Bounded(w, h) => *pos < WorldPosition::new(w, h)
-        }
+    fn index_in_bounds(&self, index: &ChunkIndex) -> bool {
+        self.bounds.index_in_bounds(index)
     }
 }
 

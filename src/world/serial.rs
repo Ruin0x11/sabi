@@ -77,7 +77,6 @@ pub fn save_manifest(world: &EcsWorld) -> SerialResult<()> {
 
 pub fn load_manifest() -> SerialResult<SaveManifest> {
     let manifest_path = get_manifest_file();
-    println!("{:?}", manifest_path.display());
 
     let mut data: Vec<u8> = Vec::new();
     let mut savefile = File::create(manifest_path)?;

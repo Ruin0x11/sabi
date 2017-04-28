@@ -20,7 +20,6 @@ impl Regions {
         }
     }
     pub fn set_id(&mut self, id: u32) {
-        println!("set id! {}", id);
         self.id = id;
     }
 }
@@ -43,7 +42,6 @@ impl<'a> RegionManager<'a, ChunkIndex, SerialChunk> for Regions
     fn load(&mut self, index: RegionIndex) {
         let path = self.get_region_path(&index);
 
-        println!("{:?}", path.display());
         let handle = Region::get_region_file(path);
 
         let region = Region {

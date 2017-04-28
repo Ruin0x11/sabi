@@ -1,2 +1,5 @@
+callgrind*
 .coveralls.yml
-#*#
+\#*\#
+save/
+target/

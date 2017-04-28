@@ -44,7 +44,7 @@ fn generate_perlin(index: &ChunkIndex, seed: u32) -> Chunk {
     let gen = Perlin::new().set_seed(seed as usize);
 
     let mut cells = Vec::new();
-    let center = WorldPosition::from_chunk_index(*index);
+    let center = WorldPosition::from(*index);
 
     for j in 0..(CHUNK_WIDTH) {
         for i in 0..(CHUNK_WIDTH) {

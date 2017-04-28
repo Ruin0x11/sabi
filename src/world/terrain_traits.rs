@@ -1,4 +1,6 @@
 use graphics::cell::{Cell, CellFeature};
+use point::Point;
+use infinigen::Index;
 use world::WorldPosition;
 
 use chunk::*;
@@ -61,4 +63,11 @@ pub trait TerrainMutate {
             cell_mut.feature = feature;
         }
     }
+}
+
+pub trait BoundedTerrain<P, I>
+    where P: Into<Point>,
+          I: Index {
+    fn in_bounds(&self, pos: &WorldPosition) -> bool;
+    fn index_in_bounds(&self, index: &ChunkIndex) -> bool;
 }

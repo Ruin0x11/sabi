@@ -18,8 +18,7 @@ pub fn get_ecs() -> Ecs {
 }
 
 pub fn blank_world(w: i32, h: i32) -> EcsWorld {
-    let bounds = Point::new(w, h);
-    let world = EcsWorld::new(Bounds::Bounded(bounds), ChunkType::Blank, 0);
+    let world = EcsWorld::new(Bounds::Bounded(w, h), ChunkType::Blank, 0);
     world
 }
 

@@ -5,8 +5,10 @@ mod terrain_traits;
 pub mod traits;
 pub mod serial;
 mod transition;
+mod bounds;
 
-pub use self::terrain::{Bounds, Terrain};
+pub use self::terrain::Terrain;
+pub use self::bounds::Bounds;
 use self::regions::Regions;
 use self::traits::*;
 use self::flags::Flags;
@@ -25,7 +27,6 @@ use chunk::serial::SerialChunk;
 use data::spatial::{Spatial, Place};
 use data::{TurnOrder, Walkability};
 use ecs::*;
-use infinigen::*;
 use log;
 use logic::{Action, CommandResult};
 use point::{Direction, POINT_ZERO, Point, RectangleIter};
@@ -33,8 +34,8 @@ use point::{Direction, POINT_ZERO, Point, RectangleIter};
 pub type MapId = u32;
 pub type WorldPosition = Point;
 
-impl WorldPosition {
-    pub fn from_chunk_index(index: ChunkIndex) -> Point {
+impl From<ChunkIndex> for WorldPosition {
+    fn from(index: ChunkIndex) -> Point {
         Point::new(index.0.x * CHUNK_WIDTH, index.0.y * CHUNK_WIDTH)
     }
 }
@@ -197,25 +198,24 @@ impl Mutate for EcsWorld {
         self.turn_order.next()
     }
 
-    fn do_fov(&mut self, e: Entity) {
-        return;
-        if !self.ecs().fovs.has(e) {
-            return;
-        }
+    fn do_fov(&mut self, _e: Entity) {
+        // if !self.ecs().fovs.has(e) {
+        //     return;
+        // }
 
-        if let Some(ref center) = self.position(e) {
-            const FOV_RADIUS: i32 = 12;
+        // if let Some(ref center) = self.position(e) {
+        //     const FOV_RADIUS: i32 = 12;
 
-            let ref mut fov = self.ecs_.fovs[e];
+        //     let ref mut fov = self.ecs_.fovs[e];
 
-            fov.update(&self.terrain, center, FOV_RADIUS);
-        }
+        //     fov.update(&self.terrain, center, FOV_RADIUS);
+        // }
     }
 
     fn spawn(&mut self, loadout: &Loadout, pos: WorldPosition) -> Entity {
         let entity = loadout.make(&mut self.ecs_);
         self.place_entity(entity, pos);
-        self.turn_order.insert(entity, 0);
+        self.turn_order.insert(entity, 0).unwrap();
         entity
     }
 
@@ -229,12 +229,12 @@ impl Mutate for EcsWorld {
             .filter(|&&e| self.is_active(e) && self.ecs().turns.get(e).is_some())
             .cloned().collect();
         for id in ids {
-            self.turn_order.advance_time_for(id, ticks);
+            self.turn_order.advance_time_for(id, ticks).unwrap();
         }
     }
 
     fn add_delay_for(&mut self, id: Entity, amount: i32) {
-        self.turn_order.add_delay_for(id, amount);
+        self.turn_order.add_delay_for(id, amount).unwrap();
     }
 }
 
@@ -379,7 +379,7 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
         quadrant(1,  -1, &mut relevant);
 
         for idx in relevant.iter() {
-            if !self.terrain.chunk_loaded(idx) {
+            if self.terrain().index_in_bounds(idx) && !self.terrain.chunk_loaded(idx) {
                 self.load_chunk(idx)?;
             }
         }
