@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
+use graphics::cell::{CellFeature, StairDir, StairDest};
 use world::regions::Regions;
 use world::traits::*;
-use world::Bounds;
+use world::{Bounds, MapId};
 
 use chunk::*;
 use chunk::serial::SerialChunk;
@@ -34,7 +35,7 @@ pub struct Terrain {
 
     chunks: HashMap<ChunkIndex, Chunk>,
     bounds: Bounds,
-    id: u32,
+    pub id: u32,
 }
 
 impl Terrain {
@@ -50,6 +51,13 @@ impl Terrain {
     pub fn set_id(&mut self, id: u32) {
         self.id = id;
         self.regions.set_id(id);
+    }
+
+    pub fn place_stairs(&mut self, dir: StairDir, leading_to: MapId, pos: WorldPosition) {
+        if let Some(cell_mut) = self.cell_mut(&pos) {
+            let dest = StairDest::Generated(leading_to, pos);
+            cell_mut.feature = Some(CellFeature::Stairs(dir, dest));
+        }
     }
 }
 

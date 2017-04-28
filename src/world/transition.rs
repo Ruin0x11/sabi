@@ -5,13 +5,6 @@ use world::flags::Flags;
 use world::EcsWorld;
 use world::traits::*;
 
-pub type TransitionResult<T> = Result<T, ()>;
-pub trait Transition<T> {
-    fn map_id(&self) -> u32;
-    fn get_transition_data(&mut self) -> TransitionResult<T>;
-    fn inject_transition_data(&mut self, data: T) -> TransitionResult<()>;
-}
-
 struct TransitionData {
     pub flags: Flags,
     pub player: Loadout,
@@ -22,13 +15,19 @@ impl Transition<TransitionData> for EcsWorld {
         self.flags.map_id
     }
 
+    fn set_map_id(&mut self, id: u32) {
+        self.flags.map_id = id;
+        self.terrain_mut().set_id(id);
+    }
+
     fn get_transition_data(&mut self) -> TransitionResult<TransitionData> {
         let player = self.player().unwrap();
-        let loadout = Loadout::get(self.ecs(), player);
+        let loadout = self.unload_entity(player);
         let data = TransitionData {
             flags: self.flags.clone(),
             player: loadout,
         };
+
         Ok(data)
     }
 
@@ -37,8 +36,7 @@ impl Transition<TransitionData> for EcsWorld {
         self.flags = previous.flags;
 
         // TODO: shouldn't have to set manually.
-        self.flags.map_id = map_id;
-        self.terrain_mut().set_id(map_id);
+        self.set_map_id(map_id);
 
         let player_id = self.spawn(&previous.player, Point::new(0, 0));
         self.flags.player = Some(player_id);
@@ -52,18 +50,19 @@ impl EcsWorld {
         serial::load_world(id).ok()
     }
 
-    pub fn move_to_map(&mut self, other: EcsWorld) -> TransitionResult<()> {
-        debug!(self.logger, "player: {:?}", self.player());
+    pub fn move_to_map(&mut self, other: EcsWorld, dest: Point) -> TransitionResult<()> {
         let data = self.get_transition_data()?;
 
-        serial::save_world(self).map_err(|_| ())?;
+        serial::save_world(self).unwrap();
 
         *self = other;
 
         self.inject_transition_data(data)?;
 
+        let player = self.player().expect("Player didn't move to new map!");
+        self.set_entity_location(player, dest);
+
         // self.flags.map_id = other.flags.map_id;
-        debug!(self.logger, "player after: {:?}", self.player());
         Ok(())
     }
 }

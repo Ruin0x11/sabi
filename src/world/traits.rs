@@ -89,6 +89,9 @@ pub trait Mutate: Query + Sized {
     /// Mark an entity as dead, but don't remove it from the system yet.
     fn kill_entity(&mut self, e: Entity);
 
+    /// Save an entity's data and remove it from the world cleanly;
+    fn unload_entity(&mut self, e: Entity) -> Loadout;
+
     /// Remove an entity from the system.
     ///
     /// You generally do not want to call this directly. Mark the entity as dead and it will be
@@ -170,4 +173,14 @@ pub trait ComponentQuery<C: Component> {
 pub trait ComponentMutate<C: Component> {
     fn map_mut<F, T>(&mut self, callback: F, e: Entity) -> Option<T>
         where F: FnOnce(&mut C,) -> T;
+}
+
+pub type TransitionResult<T> = Result<T, ()>;
+
+/// A trait for transitioning between game worlds.
+pub trait Transition<T> {
+    fn map_id(&self) -> u32;
+    fn set_map_id(&mut self, id: u32);
+    fn get_transition_data(&mut self) -> TransitionResult<T>;
+    fn inject_transition_data(&mut self, data: T) -> TransitionResult<()>;
 }

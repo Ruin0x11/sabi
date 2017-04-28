@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::fs;
 use std::path::PathBuf;
 
 use chunk::ChunkIndex;
@@ -9,7 +10,7 @@ use world;
 /// Implementation of a region manager.
 pub struct Regions {
     pub regions: HashMap<RegionIndex, Region<ChunkIndex>>,
-    id: u32,
+    pub id: u32,
 }
 
 impl Regions {
@@ -30,9 +31,11 @@ impl Regions {
     }
 
     fn get_region_path(&self, index: &RegionIndex) -> PathBuf {
-        let mut save_path = world::serial::get_save_directory(self.id);
-        save_path.push(Regions::get_region_filename(index));
-        save_path
+        let mut save_path = world::serial::get_world_save_dir(self.id);
+        fs::create_dir_all(&save_path).unwrap();
+
+        save_path.push_str(&Regions::get_region_filename(index));
+        PathBuf::from(save_path)
     }
 }
 

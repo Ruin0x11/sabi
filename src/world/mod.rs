@@ -20,7 +20,7 @@ use calx_ecs::{ComponentData, Entity};
 use slog::Logger;
 
 use graphics::Glyph;
-use graphics::cell::{CellFeature, Cell, StairDir};
+use graphics::cell::{CellFeature, Cell, StairDir, StairDest};
 use chunk::*;
 use chunk::generator::ChunkType;
 use chunk::serial::SerialChunk;
@@ -178,11 +178,18 @@ impl Mutate for EcsWorld {
         self.turn_order.remove(e);
     }
 
+    fn unload_entity(&mut self, e: Entity) -> Loadout {
+        let loadout = Loadout::get(self.ecs(), e);
+        self.kill_entity(e);
+        self.remove_entity(e);
+        loadout
+    }
+
+    fn remove_entity(&mut self, e: Entity) { self.ecs_.remove(e); }
+
     fn ecs_mut<'a>(&'a mut self) -> &'a mut Ecs { &mut self.ecs_ }
 
     fn flags_mut<'a>(&'a mut self) -> &'a mut Flags { &mut self.flags }
-
-    fn remove_entity(&mut self, e: Entity) { self.ecs_.remove(e); }
 
     fn move_entity(&mut self, e: Entity, dir: Direction) -> CommandResult {
         let loc = try!(self.position(e).ok_or(())) + dir;
@@ -331,6 +338,7 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
     }
 
     fn generate_chunk(&mut self, index: &ChunkIndex) -> SerialResult<()> {
+        debug!(self.logger, "GEN: {} {:?} reg: {}", index, self.chunk_type, self.terrain.id);
         self.terrain.insert_chunk(index.clone(), self.chunk_type.generate(index));
 
         let chunk_pos = ChunkPosition::from(Point::new(0, 0));
@@ -342,11 +350,9 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
 
         let stair_pos = cell_pos + (0, 1);
         if self.can_walk(stair_pos, Walkability::MonstersWalkable) {
-            self.flags.max_map_id += 1;
             self.terrain.cell_mut(&stair_pos).unwrap().feature =
                 Some(CellFeature::Stairs(StairDir::Descending,
-                                         self.flags.max_map_id,
-                                         None));
+                                         StairDest::Ungenerated));
         }
 
         Ok(())
@@ -380,6 +386,7 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
 
         for idx in relevant.iter() {
             if self.terrain().index_in_bounds(idx) && !self.terrain.chunk_loaded(idx) {
+                debug!(self.logger, "LOAD CHUNK: {} MapId {}", idx, self.map_id());
                 self.load_chunk(idx)?;
             }
         }

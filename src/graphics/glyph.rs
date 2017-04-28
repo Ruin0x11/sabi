@@ -76,6 +76,7 @@ macro_attr!(
         Floor,
         Wall,
         DebugDraw,
+        Fancy,
 
         StairsUp,
         StairsDown,

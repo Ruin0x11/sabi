@@ -5,37 +5,48 @@ use std::path::PathBuf;
 use bincode::{self, Infinite};
 
 use infinigen::*;
-use chunk::generator::ChunkType;
-use point::Point;
-use world::{Bounds, EcsWorld};
-use world::traits::Mutate;
+use world::EcsWorld;
+use world::traits::{Transition, Mutate};
 
 pub const SAVE_DIRECTORY: &'static str = "save";
 
-pub fn get_save_directory(id: u32) -> PathBuf {
-    PathBuf::from(format!("{}/{}/", SAVE_DIRECTORY, id))
+fn get_save_directory() -> String {
+    if cfg!(test) {
+        format!("test/{}", SAVE_DIRECTORY)
+    } else {
+        SAVE_DIRECTORY.to_string()
+    }
+}
+
+pub fn get_world_save_dir(id: u32) -> String {
+    let savedir = get_save_directory();
+    format!("{}/{}/", savedir, id)
 }
 
 fn get_world_savefile(id: u32) -> PathBuf {
-    let mut save_dir = get_save_directory(id);
-    save_dir.push("world.bin");
-    save_dir
+    let mut save_dir = get_world_save_dir(id);
+    save_dir.push_str("world.bin");
+    PathBuf::from(save_dir)
 }
 
 fn get_manifest_file() -> PathBuf {
-    PathBuf::from(format!("{}/manifest.bin", SAVE_DIRECTORY))
+    PathBuf::from(format!("{}/manifest.bin", get_save_directory()))
 }
 
 // TODO: Allow quicksaving, as in not unloading the entire world first
 pub fn save_world(world: &mut EcsWorld) -> SerialResult<()> {
+
     let indices = world.terrain.chunk_indices();
+    info!(world.logger, "Saving world: {}", world.map_id());
+    info!(world.logger, "Loaded chunks: {}", indices.len());
     for index in indices.iter() {
         world.unload_chunk(index)?;
     }
 
     let data = bincode::serialize(&world, Infinite)?;
-    let id = world.flags.map_id;
+    let id = world.map_id();
 
+    fs::create_dir_all(get_world_save_dir(id)).map_err(SerialError::from)?;
     let save_path = get_world_savefile(id);
 
     let mut savefile = File::create(save_path).map_err(SerialError::from)?;
@@ -44,7 +55,7 @@ pub fn save_world(world: &mut EcsWorld) -> SerialResult<()> {
 }
 
 pub fn load_world(id: u32) -> SerialResult<EcsWorld> {
-    fs::create_dir_all(get_save_directory(id)).map_err(SerialError::from)?;
+    fs::create_dir_all(get_world_save_dir(id)).map_err(SerialError::from)?;
 
     let save_path = get_world_savefile(id);
 
@@ -54,15 +65,14 @@ pub fn load_world(id: u32) -> SerialResult<EcsWorld> {
     let mut world: EcsWorld = bincode::deserialize(&data)?;
 
     // TODO: shouldn't have to set manually.
-    world.flags_mut().map_id = id;
-    world.terrain.set_id(id);
+    world.set_map_id(id);
 
     Ok(world)
 }
 
 pub fn save_manifest(world: &EcsWorld) -> SerialResult<()> {
     let manifest = SaveManifest {
-        map_id: world.flags.map_id,
+        map_id: world.map_id(),
         max_map_id: world.flags.max_map_id,
         seed: world.flags.seed,
     };
@@ -70,6 +80,7 @@ pub fn save_manifest(world: &EcsWorld) -> SerialResult<()> {
     let data = bincode::serialize(&manifest, Infinite)?;
 
     let manifest_path = get_manifest_file();
+    println!("{:?}", manifest_path.display());
     let mut manifest = File::create(manifest_path).map_err(SerialError::from)?;
     manifest.write(data.as_slice()).map_err(SerialError::from)?;
     Ok(())
@@ -79,15 +90,15 @@ pub fn load_manifest() -> SerialResult<SaveManifest> {
     let manifest_path = get_manifest_file();
 
     let mut data: Vec<u8> = Vec::new();
-    let mut savefile = File::create(manifest_path)?;
-    savefile.read_to_end(&mut data)?;
+    let mut manifest_file = File::open(manifest_path)?;
+    manifest_file.read_to_end(&mut data)?;
     let manifest = bincode::deserialize(&data)?;
 
     Ok(manifest)
 }
 
 pub fn init_paths() -> SerialResult<()> {
-    fs::create_dir_all(SAVE_DIRECTORY).map_err(SerialError::from)
+    fs::create_dir_all(get_save_directory()).map_err(SerialError::from)
 }
 
 /// Global save data not tied to any specific map.
@@ -101,10 +112,20 @@ pub struct SaveManifest {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use testing::*;
 
     #[test]
-    fn test_serial_integrity() {
+    fn test_manifest() {
+        init_paths().unwrap();
 
+        let mut context = test_context_bounded(100, 100);
+        let map_id = 101;
+        context.state.world.set_map_id(101);
+
+        save_manifest(&context.state.world).unwrap();
+        let manifest = load_manifest().unwrap();
+
+        assert_eq!(manifest.map_id, map_id);
     }
 }
 

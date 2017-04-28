@@ -1,10 +1,12 @@
 use point::Direction;
 use engine::keys::{Key, KeyCode};
-use graphics::cell::{CellFeature, StairDir};
+use graphics::cell::{Cell, CellFeature, StairDest, StairDir};
 use world::{Bounds, EcsWorld};
 use point::Point;
+use chunk::ChunkIndex;
 use chunk::generator::ChunkType;
 use infinigen::ChunkedWorld;
+use world::MapId;
 use world::traits::*;
 
 pub type CommandResult = Result<(), ()>;
@@ -27,50 +29,98 @@ pub fn try_use_stairs(dir: StairDir, world: &mut EcsWorld) -> CommandResult {
         None    => return Err(()),
     };
 
-    let next: Option<EcsWorld> = {
-        let mut cell = match world.terrain().cell(&pos) {
-            Some(c) => c,
-            None    => return Err(()),
-        };
-
-        match cell.feature {
-            Some(CellFeature::Stairs(stair_dir, map_id, pos)) => {
-                if stair_dir != dir {
-                    return Err(())
-                }
-                debug!(world.logger, "Found stair, id: {:?}", map_id);
-
-                world.get_map(map_id)
-            }
-            _ => return Err(())
-        }
+    let next = match find_stair_dest(world, pos, dir) {
+        Ok(n)  => n,
+        Err(_) => return Err(()),
     };
 
-    let (mut true_next, dest): (EcsWorld, Point) = match next {
-        Some(map) => (map, world.terrain().cell(&pos).unwrap().stair_dest().unwrap()),
-        None      => {
-            let mut new_world = EcsWorld::new(Bounds::Bounded(32, 32), ChunkType::Blank, world.flags().seed);
-            // TODO: make better. Too many traits to import also.
+    let (true_next, dest) = load_stair_dest(world, pos, next);
+    world.move_to_map(true_next, dest).unwrap();
 
-            let mut stairs = world.terrain_mut().cell_mut(&pos).unwrap();
-            if let Some(CellFeature::Stairs(_, stairs_map_id, mut stair_pos)) = stairs.feature {
-                stair_pos = Some(Point::new(0, 0));
-
-                // TODO: shouldn't have to set manually.
-                new_world.flags_mut().map_id = stairs_map_id;
-                new_world.terrain_mut().set_id(stairs_map_id);
-
-                (new_world, stair_pos.unwrap())
-            } else {
-                return Err(())
-            }
-        },
-    };
-
-    world.move_to_map(true_next).unwrap();
-
-    debug!(world.logger, "map id: {:?}", world.flags().map_id);
+    debug!(world.logger, "map id: {:?}", world.map_id());
     Ok(())
+}
+
+fn find_stair_dest(world: &EcsWorld, pos: Point, dir: StairDir) -> Result<Option<EcsWorld>, ()> {
+    let cell = match world.terrain().cell(&pos) {
+        Some(c) => c,
+        None    => return Err(())
+    };
+
+    match cell.feature {
+        Some(CellFeature::Stairs(stair_dir, dest)) => {
+            if stair_dir != dir {
+                return Err(());
+            }
+
+            debug!(world.logger, "STAIR at {}: {:?}", pos, dest);
+
+            match dest {
+                StairDest::Ungenerated      => Ok(None),
+                StairDest::Generated(id, _) => Ok(world.get_map(id))
+            }
+        }
+        _ => Err(())
+    }
+}
+
+fn load_stair_dest(world: &mut EcsWorld, stair_pos: Point, next: Option<EcsWorld>) -> (EcsWorld, Point) {
+    match next {
+        Some(map) => {
+            debug!(world.logger, "Found stair leading to: {:?}", map.map_id());
+            let stairs = world.terrain_mut().cell_mut(&stair_pos).unwrap();
+            (map, stairs.stair_dest_pos().unwrap())
+        },
+        None      => {
+            debug!(world.logger, "Failed to load map, generating...");
+            let prev_id = world.map_id();
+            let prev_seed = world.flags().seed;
+
+            world.flags_mut().max_map_id += 1;
+            let next_id = world.flags().max_map_id;
+
+            let res = {
+                let mut stairs_mut = world.terrain_mut().cell_mut(&stair_pos).unwrap();
+
+                generate_stair_dest(prev_id, next_id, prev_seed, stairs_mut)
+            };
+            debug!(world.logger, "new stairs: {:?}", world.terrain().cell(&stair_pos));
+            res
+        },
+    }
+}
+
+fn generate_stair_dest(prev_id: MapId, next_id: MapId, seed: u32, stairs: &mut Cell) -> (EcsWorld, Point) {
+    // TODO: This should be replaced with the "make from prefab" function
+    let mut new_world = EcsWorld::new(Bounds::Bounded(32, 32), ChunkType::Perlin, seed);
+
+    // TODO: make better. Too many traits to import also.
+
+    if let Some(CellFeature::Stairs(stair_dir, ref mut dest@StairDest::Ungenerated)) = stairs.feature {
+        let dest_id = next_id;
+        let dest_pos = Point::new(0, 0);
+        *dest = StairDest::Generated(dest_id, dest_pos);
+
+        let new_stair_pos = Point::new(3, 3);
+
+
+        // TODO: Make a framework for temporarily loading chunks like this.
+        // This is why. If one does not set the correct map_id before generating
+        // chunks in the new world, they are not saved to the correct directory.
+        new_world.set_map_id(dest_id);
+
+        new_world.load_chunk(&ChunkIndex::from(new_stair_pos)).unwrap();
+        new_world.terrain_mut()
+            .place_stairs(stair_dir.reverse(),
+                          prev_id,
+                          new_stair_pos);
+        new_world.unload_chunk(&ChunkIndex::from(new_stair_pos)).unwrap();
+        // but then the maximum map id in the new world has changed
+
+        (new_world, dest_pos)
+    } else {
+        panic!("Stairs should have already been found by now...");
+    }
 }
 
 impl Command {

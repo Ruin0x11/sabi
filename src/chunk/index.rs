@@ -8,6 +8,12 @@ use chunk::CHUNK_WIDTH;
 #[derive(Serialize, Deserialize, Copy, Clone, Debug, Hash, Eq, PartialEq)]
 pub struct ChunkIndex(pub Point);
 
+impl From<Point> for ChunkIndex {
+    fn from(pos: Point) -> ChunkIndex {
+        ChunkIndex::from_world_pos(pos)
+    }
+}
+
 impl ChunkIndex {
     pub fn new(x: i32, y: i32) -> Self {
         ChunkIndex(Point::new(x, y))

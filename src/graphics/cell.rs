@@ -17,12 +17,27 @@ pub enum StairDir {
     Descending,
 }
 
+#[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Copy, Clone)]
+pub enum StairDest {
+    Ungenerated,
+    Generated(MapId, Point),
+}
+
 use self::StairDir::*;
+
+impl StairDir {
+    pub fn reverse(&self) -> StairDir {
+        match *self {
+            Ascending  => Descending,
+            Descending => Ascending,
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub enum CellFeature {
     Door(bool),
-    Stairs(StairDir, MapId, Option<Point>),
+    Stairs(StairDir, StairDest),
 }
 
 use self::CellFeature::*;
@@ -53,16 +68,16 @@ impl Cell {
         }
     }
 
-    pub fn stair_dest(&self) -> Option<Point> {
+    pub fn stair_dest_pos(&self) -> Option<Point> {
         match self.feature {
-            Some(Stairs(_, _, dest)) => dest,
-            _                        => None,
+            Some(Stairs(_, StairDest::Generated(_, pos))) => Some(pos),
+            _                                             => None,
         }
     }
 
     pub fn glyph(&self) -> Glyph {
         match self.feature {
-            Some(Stairs(dir, _, _)) => match dir {
+            Some(Stairs(dir, _)) => match dir {
                 Ascending  => Glyph::StairsUp,
                 Descending => Glyph::StairsDown,
             },
@@ -75,6 +90,13 @@ impl Cell {
 pub const WALL: Cell = Cell {
     type_: CellType::Wall,
     glyph: Glyph::Wall,
+    feature: None,
+};
+
+// TEMP: A tile ID is all that should be needed, not type and glyph
+pub const DECOR: Cell = Cell {
+    type_: CellType::Floor,
+    glyph: Glyph::Fancy,
     feature: None,
 };
 
