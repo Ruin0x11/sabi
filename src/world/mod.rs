@@ -1,7 +1,9 @@
 pub mod flags;
 mod regions;
 mod terrain;
+mod terrain_traits;
 pub mod traits;
+pub mod serial;
 
 pub use self::terrain::{Bounds, Terrain};
 use self::regions::Regions;

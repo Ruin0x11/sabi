@@ -90,20 +90,18 @@ fn init() {
 
 pub fn run() {
     init();
-    // setup();
-    let mut context = GameContext::new();
-    game_loop(&mut context);
-    // info!(context.logger, "Exited cleanly.");
+
+    game_loop();
+
     println!("Done.");
 }
 
-fn game_loop(mut ctxt: &mut GameContext) {
-    let e = ctxt.state.world.create(::ecs::prefab::mob("Player", 100000, ::glyph::Glyph::Player), Point::new(1,1));
-    ctxt.state.world.set_player(Some(e));
-
-    state::init(ctxt);
+fn game_loop() {
+    let mut context = state::load_context();
 
     while !canvas::window_closed() {
-        state::game_step(ctxt);
+        state::game_step(&mut context);
     }
+
+    world::serial::save_world(&mut context.state.world).unwrap();
 }

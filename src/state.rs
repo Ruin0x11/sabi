@@ -12,7 +12,7 @@ use world::traits::*;
 use engine::canvas;
 use logic;
 use stats;
-use world::{Bounds, EcsWorld};
+use world::{self, Bounds, EcsWorld, WorldPosition};
 
 pub struct GameState {
     pub world: EcsWorld,
@@ -98,7 +98,6 @@ fn process_player_command(context: &mut GameContext, command: Command) {
         Command::Quit           => canvas::close_window(),
         Command::Move(dir)      => context.state.add_action(Action::MoveOrAttack(dir)),
         Command::Wait           => context.state.add_action(Action::Dood),
-        _                       => ()
     }
 }
 
@@ -236,6 +235,22 @@ pub fn render(context: &mut GameContext) {
 
 pub fn init_headless(context: &mut GameContext) {
     update_world_terrain(&mut context.state.world);
+}
+
+
+pub fn load_context() -> GameContext {
+    let mut context = GameContext::new();
+    world::serial::init_paths().unwrap();
+
+    if let Ok(world) = world::serial::load_world() {
+        context.state.world = world;
+    } else {
+        let e = context.state.world.create(::ecs::prefab::mob("Player", 100000, ::glyph::Glyph::Player), WorldPosition::new(1,1));
+        context.state.world.set_player(Some(e));
+    }
+
+    init(&mut context);
+    context
 }
 
 pub fn init(context: &mut GameContext) {

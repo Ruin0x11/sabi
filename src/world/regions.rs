@@ -1,33 +1,48 @@
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
+use std::path::PathBuf;
 
 use chunk::ChunkIndex;
 use chunk::serial::SerialChunk;
 use infinigen::*;
+use world;
 
 /// Implementation of a region manager.
 pub struct Regions {
     pub regions: HashMap<RegionIndex, Region<ChunkIndex>>,
+    id: u32,
 }
 
 impl Regions {
     pub fn new() -> Self {
         Regions {
             regions: HashMap::new(),
+            id: 0,
         }
+    }
+    pub fn set_id(&mut self, id: u32) {
+        self.id = id;
     }
 }
 
-fn get_filename(index: &RegionIndex) -> String {
-    format!("r.{}.{}.sr", index.0, index.1)
+impl Regions {
+    fn get_region_filename(index: &RegionIndex) -> String {
+        format!("r.{}.{}.sr", index.0, index.1)
+    }
+
+    fn get_region_path(&self, index: &RegionIndex) -> PathBuf {
+        let mut save_path = world::serial::get_save_directory(self.id);
+        save_path.push(Regions::get_region_filename(index));
+        save_path
+    }
 }
 
 impl<'a> RegionManager<'a, ChunkIndex, SerialChunk> for Regions
     where Region<ChunkIndex>: ManagedRegion<'a, ChunkIndex, SerialChunk>{
     fn load(&mut self, index: RegionIndex) {
-        let filename = get_filename(&index);
+        let path = self.get_region_path(&index);
 
-        let handle = Region::get_region_file(filename);
+        let handle = Region::get_region_file(path);
 
         let region = Region {
             handle: Box::new(handle),

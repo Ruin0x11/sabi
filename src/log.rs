@@ -135,7 +135,9 @@ impl fmt::Debug for Shim {
 
 pub fn init_panic_hook() {
     panic::set_hook(Box::new(|info| {
-        let logger = make_logger("error");
+        let stderr_drain = slog_stream::stream(io::stderr(), SabiLogFormat).fuse();
+        let logger = Logger::root(stderr_drain, o!());
+
         let backtrace = Backtrace::new();
 
         let thread = thread::current();

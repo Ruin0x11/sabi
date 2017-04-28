@@ -54,10 +54,6 @@ impl Terrain {
     }
 }
 
-pub fn get_region_filename(index: &RegionIndex) -> String {
-    format!("r.{}.{}.sr", index.0, index.1)
-}
-
 impl TerrainQuery for Terrain {
     fn chunk(&self, index: ChunkIndex) -> Option<&Chunk> {
         self.chunks.get(&index)
