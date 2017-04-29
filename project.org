@@ -4,6 +4,32 @@ world.validate_components(e, [Health, Position, Turn]);
 let health = world.get(e, Health).health;
 let health = world.get_opt(e, Health).map_or(0, |h| h.health);
 #+END_SRC
+* TOML
+Preferably something like this for deriving prefab TOML fields.
+
+#+BEGIN_SRC rust
+#[cfg(never)]
+#[derive(Clone, Debug, Serialize, Deserialize, Instantiate)]
+pub struct MyComponent {
+    #[accept]
+    pub name: String,
+    #[accept]
+    pub age: u32,
+}
+#+END_SRC
+
+Produces:
+
+#+BEGIN_SRC rust
+impl Instantiate for MyComponent {
+    fn instantiate(value: toml::value::Table) -> Self {
+        let mut component = MyComponent::new();
+        component.name = expect_toml_value(value, "MyComponent", "name");
+        component.age_data = expect_toml_value(value, "MyComponent", "age");
+        component
+    }
+}
+#+END_SRC
 * Debt
 ** TODO Look at all TODOs. Do all TODOs.
 ** DONE Rename point::iter structs to <XXX>Iter

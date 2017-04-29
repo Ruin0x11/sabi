@@ -17,7 +17,6 @@ extern crate rand;
 extern crate serde;
 extern crate slog_stream;
 extern crate toml;
-extern crate uuid;
 pub extern crate tcod;
 
 extern crate test;
@@ -40,11 +39,12 @@ mod engine;
 mod graphics;
 mod logic;
 mod point;
+mod prefab;
+mod state;
 mod stats;
 mod testbed;
 mod ui;
 mod util;
-mod state;
 mod world;
 
 #[cfg(test)]
