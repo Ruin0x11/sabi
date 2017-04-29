@@ -41,7 +41,7 @@ pub fn try_use_stairs(dir: StairDir, world: &mut EcsWorld) -> CommandResult {
     Ok(())
 }
 
-fn find_stair_dest(world: &EcsWorld, pos: Point, dir: StairDir) -> Result<Option<EcsWorld>, ()> {
+fn find_stair_dest(world: &EcsWorld, pos: Point, dir: StairDir) -> Result<StairDest, ()> {
     let cell = match world.terrain().cell(&pos) {
         Some(c) => c,
         None    => return Err(())
@@ -55,23 +55,20 @@ fn find_stair_dest(world: &EcsWorld, pos: Point, dir: StairDir) -> Result<Option
 
             debug!(world.logger, "STAIR at {}: {:?}", pos, dest);
 
-            match dest {
-                StairDest::Ungenerated      => Ok(None),
-                StairDest::Generated(id, _) => Ok(world.get_map(id))
-            }
+            Ok(dest)
         }
         _ => Err(())
     }
 }
 
-fn load_stair_dest(world: &mut EcsWorld, stair_pos: Point, next: Option<EcsWorld>) -> (EcsWorld, Point) {
+fn load_stair_dest(world: &mut EcsWorld, stair_pos: Point, next: StairDest) -> (EcsWorld, Point) {
     match next {
-        Some(map) => {
-            debug!(world.logger, "Found stair leading to: {:?}", map.map_id());
-            let stairs = world.terrain_mut().cell_mut(&stair_pos).unwrap();
-            (map, stairs.stair_dest_pos().unwrap())
+        StairDest::Generated(map_id, dest) => {
+            debug!(world.logger, "Found stair leading to: {:?}", map_id);
+            let map = world.get_map(map_id).unwrap();
+            (map, dest)
         },
-        None      => {
+        StairDest::Ungenerated => {
             debug!(world.logger, "Failed to load map, generating...");
             let prev_id = world.map_id();
             let prev_seed = world.flags().seed;
@@ -82,7 +79,11 @@ fn load_stair_dest(world: &mut EcsWorld, stair_pos: Point, next: Option<EcsWorld
             let res = {
                 let mut stairs_mut = world.terrain_mut().cell_mut(&stair_pos).unwrap();
 
-                generate_stair_dest(prev_id, next_id, prev_seed, stairs_mut)
+                generate_stair_dest(prev_id,
+                                    next_id,
+                                    prev_seed,
+                                    stair_pos,
+                                    stairs_mut)
             };
             debug!(world.logger, "new stairs: {:?}", world.terrain().cell(&stair_pos));
             res
@@ -90,7 +91,7 @@ fn load_stair_dest(world: &mut EcsWorld, stair_pos: Point, next: Option<EcsWorld
     }
 }
 
-fn generate_stair_dest(prev_id: MapId, next_id: MapId, seed: u32, stairs: &mut Cell) -> (EcsWorld, Point) {
+fn generate_stair_dest(prev_id: MapId, next_id: MapId, seed: u32, old_pos: Point, stairs: &mut Cell) -> (EcsWorld, Point) {
     // TODO: This should be replaced with the "make from prefab" function
     let mut new_world = EcsWorld::new(Bounds::Bounded(32, 32), ChunkType::Perlin, seed);
 
@@ -112,8 +113,9 @@ fn generate_stair_dest(prev_id: MapId, next_id: MapId, seed: u32, stairs: &mut C
         new_world.load_chunk(&ChunkIndex::from(new_stair_pos)).unwrap();
         new_world.terrain_mut()
             .place_stairs(stair_dir.reverse(),
+                          new_stair_pos,
                           prev_id,
-                          new_stair_pos);
+                          old_pos);
         new_world.unload_chunk(&ChunkIndex::from(new_stair_pos)).unwrap();
         // but then the maximum map id in the new world has changed
 

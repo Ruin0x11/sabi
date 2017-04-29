@@ -62,6 +62,14 @@ impl Ai {
             disposition: Disposition::Friendly,
         }
     }
+
+    pub fn get_plan(&self) -> Vec<AiAction> {
+        self.planner.get_plan(&self.memory.borrow(), &self.goal.borrow())
+    }
+
+    pub fn goal_finished(&self) -> bool {
+        self.get_plan().is_empty()
+    }
 }
 
 #[derive(Serialize, Deserialize, Hash, Ord, PartialOrd, Eq, PartialEq, Debug, Clone)]
@@ -102,7 +110,8 @@ fn check_target(entity: Entity, world: &EcsWorld) {
 
     let mut target = ai.target.borrow_mut();
     let dead = target.map_or(true, |t| world.position(t).is_none());
-    if target.is_some() && dead {
+    let removed = target.map_or(true, |t| !world.ecs().contains(t));
+    if target.is_some() && (dead || removed) {
         *target = None;
     }
 }
@@ -110,8 +119,11 @@ fn check_target(entity: Entity, world: &EcsWorld) {
 fn update_memory(entity: Entity, world: &EcsWorld) {
     let ai = world.ecs().ais.get_or_err(entity);
     let ref mut memory = ai.memory.borrow_mut();
-    let wants_to_know = vec![AiProp::HasTarget, AiProp::TargetVisible,
-                             AiProp::TargetDead, AiProp::NextToTarget, AiProp::HealthLow];
+    let wants_to_know = vec![AiProp::HasTarget,
+                             AiProp::TargetVisible,
+                             AiProp::TargetDead,
+                             AiProp::NextToTarget,
+                             AiProp::HealthLow];
     for fact in wants_to_know.iter() {
         SENSORS.with(|s| {
             let sensor = s.get(fact).unwrap();
@@ -125,15 +137,15 @@ fn update_memory(entity: Entity, world: &EcsWorld) {
 fn update_goal(entity: Entity, world: &EcsWorld) {
     let ai = world.ecs().ais.get_or_err(entity);
 
-    if ai.planner.goal_reached(&ai.memory.borrow(), &ai.goal.borrow()) {
+    if ai.goal_finished() {
         // TODO: Determine a new plan.
         // if let Some(target) = rand::thread_rng().choose(&world.seen_entities(entity)) {
         //     state_kill(*target, ai);
         // }
         world.flags().player.map(|p| {
-                if world.seen_entities(entity).contains(&p) {
-                    state_kill(p, ai);
-                }
+            if world.seen_entities(entity).contains(&p) {
+                state_kill(p, ai);
+            }
         });
     }
 }
@@ -142,7 +154,7 @@ fn choose_action(entity: Entity, world: &EcsWorld) -> Action {
     // TEMP: Just save the whole plan and only update when something interesting
     // happens
     let ai = world.ecs().ais.get_or_err(entity);
-    let actions = ai.planner.get_plan(&ai.memory.borrow(), &ai.goal.borrow());
+    let actions = ai.get_plan();
     if let Some(action) = actions.first() {
         match *action {
             AiAction::Wander => action::wander(entity, world),

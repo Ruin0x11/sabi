@@ -53,9 +53,12 @@ impl Terrain {
         self.regions.set_id(id);
     }
 
-    pub fn place_stairs(&mut self, dir: StairDir, leading_to: MapId, pos: WorldPosition) {
+    pub fn place_stairs(&mut self, dir: StairDir,
+                        pos: WorldPosition,
+                        leading_to: MapId,
+                        dest_pos: WorldPosition) {
         if let Some(cell_mut) = self.cell_mut(&pos) {
-            let dest = StairDest::Generated(leading_to, pos);
+            let dest = StairDest::Generated(leading_to, dest_pos);
             cell_mut.feature = Some(CellFeature::Stairs(dir, dest));
         }
     }

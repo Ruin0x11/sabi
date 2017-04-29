@@ -81,7 +81,7 @@ pub fn run() {
 
     game_loop();
 
-    println!("Done.");
+    println!("Exited cleanly.");
 }
 
 fn game_loop() {
