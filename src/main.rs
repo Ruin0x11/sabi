@@ -1,11 +1,14 @@
 #![feature(associated_consts)]
 #![feature(test)]
+
 #[macro_use] extern crate calx_ecs;
 #[macro_use] extern crate enum_derive;
+#[macro_use] extern crate hlua;
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate macro_attr;
 #[macro_use] extern crate serde_derive;
 #[macro_use] extern crate slog;
+
 extern crate backtrace;
 extern crate bincode;
 extern crate calx_alg;
@@ -29,7 +32,7 @@ extern crate rustbox;
 extern crate glium;
 
 // Macros must be used before all other modules
-#[macro_use] mod log;
+#[macro_use] mod macros;
 
 mod ai;
 mod chunk;
@@ -37,7 +40,9 @@ mod data;
 mod ecs;
 mod engine;
 mod graphics;
+mod log;
 mod logic;
+mod lua;
 mod point;
 mod prefab;
 mod state;

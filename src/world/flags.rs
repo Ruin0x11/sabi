@@ -4,7 +4,7 @@ use rand::{Rng, SeedableRng, XorShiftRng};
 
 use point::Point;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize)]
 pub struct Flags {
     pub globals: GlobalFlags,
 

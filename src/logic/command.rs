@@ -95,7 +95,7 @@ fn load_stair_dest(world: &mut EcsWorld, stair_pos: Point, next: StairDest) -> (
 
 fn generate_stair_dest(prev_id: MapId, next_id: MapId, seed: u32, old_pos: Point, stairs: &mut Cell) -> (EcsWorld, Point) {
     // TODO: This should be replaced with the "make from prefab" function
-    let mut new_world = EcsWorld::new(Bounds::Bounded(64, 64), ChunkType::Perlin, seed);
+    let mut new_world = EcsWorld::new(Bounds::Bounded(64, 64), ChunkType::Lua, seed);
 
     // TODO: make better. Too many traits to import also.
 

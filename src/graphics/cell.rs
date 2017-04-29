@@ -2,13 +2,15 @@ use graphics::Glyph;
 use point::Point;
 use world::MapId;
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
-pub enum CellType {
-    Wall,
-    Floor,
-    Air,
-    Water,
-    Lava
+macro_attr! {
+    #[derive(Serialize, Deserialize, Debug, Copy, Clone, EnumFromStr!)]
+    pub enum CellType {
+        Wall,
+        Floor,
+        Air,
+        Water,
+        Lava
+    }
 }
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Copy, Clone)]
@@ -47,7 +49,7 @@ pub struct Cell {
     pub type_: CellType,
 
     // TEMP: Shouldn't be owned, but instead looked up
-    glyph: Glyph,
+    pub glyph: Glyph,
 
     pub feature: Option<CellFeature>,
 }
@@ -103,5 +105,11 @@ pub const DECOR: Cell = Cell {
 pub const FLOOR: Cell = Cell {
     type_: CellType::Floor,
     glyph: Glyph::Floor,
+    feature: None,
+};
+
+pub const NOTHING: Cell = Cell {
+    type_: CellType::Air,
+    glyph: Glyph::None,
     feature: None,
 };
