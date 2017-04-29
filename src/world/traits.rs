@@ -171,6 +171,7 @@ pub trait ComponentQuery<C: Component> {
 }
 
 pub trait ComponentMutate<C: Component> {
+    fn get_mut_or_err(&mut self, e: Entity) -> &mut C;
     fn map_mut<F, T>(&mut self, callback: F, e: Entity) -> Option<T>
         where F: FnOnce(&mut C,) -> T;
 }

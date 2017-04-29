@@ -26,6 +26,7 @@ pub struct Ai {
     target: RefCell<Option<Entity>>,
     memory: RefCell<AiMemory>,
     goal:   RefCell<AiMemory>,
+    next_action: RefCell<Option<AiAction>>,
 
     pub disposition: Disposition,
 }
@@ -60,6 +61,8 @@ impl Ai {
                 facts: facts,
             }),
             disposition: Disposition::Friendly,
+
+            next_action: RefCell::new(None),
         }
     }
 
@@ -67,8 +70,12 @@ impl Ai {
         self.planner.get_plan(&self.memory.borrow(), &self.goal.borrow())
     }
 
+    pub fn get_next_action(&self) -> Option<AiAction> {
+        self.get_plan().first().map(|a| a.clone())
+    }
+
     pub fn goal_finished(&self) -> bool {
-        self.get_plan().is_empty()
+        self.next_action.borrow().is_none()
     }
 }
 
@@ -116,24 +123,6 @@ fn check_target(entity: Entity, world: &EcsWorld) {
     }
 }
 
-fn update_memory(entity: Entity, world: &EcsWorld) {
-    let ai = world.ecs().ais.get_or_err(entity);
-    let ref mut memory = ai.memory.borrow_mut();
-    let wants_to_know = vec![AiProp::HasTarget,
-                             AiProp::TargetVisible,
-                             AiProp::TargetDead,
-                             AiProp::NextToTarget,
-                             AiProp::HealthLow];
-    for fact in wants_to_know.iter() {
-        SENSORS.with(|s| {
-            let sensor = s.get(fact).unwrap();
-            let result = (sensor.callback)(world, &entity, ai);
-            // debug_ecs!(world, entity, "{:?}, {}", fact, result);
-            memory.facts.insert(fact.clone(), result);
-        });
-    }
-}
-
 fn update_goal(entity: Entity, world: &EcsWorld) {
     let ai = world.ecs().ais.get_or_err(entity);
 
@@ -150,21 +139,58 @@ fn update_goal(entity: Entity, world: &EcsWorld) {
     }
 }
 
+fn update_memory(entity: Entity, world: &EcsWorld) {
+    let ai = world.ecs().ais.get_or_err(entity);
+    let wants_to_know = vec![AiProp::HasTarget,
+                             AiProp::TargetVisible,
+                             AiProp::TargetDead,
+                             AiProp::NextToTarget,
+                             AiProp::HealthLow];
+
+    let mut new_memory = AiMemory {
+        facts: GoapFacts::new(),
+    };
+
+    for fact in wants_to_know.iter() {
+        SENSORS.with(|s| {
+            let sensor = s.get(fact).unwrap();
+            let result = (sensor.callback)(world, &entity, ai);
+            // debug_ecs!(world, entity, "{:?}, {}", fact, result);
+            new_memory.facts.insert(fact.clone(), result);
+        });
+    }
+
+    let stale = {
+        let memory = ai.memory.borrow();
+        *memory != new_memory
+    };
+    debug_ecs!(world, entity, "Facts: {:?}", new_memory);
+
+    if stale {
+        // make sure the memory is fresh before picking an action
+        *ai.memory.borrow_mut() = new_memory;
+
+        let next_action = ai.get_next_action();
+        *ai.next_action.borrow_mut() = next_action;
+    }
+}
+
 fn choose_action(entity: Entity, world: &EcsWorld) -> Action {
     // TEMP: Just save the whole plan and only update when something interesting
     // happens
     let ai = world.ecs().ais.get_or_err(entity);
-    let actions = ai.get_plan();
-    if let Some(action) = actions.first() {
-        match *action {
+
+    match *ai.next_action.borrow() {
+        Some(ref action) => match *action {
             AiAction::Wander => action::wander(entity, world),
             AiAction::MoveCloser => action::move_closer(entity, world),
             AiAction::SwingAt => action::swing_at(entity, world),
             AiAction::Run => action::run_away(entity, world),
+        },
+        None => {
+            warn_ecs!(world, entity, "I can't figure out what to do!");
+            action::wander(entity, world)
         }
-    } else {
-        warn_ecs!(world, entity, "I can't figure out what to do!");
-        action::wander(entity, world)
     }
 }
 
