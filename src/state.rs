@@ -189,7 +189,7 @@ fn update_world_terrain(world: &mut EcsWorld) {
 }
 
 fn update_camera(world: &mut EcsWorld) {
-    if let Some(player) = world.flags().player {
+    if let Some(player) = world.player() {
         if let Some(pos) = world.position(player) {
             world.flags_mut().camera = pos;
         }
@@ -242,11 +242,7 @@ pub fn init_headless(context: &mut GameContext) {
 pub fn load_context() -> GameContext {
     let manifest = match world::serial::load_manifest() {
         Ok(m) => m,
-        Err(_) => SaveManifest {
-            map_id: 0,
-            max_map_id: 0,
-            seed: 0,
-        }
+        Err(_) => SaveManifest::new(),
     };
 
     let mut context = GameContext::new();

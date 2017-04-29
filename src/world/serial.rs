@@ -5,8 +5,9 @@ use std::path::PathBuf;
 use bincode::{self, Infinite};
 
 use infinigen::*;
-use world::EcsWorld;
+use world::{EcsWorld, MapId};
 use world::traits::{Transition, Mutate};
+use world::flags::GlobalFlags;
 
 pub const SAVE_DIRECTORY: &'static str = "save";
 
@@ -72,9 +73,8 @@ pub fn load_world(id: u32) -> SerialResult<EcsWorld> {
 
 pub fn save_manifest(world: &EcsWorld) -> SerialResult<()> {
     let manifest = SaveManifest {
+        globals: world.flags.get_globals(),
         map_id: world.map_id(),
-        max_map_id: world.flags.max_map_id,
-        seed: world.flags.seed,
     };
 
     let data = bincode::serialize(&manifest, Infinite)?;
@@ -104,27 +104,40 @@ pub fn init_paths() -> SerialResult<()> {
 /// Global save data not tied to any specific map.
 #[derive(Serialize, Deserialize)]
 pub struct SaveManifest {
-    pub map_id: u32,
-    pub max_map_id: u32,
-    pub seed: u32,
+    pub globals: GlobalFlags,
+    pub map_id: MapId,
+}
+
+impl SaveManifest {
+    pub fn new() -> Self {
+        SaveManifest {
+            globals: GlobalFlags::new(),
+            map_id: 0,
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use testing::*;
+    use world::traits::Query;
 
     #[test]
     fn test_manifest() {
         init_paths().unwrap();
 
         let mut context = test_context_bounded(100, 100);
+        let globals = context.state.world.flags().get_globals();
         let map_id = 101;
-        context.state.world.set_map_id(101);
+        context.state.world.set_map_id(map_id);
 
         save_manifest(&context.state.world).unwrap();
+        context.state.world.set_player(None);
+
         let manifest = load_manifest().unwrap();
 
+        assert_eq!(manifest.globals, globals);
         assert_eq!(manifest.map_id, map_id);
     }
 }

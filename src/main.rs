@@ -8,6 +8,7 @@
 #[macro_use] extern crate slog;
 extern crate backtrace;
 extern crate bincode;
+extern crate calx_alg;
 extern crate chrono;
 extern crate goap;
 extern crate infinigen;

@@ -89,7 +89,7 @@ impl Query for EcsWorld {
     }
 
     fn player(&self) -> Option<Entity> {
-        if let Some(p) = self.flags.player {
+        if let Some(p) = self.flags.globals.player {
             if self.is_alive(p) {
                 return Some(p);
             }
@@ -154,7 +154,7 @@ impl Query for EcsWorld {
         seen
     }
 
-    fn seed(&self) -> u32 { self.flags.seed }
+    fn seed(&self) -> u32 { self.flags.seed() }
 
     fn entities(&self) -> slice::Iter<Entity> { self.ecs_.iter() }
 
@@ -170,7 +170,7 @@ impl Query for EcsWorld {
 impl Mutate for EcsWorld {
     fn set_entity_location(&mut self, e: Entity, loc: WorldPosition) { self.spatial.insert_at(e, loc); }
 
-    fn set_player(&mut self, player: Option<Entity>) { self.flags.player = player; }
+    fn set_player(&mut self, player: Option<Entity>) { self.flags.globals.player = player; }
 
     fn kill_entity(&mut self, e: Entity) {
         debug_ecs!(self, e, "Removing {:?} from turn order", e);

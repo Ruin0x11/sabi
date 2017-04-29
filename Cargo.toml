@@ -32,9 +32,10 @@ enum_derive = "0.1.7"
 macro-attr = "0.2.0"
 
 calx-ecs = "0.5.0"
+calx-alg = { git = "https://github.com/Ruin0x11/calx" }
 
-goap = { git = "https://github.com/ruin0x11/goap-rs.git" }
-infinigen = { git = "https://github.com/ruin0x11/infinigen-rs.git" }
+goap = { git = "https://github.com/Ruin0x11/goap-rs" }
+infinigen = { git = "https://github.com/Ruin0x11/infinigen-rs" }
 
 glium = { version = "0.16.0", optional = true }
 # rustbox = { version = "0.9.0", optional = true }

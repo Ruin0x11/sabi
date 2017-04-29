@@ -21,7 +21,7 @@ pub enum Command {
 }
 
 pub fn try_use_stairs(dir: StairDir, world: &mut EcsWorld) -> CommandResult {
-    let player = match world.flags().player {
+    let player = match world.player() {
         Some(p) => p,
         None    => return Err(()),
     };
@@ -75,8 +75,8 @@ fn load_stair_dest(world: &mut EcsWorld, stair_pos: Point, next: StairDest) -> (
             let prev_id = world.map_id();
             let prev_seed = rand::thread_rng().gen();
 
-            world.flags_mut().max_map_id += 1;
-            let next_id = world.flags().max_map_id;
+            world.flags_mut().globals.max_map_id += 1;
+            let next_id = world.flags().globals.max_map_id;
 
             let res = {
                 let mut stairs_mut = world.terrain_mut().cell_mut(&stair_pos).unwrap();

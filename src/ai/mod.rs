@@ -142,7 +142,7 @@ fn update_goal(entity: Entity, world: &EcsWorld) {
         // if let Some(target) = rand::thread_rng().choose(&world.seen_entities(entity)) {
         //     state_kill(*target, ai);
         // }
-        world.flags().player.map(|p| {
+        world.player().map(|p| {
             if world.seen_entities(entity).contains(&p) {
                 state_kill(p, ai);
             }

@@ -1,13 +1,17 @@
+use calx_ecs::Entity;
+
 use ecs::Loadout;
 use point::Point;
 use world::serial;
-use world::flags::Flags;
 use world::EcsWorld;
 use world::traits::*;
+use world::flags::{Flags, GlobalFlags};
 
 struct TransitionData {
-    pub flags: Flags,
-    pub player: Loadout,
+    pub globals: GlobalFlags,
+    pub next_seed: u32,
+
+    pub player_data: Loadout,
 }
 
 impl Transition<TransitionData> for EcsWorld {
@@ -24,8 +28,10 @@ impl Transition<TransitionData> for EcsWorld {
         let player = self.player().unwrap();
         let loadout = self.unload_entity(player);
         let data = TransitionData {
-            flags: self.flags.clone(),
-            player: loadout,
+            globals: self.flags().get_globals(),
+            next_seed: self.flags_mut().rng().next_u32(),
+
+            player_data: loadout,
         };
 
         Ok(data)
@@ -33,13 +39,17 @@ impl Transition<TransitionData> for EcsWorld {
 
     fn inject_transition_data(&mut self, previous: TransitionData) -> TransitionResult<()> {
         let map_id = self.flags.map_id;
-        self.flags = previous.flags;
+
+        // because EncodeRng doesn't implement clone
+        self.flags_mut().globals = previous.globals;
 
         // TODO: shouldn't have to set manually.
         self.set_map_id(map_id);
 
-        let player_id = self.spawn(&previous.player, Point::new(0, 0));
-        self.flags.player = Some(player_id);
+        self.flags_mut().set_seed(previous.next_seed);
+
+        let player_id = self.spawn(&previous.player_data, Point::new(0, 0));
+        self.set_player(Some(player_id));
 
         Ok(())
     }
