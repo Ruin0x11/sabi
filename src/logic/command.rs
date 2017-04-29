@@ -73,7 +73,7 @@ fn load_stair_dest(world: &mut EcsWorld, stair_pos: Point, next: StairDest) -> (
         StairDest::Ungenerated => {
             debug!(world.logger, "Failed to load map, generating...");
             let prev_id = world.map_id();
-            let prev_seed = rand::thread_rng().gen();
+            let prev_seed = world.flags_mut().rng().next_u32();
 
             world.flags_mut().globals.max_map_id += 1;
             let next_id = world.flags().globals.max_map_id;

@@ -339,7 +339,7 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
 
     fn generate_chunk(&mut self, index: &ChunkIndex) -> SerialResult<()> {
         debug!(self.logger, "GEN: {} {:?} reg: {}", index, self.chunk_type, self.terrain.id);
-        self.terrain.insert_chunk(index.clone(), self.chunk_type.generate(index));
+        self.terrain.insert_chunk(index.clone(), self.chunk_type.generate(index, self.flags.seed()));
 
         let chunk_pos = ChunkPosition::from(Point::new(0, 0));
         let cell_pos = Chunk::world_position_at(&index, &chunk_pos);

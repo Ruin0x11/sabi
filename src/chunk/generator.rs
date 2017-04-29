@@ -13,10 +13,10 @@ pub enum ChunkType {
 use self::ChunkType::*;
 
 impl ChunkType {
-    pub fn generate(&self, index: &ChunkIndex) -> Chunk {
+    pub fn generate(&self, index: &ChunkIndex, seed: u32) -> Chunk {
         match *self {
             Blank => generate_flat(),
-            Perlin => generate_perlin(index, 2),
+            Perlin => generate_perlin(index, seed),
         }
     }
 }
