@@ -23,11 +23,11 @@ ch="#"
 color=[255, 255, 255]
 
 [StairsUp]
-ch="<"
+ch=">"
 color=[255, 255, 255]
 
 [StairsDown]
-ch=">"
+ch="<"
 color=[255, 255, 255]
 
 [Fancy]

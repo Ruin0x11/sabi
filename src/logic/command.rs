@@ -1,3 +1,5 @@
+use rand::{self, Rng};
+
 use point::Direction;
 use engine::keys::{Key, KeyCode};
 use graphics::cell::{Cell, CellFeature, StairDest, StairDir};
@@ -71,7 +73,7 @@ fn load_stair_dest(world: &mut EcsWorld, stair_pos: Point, next: StairDest) -> (
         StairDest::Ungenerated => {
             debug!(world.logger, "Failed to load map, generating...");
             let prev_id = world.map_id();
-            let prev_seed = world.flags().seed;
+            let prev_seed = rand::thread_rng().gen();
 
             world.flags_mut().max_map_id += 1;
             let next_id = world.flags().max_map_id;
@@ -93,7 +95,7 @@ fn load_stair_dest(world: &mut EcsWorld, stair_pos: Point, next: StairDest) -> (
 
 fn generate_stair_dest(prev_id: MapId, next_id: MapId, seed: u32, old_pos: Point, stairs: &mut Cell) -> (EcsWorld, Point) {
     // TODO: This should be replaced with the "make from prefab" function
-    let mut new_world = EcsWorld::new(Bounds::Bounded(32, 32), ChunkType::Perlin, seed);
+    let mut new_world = EcsWorld::new(Bounds::Bounded(64, 64), ChunkType::Perlin, seed);
 
     // TODO: make better. Too many traits to import also.
 
