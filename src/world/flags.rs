@@ -44,11 +44,6 @@ impl Flags {
         }
     }
 
-    pub fn set_seed(&mut self, seed: u32) {
-        self.seed =  seed;
-        self.rng = SeedableRng::from_seed([seed, seed, seed, seed]);
-    }
-
     pub fn seed(&self) -> u32 { self.seed }
     pub fn rng<'a>(&'a mut self) -> &'a mut Rng { &mut self.rng }
 
