@@ -24,7 +24,7 @@ pub struct GameState {
 impl GameState {
     pub fn new() -> Self {
         GameState {
-            world: EcsWorld::new(Bounds::Unbounded, ChunkType::Blank, 1),
+            world: EcsWorld::new(Bounds::Unbounded, ChunkType::Perlin, 1),
             action_queue: VecDeque::new(),
         }
     }
