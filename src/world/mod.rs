@@ -92,9 +92,10 @@ impl EcsWorld {
         self.terrain.cell_mut(pos)
     }
 
-    pub fn from_prefab(name: &str, seed: u32) -> EcsWorld {
+    pub fn from_prefab(name: &str, seed: u32, id: u32) -> EcsWorld {
         let prefab = lua::with_mut(|l| prefab::map_from_prefab(l, name)).unwrap();
         let mut world = EcsWorld::new(Bounds::Bounded(prefab.width(), prefab.height()), ChunkType::Perlin, seed);
+        world.set_map_id(id);
 
         for (pos, cell) in prefab.iter() {
             if let Some(cell_mut) = world.cell_mut(&pos) {

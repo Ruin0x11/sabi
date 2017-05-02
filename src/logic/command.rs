@@ -141,7 +141,7 @@ fn load_stair_dest(world: &mut EcsWorld, stair_pos: Point, next: StairDest) -> (
 
 fn generate_stair_dest(prev_id: MapId, next_id: MapId, seed: u32, old_pos: Point, stairs: &mut Cell) -> (EcsWorld, Point) {
     // TODO: This should be replaced with the "make from prefab" function
-    let mut new_world = EcsWorld::from_prefab("prefab", seed);
+    let mut new_world = EcsWorld::from_prefab("prefab", seed, next_id);
 
     if let Some(CellFeature::Stairs(stair_dir, ref mut dest@StairDest::Ungenerated)) = stairs.feature {
         let new_stair_pos = match new_world.find_stairs_in() {
@@ -150,10 +150,6 @@ fn generate_stair_dest(prev_id: MapId, next_id: MapId, seed: u32, old_pos: Point
         };
 
         *dest = StairDest::Generated(next_id, new_stair_pos);
-
-
-        // TODO just move to prefab-to-world module
-        new_world.set_map_id(next_id);
 
         new_world.place_stairs(stair_dir.reverse(),
                                new_stair_pos,
