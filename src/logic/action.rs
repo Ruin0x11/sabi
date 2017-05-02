@@ -12,6 +12,8 @@ pub enum Action {
     Hurt(u32),
     SwingAt(Entity),
 
+    TestScript,
+
     Teleport(Point),
     TeleportUnchecked(Point),
 }

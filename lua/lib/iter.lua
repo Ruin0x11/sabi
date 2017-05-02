@@ -224,3 +224,13 @@ end
 function iter.adjacent_iterator_to(center, include_center, filter)
   return iter.adjacent_iterator(include_center, filter, center, true)
 end
+
+
+function iter.list_iter (t)
+   local i = 0
+   local n = #t
+   return function ()
+      i = i + 1
+      if i <= n then return t[i] end
+   end
+end

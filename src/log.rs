@@ -51,14 +51,14 @@ impl fmt::Debug for Shim {
 
 pub fn init_panic_hook() {
     panic::set_hook(Box::new(|info| {
-        let stderr_drain = slog_stream::stream(io::stderr(), SabiLogFormat);
+        let stdout_drain = slog_stream::stream(io::stdout(), SabiLogFormat);
 
         let path = format!("/tmp/sabi-error.log");
         let err_logfile = File::create(path).expect("Couldn't open log file");
 
         let file_drain = slog_stream::stream(err_logfile, SabiLogFormat);
 
-        let both_drain = slog::Duplicate::new(stderr_drain, file_drain).ignore_err();
+        let both_drain = slog::Duplicate::new(stdout_drain, file_drain).ignore_err();
 
         let logger = Logger::root(both_drain, o!());
 

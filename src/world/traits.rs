@@ -1,6 +1,7 @@
 use std::slice;
 
 pub use world::terrain_traits::*;
+pub use world::world_traits::*;
 // TODO: infinigen::traits::*;
 pub use infinigen::*;
 
@@ -20,16 +21,6 @@ use chunk::*;
 
 // FIXME: Move these appropriately.
 // FIXME: Refactor.
-
-pub trait WorldQuery {
-    fn can_walk(&self, pos: Point, walkability: Walkability) -> bool;
-    fn pos_valid(&self, pos: &Point) -> bool;
-
-    fn with_cells<F>(&self, top_left: Point,
-                     dimensions: Point,
-                     callback: F)
-        where F: FnMut(Point, &Cell);
-}
 
 pub trait Query {
     fn position(&self, e: Entity) -> Option<Point>;

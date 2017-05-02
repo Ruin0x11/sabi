@@ -1,7 +1,6 @@
 use hlua::{self, Lua};
 
 use point::Point;
-use graphics::Glyph;
 use graphics::cell::{Cell, CellType};
 use prefab::*;
 use lua;
@@ -11,10 +10,13 @@ const PREFAB_VARIABLE: &str = "prefab";
 pub fn map_from_prefab<'a>(lua: &'a mut Lua, name: &str) -> PrefabResult<Prefab> {
     let map_filename = &format!("maps/{}", name);
 
-    lua.execute::<()>("prefab = Prefab.new(10, 10, \"Wall\")")?;
+    lua.execute::<()>("prefab = Prefab.new(1, 1, \"Floor\")")?;
 
-    match lua::run_script_and_return(lua, map_filename, PREFAB_VARIABLE)? {
-        Some(prefab) => Ok(prefab),
+    match lua::run_script_and_return::<Prefab>(lua, map_filename, PREFAB_VARIABLE)? {
+        Some(prefab) => {
+            lua::lua_log_info(prefab.to_string());
+            Ok(prefab)
+        },
         None         => Err(PrefabError::PrefabVarNotDeclared),
     }
 }
@@ -27,7 +29,6 @@ pub fn lua_new(x: i32, y: i32, fill: String) -> PrefabResult<Prefab> {
 
     let cell = Cell {
         type_: cell_type,
-        glyph: Glyph::Wall,
         feature: None,
     };
 
@@ -50,7 +51,6 @@ pub fn lua_set(prefab: &mut Prefab, x: i32, y: i32, name: String) -> PrefabResul
 
     let cell = Cell {
         type_: cell_type,
-        glyph: Glyph::Wall,
         feature: None,
     };
 
@@ -79,10 +79,24 @@ pub fn lua_height(prefab: &Prefab) -> i32 {
     prefab.height()
 }
 
+pub fn lua_print(prefab: &Prefab) {
+    lua::lua_log_info(format!("{}", prefab));
+}
+
+pub fn lua_place_stairs_in(prefab: &mut Prefab, x: i32, y: i32) {
+    let pt = Point::new(x, y);
+    prefab.set_marker(&pt, PrefabMarker::StairsIn);
+}
+
+pub fn lua_place_stairs_out(prefab: &mut Prefab, x: i32, y: i32) {
+    let pt = Point::new(x, y);
+    prefab.set_marker(&pt, PrefabMarker::StairsOut);
+}
+
 pub fn add_lua_interop(lua: &mut Lua) {
     let mut prefab_namespace = lua.empty_array("Prefab");
 
-    prefab_namespace.set("new", hlua::function3(lua_new));
+    prefab_namespace.set("new_raw", hlua::function3(lua_new));
 }
 
 // this macro implements the required trait so that we can *push* the object to lua
@@ -94,9 +108,13 @@ implement_lua_push!(Prefab, |mut metatable| {
     index.set("get_raw", hlua::function3(lua_get));
     index.set("blocked_raw", hlua::function3(lua_blocked));
     index.set("in_bounds_raw", hlua::function3(lua_in_bounds));
+    index.set("place_stairs_in_raw", hlua::function3(lua_place_stairs_in));
+    index.set("place_stairs_out_raw", hlua::function3(lua_place_stairs_out));
 
     index.set("width", hlua::function1(lua_width));
     index.set("height", hlua::function1(lua_height));
+
+    index.set("print", hlua::function1(lua_print));
 });
 
 // this macro implements the require traits so that we can *read* the object back

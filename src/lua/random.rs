@@ -3,7 +3,10 @@ use rand::{self, Rng};
 use hlua::{self, Lua};
 
 fn lua_between(a: i32, b: i32) -> PrefabResult<i32> {
-    if a >= b {
+    if a == b {
+        return Ok(a);
+    }
+    if a > b {
         return Err(PrefabError::BadRange(a, b))
     }
     Ok(rand::thread_rng().gen_range(a, b))

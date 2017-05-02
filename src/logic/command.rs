@@ -1,13 +1,12 @@
-use rand::{self, Rng};
-
+use ::GameContext;
+use logic::Action;
+use canvas;
 use point::Direction;
 use engine::keys::{Key, KeyCode};
 use graphics::cell::{Cell, CellFeature, StairDest, StairDir};
-use world::{Bounds, EcsWorld};
+use world::EcsWorld;
 use point::Point;
 use chunk::ChunkIndex;
-use chunk::generator::ChunkType;
-use infinigen::ChunkedWorld;
 use world::MapId;
 use world::traits::*;
 
@@ -16,8 +15,55 @@ pub type CommandResult = Result<(), ()>;
 pub enum Command {
     Move(Direction),
     UseStairs(StairDir),
+    TestScript,
     Wait,
     Quit,
+}
+
+impl Command {
+    pub fn from_key(key: Key) -> Command {
+        match key {
+            Key { code: KeyCode::Esc,         .. } => Command::Quit,
+            Key { code: KeyCode::Left,        .. } |
+            Key { code: KeyCode::H,           .. } |
+            Key { code: KeyCode::NumPad4,     .. } => Command::Move(Direction::W),
+            Key { code: KeyCode::Right,       .. } |
+            Key { code: KeyCode::L,           .. } |
+            Key { code: KeyCode::NumPad6,     .. } => Command::Move(Direction::E),
+            Key { code: KeyCode::Up,          .. } |
+            Key { code: KeyCode::K,           .. } |
+            Key { code: KeyCode::NumPad8,     .. } => Command::Move(Direction::N),
+            Key { code: KeyCode::Down,        .. } |
+            Key { code: KeyCode::J,           .. } |
+            Key { code: KeyCode::NumPad2,     .. } => Command::Move(Direction::S),
+            Key { code: KeyCode::B,           .. } |
+            Key { code: KeyCode::NumPad1,     .. } => Command::Move(Direction::SW),
+            Key { code: KeyCode::N,           .. } |
+            Key { code: KeyCode::NumPad3,     .. } => Command::Move(Direction::SE),
+            Key { code: KeyCode::Y,           .. } |
+            Key { code: KeyCode::NumPad7,     .. } => Command::Move(Direction::NW),
+            Key { code: KeyCode::U,           .. } |
+            Key { code: KeyCode::NumPad9,     .. } => Command::Move(Direction::NE),
+
+            Key { code: KeyCode::GreaterThan, .. } => Command::UseStairs(StairDir::Ascending),
+            Key { code: KeyCode::LessThan,    .. } => Command::UseStairs(StairDir::Descending),
+
+            Key { code: KeyCode::T,           .. } => Command::TestScript,
+
+            _                                  => Command::Wait
+        }
+    }
+}
+
+pub fn process_player_command(context: &mut GameContext, command: Command) {
+    match command {
+        // TEMP: Commands can still be run even if there is no player?
+        Command::Quit           => canvas::close_window(),
+        Command::Move(dir)      => context.state.add_action(Action::MoveOrAttack(dir)),
+        Command::Wait           => context.state.add_action(Action::Dood),
+        Command::TestScript           => context.state.add_action(Action::TestScript),
+        Command::UseStairs(dir) => {try_use_stairs(dir, &mut context.state.world);},
+    }
 }
 
 pub fn try_use_stairs(dir: StairDir, world: &mut EcsWorld) -> CommandResult {
@@ -79,7 +125,7 @@ fn load_stair_dest(world: &mut EcsWorld, stair_pos: Point, next: StairDest) -> (
             let next_id = world.flags().globals.max_map_id;
 
             let res = {
-                let mut stairs_mut = world.terrain_mut().cell_mut(&stair_pos).unwrap();
+                let mut stairs_mut = world.cell_mut(&stair_pos).unwrap();
 
                 generate_stair_dest(prev_id,
                                     next_id,
@@ -95,67 +141,27 @@ fn load_stair_dest(world: &mut EcsWorld, stair_pos: Point, next: StairDest) -> (
 
 fn generate_stair_dest(prev_id: MapId, next_id: MapId, seed: u32, old_pos: Point, stairs: &mut Cell) -> (EcsWorld, Point) {
     // TODO: This should be replaced with the "make from prefab" function
-    let mut new_world = EcsWorld::new(Bounds::Bounded(64, 64), ChunkType::Lua, seed);
-
-    // TODO: make better. Too many traits to import also.
+    let mut new_world = EcsWorld::from_prefab("prefab", seed);
 
     if let Some(CellFeature::Stairs(stair_dir, ref mut dest@StairDest::Ungenerated)) = stairs.feature {
-        let dest_id = next_id;
-        let dest_pos = Point::new(0, 0);
-        *dest = StairDest::Generated(dest_id, dest_pos);
+        let new_stair_pos = match new_world.find_stairs_in() {
+            Some(pos) => pos,
+            None      => panic!("Generated world has no stairs!"),
+        };
 
-        let new_stair_pos = Point::new(3, 3);
+        *dest = StairDest::Generated(next_id, new_stair_pos);
 
 
-        // TODO: Make a framework for temporarily loading chunks like this.
-        // This is why. If one does not set the correct map_id before generating
-        // chunks in the new world, they are not saved to the correct directory.
-        new_world.set_map_id(dest_id);
+        // TODO just move to prefab-to-world module
+        new_world.set_map_id(next_id);
 
-        new_world.load_chunk(&ChunkIndex::from(new_stair_pos)).unwrap();
-        new_world.terrain_mut()
-            .place_stairs(stair_dir.reverse(),
-                          new_stair_pos,
+        new_world.place_stairs(stair_dir.reverse(),
+                               new_stair_pos,
                           prev_id,
                           old_pos);
-        new_world.unload_chunk(&ChunkIndex::from(new_stair_pos)).unwrap();
-        // but then the maximum map id in the new world has changed
 
-        (new_world, dest_pos)
+        (new_world, new_stair_pos)
     } else {
         panic!("Stairs should have already been found by now...");
-    }
-}
-
-impl Command {
-    pub fn from_key(key: Key) -> Command {
-        match key {
-            Key { code: KeyCode::Esc,         .. } => Command::Quit,
-            Key { code: KeyCode::Left,        .. } |
-            Key { code: KeyCode::H,           .. } |
-            Key { code: KeyCode::NumPad4,     .. } => Command::Move(Direction::W),
-            Key { code: KeyCode::Right,       .. } |
-            Key { code: KeyCode::L,           .. } |
-            Key { code: KeyCode::NumPad6,     .. } => Command::Move(Direction::E),
-            Key { code: KeyCode::Up,          .. } |
-            Key { code: KeyCode::K,           .. } |
-            Key { code: KeyCode::NumPad8,     .. } => Command::Move(Direction::N),
-            Key { code: KeyCode::Down,        .. } |
-            Key { code: KeyCode::J,           .. } |
-            Key { code: KeyCode::NumPad2,     .. } => Command::Move(Direction::S),
-            Key { code: KeyCode::B,           .. } |
-            Key { code: KeyCode::NumPad1,     .. } => Command::Move(Direction::SW),
-            Key { code: KeyCode::N,           .. } |
-            Key { code: KeyCode::NumPad3,     .. } => Command::Move(Direction::SE),
-            Key { code: KeyCode::Y,           .. } |
-            Key { code: KeyCode::NumPad7,     .. } => Command::Move(Direction::NW),
-            Key { code: KeyCode::U,           .. } |
-            Key { code: KeyCode::NumPad9,     .. } => Command::Move(Direction::NE),
-
-            Key { code: KeyCode::GreaterThan, .. } => Command::UseStairs(StairDir::Ascending),
-            Key { code: KeyCode::LessThan,    .. } => Command::UseStairs(StairDir::Descending),
-
-            _                                  => Command::Wait
-        }
     }
 }

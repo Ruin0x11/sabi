@@ -8,6 +8,7 @@ use ai;
 use chunk::generator::ChunkType;
 use engine::canvas;
 use graphics::Glyph;
+use graphics::cell;
 use logic::command;
 use logic::{self, Action, Command};
 use stats;
@@ -91,16 +92,6 @@ fn get_player_command(context: &mut GameContext) -> Option<Command> {
         command = Some(Command::from_key(key));
     }
     command
-}
-
-fn process_player_command(context: &mut GameContext, command: Command) {
-    match command {
-        // TEMP: Commands can still be run even if there is no player?
-        Command::Quit           => canvas::close_window(),
-        Command::Move(dir)      => context.state.add_action(Action::MoveOrAttack(dir)),
-        Command::Wait           => context.state.add_action(Action::Dood),
-        Command::UseStairs(dir) => {command::try_use_stairs(dir, &mut context.state.world);},
-    }
 }
 
 fn run_action_queue<'a>(context: &'a mut GameContext) {
@@ -197,7 +188,7 @@ fn update_camera(world: &mut EcsWorld) {
 }
 
 pub fn run_command(context: &mut GameContext, command: Command) {
-    process_player_command(context, command);
+    command::process_player_command(context, command);
     run_action_queue(context);
     process(context);
 }

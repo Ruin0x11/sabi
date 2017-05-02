@@ -3,13 +3,12 @@ use point::Point;
 use world::MapId;
 
 macro_attr! {
-    #[derive(Serialize, Deserialize, Debug, Copy, Clone, EnumFromStr!)]
+    #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Copy, Clone, EnumFromStr!)]
     pub enum CellType {
         Wall,
         Floor,
         Air,
-        Water,
-        Lava
+        Important,
     }
 }
 
@@ -48,9 +47,6 @@ use self::CellFeature::*;
 pub struct Cell {
     pub type_: CellType,
 
-    // TEMP: Shouldn't be owned, but instead looked up
-    pub glyph: Glyph,
-
     pub feature: Option<CellFeature>,
 }
 
@@ -83,7 +79,17 @@ impl Cell {
                 Ascending  => Glyph::StairsUp,
                 Descending => Glyph::StairsDown,
             },
-            _ => self.glyph
+            _ => self.get_appearance()
+        }
+    }
+
+    fn get_appearance(&self) -> Glyph {
+        match self.type_ {
+            CellType::Wall  => Glyph::Wall,
+            CellType::Floor => Glyph::Floor,
+            CellType::Air   => Glyph::None,
+            CellType::Important   => Glyph::Important,
+            _               => Glyph::DebugDraw,
         }
     }
 }
@@ -91,25 +97,21 @@ impl Cell {
 // TEMP: A tile ID is all that should be needed, not type and glyph
 pub const WALL: Cell = Cell {
     type_: CellType::Wall,
-    glyph: Glyph::Wall,
     feature: None,
 };
 
 // TEMP: A tile ID is all that should be needed, not type and glyph
 pub const DECOR: Cell = Cell {
     type_: CellType::Floor,
-    glyph: Glyph::Fancy,
     feature: None,
 };
 
 pub const FLOOR: Cell = Cell {
     type_: CellType::Floor,
-    glyph: Glyph::Floor,
     feature: None,
 };
 
 pub const NOTHING: Cell = Cell {
     type_: CellType::Air,
-    glyph: Glyph::None,
     feature: None,
 };

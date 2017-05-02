@@ -1,11 +1,13 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
-use graphics::cell::{CellFeature, StairDir, StairDest};
+use graphics::cell::{self, CellFeature, StairDir, StairDest};
 use world::regions::Regions;
 use world::traits::*;
 use world::{Bounds, MapId};
+use prefab::Prefab;
 
 use chunk::*;
+use chunk::generator::ChunkType;
 use chunk::serial::SerialChunk;
 use world::WorldPosition;
 
@@ -35,6 +37,8 @@ pub struct Terrain {
 
     chunks: HashMap<ChunkIndex, Chunk>,
     bounds: Bounds,
+
+    pub stairs_in: HashSet<WorldPosition>,
     pub id: u32,
 }
 
@@ -44,6 +48,7 @@ impl Terrain {
             regions: Regions::new(),
             chunks: HashMap::new(),
             bounds: bounds,
+            stairs_in: HashSet::new(),
             id: 0,
         }
     }
@@ -51,16 +56,6 @@ impl Terrain {
     pub fn set_id(&mut self, id: u32) {
         self.id = id;
         self.regions.set_id(id);
-    }
-
-    pub fn place_stairs(&mut self, dir: StairDir,
-                        pos: WorldPosition,
-                        leading_to: MapId,
-                        dest_pos: WorldPosition) {
-        if let Some(cell_mut) = self.cell_mut(&pos) {
-            let dest = StairDest::Generated(leading_to, dest_pos);
-            cell_mut.feature = Some(CellFeature::Stairs(dir, dest));
-        }
     }
 }
 

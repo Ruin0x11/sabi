@@ -64,6 +64,12 @@ function world.rect(x, y, w, h)
   return instance
 end
 
+function world.rect_from_pts(p1, p2)
+  local instance = { p1.x or 0, p1.y or 0, p2.x or 0, p2.y or 0 }
+  setmetatable(instance, rect)
+  return instance
+end
+
 --- Returns the X-coordinate of the left side of the rect.
 -- @treturn number
 function rect:x()

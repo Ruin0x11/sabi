@@ -36,7 +36,6 @@ impl Transition<TransitionData> for EcsWorld {
     fn inject_transition_data(&mut self, previous: TransitionData) -> TransitionResult<()> {
         let map_id = self.flags.map_id;
 
-        // because EncodeRng doesn't implement clone
         self.flags_mut().globals = previous.globals;
 
         // TODO: shouldn't have to set manually.
@@ -68,5 +67,32 @@ impl EcsWorld {
 
         // self.flags.map_id = other.flags.map_id;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use testing::*;
+    use world::*;
+    use chunk::generator::*;
+    use graphics::cell::CellType;
+
+    #[test]
+    fn test_modify_before_transition() {
+        let mut context = test_context_bounded(128, 128);
+
+        let mut new_world = EcsWorld::new(Bounds::Bounded(64, 64), ChunkType::Blank, context.state.world.flags().seed());
+        let change_pos = Point::new(0, 0);
+        {
+            let cell_mut = new_world.cell_mut(&change_pos);
+            cell_mut.unwrap().type_ = CellType::Wall;
+        }
+
+        context.state.world.move_to_map(new_world, change_pos).unwrap();
+
+        let cell = context.state.world.terrain().cell(&change_pos);
+        assert!(cell.is_some(), "World terrain wasn't loaded in after transition");
+        assert_eq!(cell.unwrap().type_, CellType::Wall);
     }
 }

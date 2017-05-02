@@ -2,12 +2,13 @@ mod interop;
 
 pub use self::interop::{map_from_prefab, add_lua_interop};
 
-use std::collections::HashMap;
+use std::collections::{hash_map, HashMap};
+use std::fmt;
 
 use hlua;
 
 use graphics::cell::{self, Cell, StairDir};
-use point::{Point, POINT_ZERO, RectangleIter};
+use point::{Point};
 
 #[derive(Debug)]
 pub enum PrefabError {
@@ -32,14 +33,16 @@ pub type PrefabResult<T> = Result<T, PrefabError>;
 pub struct Prefab {
     cells: Vec<Cell>,
     size: Point,
-    markers: HashMap<Point, PrefabMarker>,
+    pub markers: HashMap<Point, PrefabMarker>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum PrefabMarker {
     Mob(String),
     Door,
-    Stairs(StairDir)
+    StairsIn,
+    StairsOut,
+    Connection
 }
 
 impl<'lua, L> hlua::LuaRead<L> for Prefab
@@ -67,13 +70,17 @@ impl Prefab {
         }
     }
 
+    fn index(&self, pt: &Point) -> usize {
+        (pt.y * self.size.x + pt.x) as usize
+    }
+
     pub fn in_bounds(&self, pt: &Point) -> bool {
         *pt >= Point::new(0, 0) && *pt < self.size
     }
 
     pub fn set(&mut self, pt: &Point, val: Cell) {
         if self.in_bounds(pt) {
-            let idx = (pt.y * self.size.x + pt.x) as usize;
+            let idx = self.index(pt);
             let mut v = self.cells.get_mut(idx).unwrap();
             *v = val;
         }
@@ -81,11 +88,27 @@ impl Prefab {
 
     pub fn get(&self, pt: &Point) -> Cell {
         if self.in_bounds(pt) {
-            let idx = (pt.y * self.size.x + pt.x) as usize;
+            let idx = self.index(pt);
             self.cells.get(idx).unwrap().clone()
         } else {
             cell::NOTHING
         }
+    }
+
+    pub fn set_marker(&mut self, pt: &Point, val: PrefabMarker) {
+        // Only supports one marker per location.
+        if self.in_bounds(pt) {
+            self.markers.insert(*pt, val);
+        }
+    }
+
+    pub fn find_marker(&self, query: PrefabMarker) -> Option<Point> {
+        for (point, marker) in self.markers.iter() {
+            if *marker == query {
+                return Some(*point);
+            }
+        }
+        None
     }
 
     pub fn width(&self) -> i32 {
@@ -96,13 +119,42 @@ impl Prefab {
         self.size.y
     }
 
+    pub fn combine(&mut self, other: &mut Prefab, x: i32, y: i32) {
+        let offset = Point::new(x, y);
+        for (point, cell) in other.iter() {
+            self.set(&(point + offset), *cell);
+        }
+    }
+
     pub fn iter(&self) -> PrefabIter {
         PrefabIter {
             index: 0,
             width: self.width(),
-            height: self.height(),
             inner: self.cells.iter(),
         }
+    }
+}
+
+impl fmt::Display for Prefab {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "\n")?;
+        for j in 0..self.size.y {
+            for i in 0..self.size.x {
+                let pos = Point::new(i, j);
+                let ch = self.get(&pos).glyph().lookup_ascii().ch;
+                write!(f, "{}", ch)?;
+            }
+            write!(f, "\n")?;
+        }
+        Ok(())
+    }
+}
+
+#[cfg(never)]
+impl Prefab {
+    fn connected(&self, from: &Point, to: &Point) -> bool {
+        let blocked = |pos| self.get(pos).can_pass_through();
+        Path::find(self, from, to, blocked).len() > 0
     }
 }
 
@@ -110,7 +162,6 @@ impl Prefab {
 pub struct PrefabIter<'a> {
     index: i32,
     width: i32,
-    height: i32,
     inner: ::std::slice::Iter<'a, Cell>,
 }
 
@@ -119,7 +170,7 @@ impl<'a> Iterator for PrefabIter<'a> {
 
     fn next(&mut self) -> Option<(Point, &'a Cell)> {
         let x = self.index % self.width;
-        let y = self.index / self.height;
+        let y = self.index / self.width;
         let level_position = Point::new(x, y);
         self.index += 1;
         match self.inner.next() {

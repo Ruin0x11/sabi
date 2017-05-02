@@ -2,10 +2,12 @@ pub mod flags;
 mod regions;
 mod terrain;
 mod terrain_traits;
+mod world_traits;
 pub mod traits;
 pub mod serial;
 mod transition;
 mod bounds;
+#[cfg(test)] mod tests;
 
 pub use self::terrain::Terrain;
 pub use self::bounds::Bounds;
@@ -20,7 +22,7 @@ use calx_ecs::{ComponentData, Entity};
 use slog::Logger;
 
 use graphics::Glyph;
-use graphics::cell::{CellFeature, Cell, StairDir, StairDest};
+use graphics::cell::{self, CellFeature, Cell, StairDir, StairDest};
 use chunk::*;
 use chunk::generator::ChunkType;
 use chunk::serial::SerialChunk;
@@ -30,6 +32,8 @@ use ecs::*;
 use log;
 use logic::{Action, CommandResult};
 use point::{Direction, POINT_ZERO, Point, RectangleIter};
+use prefab::{self, Prefab, PrefabMarker};
+use lua;
 
 pub type MapId = u32;
 pub type WorldPosition = Point;
@@ -76,6 +80,35 @@ impl EcsWorld {
             chunk_type: chunk_type,
             logger: get_world_log(),
         }
+    }
+
+    fn cell_mut(&mut self, pos: &WorldPosition) -> Option<&mut Cell> {
+        let index = ChunkIndex::from(*pos);
+
+        if !self.terrain.chunk_loaded(&index) {
+            self.load_chunk(&index).unwrap();
+            self.terrain_mut().regions_mut().notify_chunk_creation(&index);
+        }
+        self.terrain.cell_mut(pos)
+    }
+
+    pub fn from_prefab(name: &str, seed: u32) -> EcsWorld {
+        let prefab = lua::with_mut(|l| prefab::map_from_prefab(l, name)).unwrap();
+        let mut world = EcsWorld::new(Bounds::Bounded(prefab.width(), prefab.height()), ChunkType::Perlin, seed);
+
+        for (pos, cell) in prefab.iter() {
+            if let Some(cell_mut) = world.cell_mut(&pos) {
+                *cell_mut = *cell;
+            }
+        }
+
+        for (pos, marker) in prefab.markers.iter() {
+            if *marker == PrefabMarker::StairsIn {
+                world.terrain.stairs_in.insert(*pos);
+            }
+        }
+
+        world
     }
 }
 
@@ -408,126 +441,11 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
         Ok(())
     }
 
-    fn save(mut self) -> Result<(), SerialError> {
+    fn save(&mut self) -> Result<(), SerialError> {
         let indices = self.terrain.chunk_indices();
         for index in indices.iter() {
             self.unload_chunk(index)?;
         }
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use testing::*;
-    use state;
-
-    #[test]
-    fn test_persistence() {
-        let mut context = test_context_bounded(64, 64);
-
-        let mob = {
-            let world_mut = &mut context.state.world;
-            place_mob(world_mut, WorldPosition::new(1, 1))
-        };
-
-        let world = &context.state.world;
-
-        assert_eq!(is_persistent(world, world.player().unwrap()), true);
-        assert_eq!(is_persistent(world, mob), false);
-    }
-
-
-    #[test]
-    fn test_alive_active() {
-        let mut context = test_context_bounded(64, 64);
-        let mob_pos = WorldPosition::new(1, 1);
-        let mob_chunk = ChunkIndex::from_world_pos(mob_pos);
-
-        let mob = {
-            let world_mut = &mut context.state.world;
-            place_mob(world_mut, mob_pos)
-        };
-
-        {
-            let world = &context.state.world;
-            assert_eq!(world.is_alive(mob), true);
-            assert_eq!(world.is_active(mob), true);
-            assert_eq!(world.ecs().contains(mob), true);
-        }
-
-        context.state.world.unload_chunk(&mob_chunk).unwrap();
-
-        {
-            let world = &context.state.world;
-            assert_eq!(world.is_alive(mob), true);
-            assert_eq!(world.is_active(mob), false);
-            assert_eq!(world.ecs().contains(mob), true);
-        }
-
-        context.state.world.load_chunk(&mob_chunk).unwrap();
-        context.state.world.kill(mob);
-
-        {
-            let world = &context.state.world;
-            assert_eq!(world.is_alive(mob), false);
-            assert_eq!(world.is_active(mob), true);
-            assert_eq!(world.ecs().contains(mob), true);
-        }
-
-        context.state.world.update_killed();
-
-        {
-            let world = &context.state.world;
-            assert_eq!(world.is_alive(mob), false);
-            assert_eq!(world.is_active(mob), false);
-            assert_eq!(world.ecs().contains(mob), true);
-        }
-
-        context.state.world.purge_dead();
-
-        {
-            let world = &context.state.world;
-            assert_eq!(world.is_alive(mob), false);
-            assert_eq!(world.is_active(mob), false);
-            assert_eq!(world.ecs().contains(mob), false);
-        }
-    }
-
-    #[test]
-    fn test_frozen() {
-        let mut context = test_context_bounded(1024, 1024);
-        let mob_pos = WorldPosition::new(1, 1);
-        let mob_chunk = ChunkIndex::from_world_pos(mob_pos);
-        let mob = {
-            let mut world = &mut context.state.world;
-            place_mob(&mut world, mob_pos)
-        };
-
-        assert!(context.state.world.entities_in_chunk(&mob_chunk).contains(&mob));
-
-        state::run_action_no_ai(&mut context, Action::TeleportUnchecked(WorldPosition::new(1023, 1023)));
-
-        assert_eq!(
-            context.state.world.frozen_in_chunk(&ChunkIndex::new(0, 0)),
-            vec![mob]
-        );
-        assert_eq!(
-            context.state.world.spatial.get(mob),
-            Some(Place::Unloaded(mob_pos))
-        );
-
-        state::run_action_no_ai(&mut context, Action::TeleportUnchecked(WorldPosition::new(0, 0)));
-
-        assert_eq!(
-            context.state.world.position(mob),
-            Some(mob_pos)
-        );
-        assert_eq!(
-            context.state.world.spatial.get(mob),
-            Some(Place::At(mob_pos))
-        );
-        assert!(context.state.world.entities_in_chunk(&mob_chunk).contains(&mob));
     }
 }

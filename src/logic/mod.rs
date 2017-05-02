@@ -10,6 +10,8 @@ use stats;
 use world::traits::*;
 use world::{EcsWorld, WorldPosition};
 use data::Walkability;
+use lua;
+use prefab;
 
 fn pre_tick(_world: &mut EcsWorld) {
 
@@ -93,6 +95,12 @@ fn run_entity_action(world: &mut EcsWorld, entity: Entity, action: Action) -> Co
     match action {
         Action::MoveOrAttack(dir)      => move_or_attack(world, entity, dir),
         Action::Move(dir)              => world.move_entity(entity, dir),
+        Action::TestScript              => {
+            match lua::with_mut(|l| prefab::map_from_prefab(l, "prefab")) {
+                Ok(_)  => Ok(()),
+                Err(e) => {lua::log::lua_log_error(format!("{:?}", e)); Err(())},
+            }
+        },
         Action::Teleport(pos)          => try_teleport(world, entity, pos),
         Action::TeleportUnchecked(pos) => {
             world.set_entity_location(entity, pos);

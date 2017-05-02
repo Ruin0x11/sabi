@@ -5,6 +5,9 @@ use world::WorldPosition;
 
 use chunk::*;
 
+// TODO: These should all be private. Let world mutation happen on a single
+// uniform API.
+
 /// Queries that are directly related to the terrain itself, and not the
 /// entities on top of it.
 pub trait TerrainQuery {

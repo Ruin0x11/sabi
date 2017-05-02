@@ -1,4 +1,6 @@
+pub mod log;
 mod random;
+pub use self::log::*;
 
 use std::fs::File;
 use std::io::Read;
@@ -33,6 +35,7 @@ pub fn run_script_and_return<'a, 'lua, T>(lua: &'a mut Lua<'lua>,
 fn open_libs<'a>(lua: &'a mut Lua) -> Result<(), hlua::LuaError> {
     lua.openlibs();
 
+    self::log::add_lua_interop(lua);
     self::random::add_lua_interop(lua);
     prefab::add_lua_interop(lua);
 
@@ -43,4 +46,14 @@ fn init() -> Lua<'static> {
     let mut lua = Lua::new();
     open_libs(&mut lua).unwrap();
     lua
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_lua() {
+        init();
+    }
 }
