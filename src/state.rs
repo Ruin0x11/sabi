@@ -8,7 +8,6 @@ use ai;
 use chunk::generator::ChunkType;
 use engine::canvas;
 use graphics::Glyph;
-use graphics::cell;
 use logic::command;
 use logic::{self, Action, Command};
 use stats;
@@ -100,12 +99,22 @@ fn run_action_queue<'a>(context: &'a mut GameContext) {
     }
 }
 
+fn draw_box() {
+    use point::Point;
+    use engine::tui::Printer;
+    canvas::with(|c| {
+        let p = Printer::new(&c, Point::new(100, 100));
+        p.print_box(Point::new(0, 0), Point::new(20, 10));
+    })
+}
+
 fn render_world(world: &mut EcsWorld) {
     canvas::clear();
     let camera_pos = world.flags().camera;
     canvas::with_mut(|c| c.set_camera(camera_pos.x, camera_pos.y));
     draw_world(world);
     draw_entities(world);
+    draw_box();
     // draw_overlays(world);
 }
 

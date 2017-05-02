@@ -9,3 +9,4 @@ pub mod tcod;
 
 pub mod canvas;
 pub mod keys;
+pub mod tui;

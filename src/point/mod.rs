@@ -38,6 +38,14 @@ impl Point {
         res.x.abs() <= 1 && res.y.abs() <= 1
     }
 
+    pub fn keep_x(&self) -> Point {
+        Point::new(self.x, 0)
+    }
+
+    pub fn keep_y(&self) -> Point {
+        Point::new(0, self.y)
+    }
+
     pub fn tile_distance<P: Into<Point>>(&self, other: P) -> i32 {
         let other = other.into();
         max((self.x - other.x).abs(), (self.y - other.y).abs())
