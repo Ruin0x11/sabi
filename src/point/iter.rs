@@ -1,5 +1,68 @@
 use point::Point;
 
+pub struct LineIter {
+    pos: Point,
+    to: Point,
+
+    diff: Point,
+    signs: Point,
+    error: i32,
+}
+
+impl LineIter {
+    pub fn new(from: Point, to: Point) -> Self {
+        let delta = to - from;
+        let delta_abs = Point::new(delta.x.abs() << 1, delta.y.abs() << 1);
+        let signs = delta.signs();
+
+        let error = if delta_abs.x >= delta_abs.y {
+            delta_abs.y - (delta_abs.x >> 1)
+        } else {
+            delta_abs.x - (delta_abs.y >> 1)
+        };
+
+        LineIter {
+            pos: from,
+            to: to,
+            diff: delta_abs,
+            signs: signs,
+            error: error,
+        }
+    }
+}
+
+impl Iterator for LineIter {
+    type Item = Point;
+
+    fn next(&mut self) -> Option<Point> {
+        if self.diff.x >= self.diff.y {
+            if self.pos.x == self.to.x  {
+                return None;
+            }
+            if self.error > 0 && self.diff.x > 0 {
+                self.pos.y += self.signs.y;
+                self.error -= self.diff.x;
+            }
+
+            self.pos.x += self.signs.x;
+            self.error += self.diff.y;
+        } else {
+            if self.pos.y == self.to.y  {
+                return None;
+            }
+            if self.error > 0 && self.diff.y > 0 {
+                self.pos.x += self.signs.x;
+                self.error -= self.diff.y;
+            }
+
+            self.pos.y += self.signs.y;
+            self.error += self.diff.x;
+        }
+
+        Some(self.pos)
+    }
+}
+
 pub struct CircleIter {
     pos: Point,
     center: Point,

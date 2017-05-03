@@ -46,6 +46,20 @@ impl Point {
         Point::new(0, self.y)
     }
 
+    pub fn signs(&self) -> Point {
+        let conv = |i: i32| {
+            if i == 0 {
+                0
+            } else if i > 0 {
+                1
+            } else {
+                -1
+            }
+        };
+
+        Point::new(conv(self.x), conv(self.y))
+    }
+
     pub fn tile_distance<P: Into<Point>>(&self, other: P) -> i32 {
         let other = other.into();
         max((self.x - other.x).abs(), (self.y - other.y).abs())

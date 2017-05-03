@@ -70,13 +70,13 @@ pub struct EcsWorld {
 }
 
 impl EcsWorld {
-    pub fn new(bounds: Bounds, chunk_type: ChunkType, seed: u32) -> EcsWorld {
+    pub fn new(bounds: Bounds, chunk_type: ChunkType, seed: u32, id: u32) -> EcsWorld {
         EcsWorld {
             ecs_: Ecs::new(),
             terrain: Terrain::new(bounds),
             spatial: Spatial::new(),
             turn_order: TurnOrder::new(),
-            flags: Flags::new(seed),
+            flags: Flags::new(seed, id),
             chunk_type: chunk_type,
             logger: get_world_log(),
         }
@@ -94,7 +94,9 @@ impl EcsWorld {
 
     pub fn from_prefab(name: &str, seed: u32, id: u32) -> EcsWorld {
         let prefab = lua::with_mut(|l| prefab::map_from_prefab(l, name)).unwrap();
-        let mut world = EcsWorld::new(Bounds::Bounded(prefab.width(), prefab.height()), ChunkType::Perlin, seed);
+        let mut world = EcsWorld::new(Bounds::Bounded(prefab.width(),
+                                                      prefab.height()),
+                                      ChunkType::Perlin, seed, id);
         world.set_map_id(id);
 
         for (pos, cell) in prefab.iter() {

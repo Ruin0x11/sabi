@@ -119,10 +119,9 @@ fn test_load_twice() {
     context.state.world.load_chunk(&idx).unwrap();
 }
 
-
 #[test]
 fn test_load_modify_terrain() {
-    let mut world = EcsWorld::new(Bounds::Bounded(64, 64), ChunkType::Blank, 1);
+    let mut world = EcsWorld::new(Bounds::Bounded(64, 64), ChunkType::Blank, 1, 0);
     let change_pos = Point::new(0, 0);
 
     let cell_mut = world.cell_mut(&change_pos);
