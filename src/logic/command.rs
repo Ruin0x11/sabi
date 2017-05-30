@@ -1,6 +1,5 @@
 use ::GameContext;
 use logic::Action;
-use canvas;
 use point::Direction;
 use engine::keys::{Key, KeyCode};
 use graphics::cell::{Cell, CellFeature, StairDest, StairDir};
@@ -58,7 +57,7 @@ impl Command {
 pub fn process_player_command(context: &mut GameContext, command: Command) {
     match command {
         // TEMP: Commands can still be run even if there is no player?
-        Command::Quit           => canvas::close_window(),
+        Command::Quit           => (),
         Command::Move(dir)      => context.state.add_action(Action::MoveOrAttack(dir)),
         Command::Wait           => context.state.add_action(Action::Dood),
         Command::TestScript           => context.state.add_action(Action::TestScript),

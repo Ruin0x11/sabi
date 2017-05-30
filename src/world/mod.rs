@@ -70,7 +70,7 @@ pub struct EcsWorld {
 }
 
 impl EcsWorld {
-    pub fn new(bounds: Bounds, chunk_type: ChunkType, seed: u32) -> EcsWorld {
+    pub fn new(bounds: Bounds, chunk_type: ChunkType, seed: u32, id: u32) -> EcsWorld {
         EcsWorld {
             ecs_: Ecs::new(),
             terrain: Terrain::new(bounds),
@@ -94,8 +94,7 @@ impl EcsWorld {
 
     pub fn from_prefab(name: &str, seed: u32, id: u32) -> EcsWorld {
         let prefab = lua::with_mut(|l| prefab::map_from_prefab(l, name)).unwrap();
-        let mut world = EcsWorld::new(Bounds::Bounded(prefab.width(), prefab.height()), ChunkType::Perlin, seed);
-        world.set_map_id(id);
+        let mut world = EcsWorld::new(Bounds::Bounded(prefab.width(), prefab.height()), ChunkType::Perlin, seed, id);
 
         for (pos, cell) in prefab.iter() {
             if let Some(cell_mut) = world.cell_mut(&pos) {
@@ -279,30 +278,6 @@ impl Mutate for EcsWorld {
     }
 }
 
-impl WorldQuery for EcsWorld {
-    fn can_walk(&self, pos: Point, walkability: Walkability) -> bool {
-        let cell_walkable = self.terrain.cell(&pos).map_or(false, |c| c.can_pass_through());
-        // TODO: Should be anything blocking, like blocking terrain features
-        let no_mob = walkability.can_walk(self, &pos);
-        cell_walkable && no_mob
-    }
-
-    fn pos_valid(&self, pos: &Point) -> bool {
-        self.terrain.pos_valid(pos)
-    }
-
-    fn with_cells<F>(&self, top_left: Point,
-                     dimensions: Point,
-                     mut callback: F) where F: FnMut(Point, &Cell) {
-        let bottom_right = top_left + dimensions;
-        for point in RectangleIter::new(top_left, bottom_right) {
-            if let Some(cell) = self.terrain.cell(&point) {
-                callback(point, cell);
-            }
-        }
-    }
-}
-
 impl<C: Component> ComponentQuery<C> for ComponentData<C> {
     fn get_or_err(&self, e: Entity) -> &C {
         self.get(e).unwrap()
@@ -397,13 +372,18 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
         Ok(())
     }
 
-    fn update_chunks(&mut self) -> Result<(), SerialError>{
-        let mut relevant: HashSet<ChunkIndex> = HashSet::new();
+    fn save(&mut self) -> Result<(), SerialError> {
+        let indices = self.terrain.chunk_indices();
+        for index in indices.iter() {
+            self.unload_chunk(index)?;
+        }
+        Ok(())
+    }
+}
 
-        let center = match self.player() {
-            Some(p) => self.position(p).map_or(POINT_ZERO, |p| p),
-            None    => POINT_ZERO,
-        };
+impl EcsWorld {
+    pub fn update_chunks(&mut self, center: Point) -> Result<(), SerialError>{
+        let mut relevant: HashSet<ChunkIndex> = HashSet::new();
 
         let start = ChunkIndex::from_world_pos(center);
 
@@ -439,14 +419,6 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
 
         self.terrain.prune_empty_regions();
 
-        Ok(())
-    }
-
-    fn save(&mut self) -> Result<(), SerialError> {
-        let indices = self.terrain.chunk_indices();
-        for index in indices.iter() {
-            self.unload_chunk(index)?;
-        }
         Ok(())
     }
 }

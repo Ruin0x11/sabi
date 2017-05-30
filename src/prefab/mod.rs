@@ -141,7 +141,8 @@ impl fmt::Display for Prefab {
         for j in 0..self.size.y {
             for i in 0..self.size.x {
                 let pos = Point::new(i, j);
-                let ch = self.get(&pos).glyph().lookup_ascii().ch;
+                let ch = 'a'; // TODO: map ascii?
+                // let ch = self.get(&pos).glyph().lookup_ascii().ch;
                 write!(f, "{}", ch)?;
             }
             write!(f, "\n")?;

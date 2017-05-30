@@ -39,6 +39,13 @@ pub fn get_value_in_table<'a>(value: &'a Value, key: &str) -> Option<&'a Value> 
     }
 }
 
+pub fn expect_value_in_table<'a, T: Deserialize>(value: &'a Value, key: &str) -> T {
+    match get_value_in_table(value,  key) {
+        Some(v) => v.clone().try_into::<T>().unwrap(),
+        None    => panic!("Expected value {} couldn't be parsed in table!", key),
+    }
+}
+
 /// Gets the value of the key in the given TOML table.
 pub fn get_toml_value<T: Deserialize>(value: &Value, table_name: &str, key: &str) -> Option<T> {
     match get_value_in_table(value, table_name) {

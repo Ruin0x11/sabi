@@ -6,9 +6,9 @@ use infinigen::ChunkedWorld;
 use ::GameContext;
 use ai;
 use chunk::generator::ChunkType;
-use engine::canvas;
 use graphics::Glyph;
 use graphics::cell;
+use point::POINT_ZERO;
 use logic::command;
 use logic::{self, Action, Command};
 use stats;
@@ -24,7 +24,7 @@ pub struct GameState {
 impl GameState {
     pub fn new() -> Self {
         GameState {
-            world: EcsWorld::new(Bounds::Unbounded, ChunkType::Perlin, 1),
+            world: EcsWorld::new(Bounds::Unbounded, ChunkType::Perlin, 1, 0),
             action_queue: VecDeque::new(),
         }
     }
@@ -47,43 +47,17 @@ fn draw_overlays(world: &mut EcsWorld) {
 }
 
 fn draw_world(world: &mut EcsWorld) {
-    let size = canvas::size();
-
-    let center = world.flags().camera - size/2;
-
-    world.with_cells(center, size, |point, ref cell| {
-        let visible = world.player().map_or(true, |p| {
-            world.ecs().fovs.map_or(true, |f| f.is_visible(&point), p)
-        });
-
-        if true || visible {
-            canvas::with(|c| c.print_glyph(point.x, point.y, cell.glyph()) )
-        }
-    } );
 }
 
 #[cfg(never)]
 fn show_messages(world: &mut EcsWorld) {
-    canvas::with_mut(|c| {
-        let messages = world.pop_messages(c.width() as usize);
-        debug!(world.logger, "Showing messages, len: {}", messages.len());
-        c.update_message_buffer(messages)
-    });
 }
 
 fn draw_entities(world: &mut EcsWorld) {
-    // TODO: Make trait for pos queryable?
-    for e in world.entities() {
-        if let Some(pos) = world.position(*e) {
-            if let Some(a) = world.ecs().appearances.get(*e) {
-                canvas::with(|c| c.print_glyph(pos.x, pos.y, a.glyph));
-            }
-        }
-    }
 }
 
 fn get_player_command(context: &mut GameContext) -> Option<Command> {
-    let mut keys = canvas::with(|c| c.get_input());
+    let mut keys: Vec<::engine::keys::Key> = Vec::new();
 
     let mut command = None;
 
@@ -101,12 +75,6 @@ fn run_action_queue<'a>(context: &'a mut GameContext) {
 }
 
 fn render_world(world: &mut EcsWorld) {
-    canvas::clear();
-    let camera_pos = world.flags().camera;
-    canvas::with_mut(|c| c.set_camera(camera_pos.x, camera_pos.y));
-    draw_world(world);
-    draw_entities(world);
-    // draw_overlays(world);
 }
 
 fn process_action(world: &mut EcsWorld, entity: Entity, action: Action) {
@@ -156,8 +124,6 @@ fn check_player_dead(world: &mut EcsWorld) -> bool {
         info!(world.logger, "Player has died.");
         // world.message("You're dead!".to_string());
         // show_messages(world);
-        canvas::present();
-        canvas::get_input();
     }
     res
 }
@@ -176,7 +142,12 @@ fn process_events(_world: &mut EcsWorld) {
 }
 
 fn update_world_terrain(world: &mut EcsWorld) {
-    world.update_chunks().unwrap();
+    let center = match world.player() {
+        Some(p) => world.position(p).map_or(POINT_ZERO, |p| p),
+        None    => POINT_ZERO,
+    };
+
+    world.update_chunks(center).unwrap();
 }
 
 fn update_camera(world: &mut EcsWorld) {
@@ -223,7 +194,6 @@ pub fn render(context: &mut GameContext) {
 
     render_world(&mut context.state.world);
     // show_messages(&mut context.state.world);
-    canvas::present();
 }
 
 pub fn init_headless(context: &mut GameContext) {
@@ -262,7 +232,6 @@ pub fn game_step(context: &mut GameContext) {
 
     let dead = check_player_dead(&mut context.state.world);
     if dead {
-        canvas::close_window();
         return;
     }
 }

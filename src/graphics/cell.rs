@@ -7,6 +7,8 @@ macro_attr! {
     pub enum CellType {
         Wall,
         Floor,
+        Grass,
+        Sand,
         Air,
         Important,
     }
@@ -73,23 +75,17 @@ impl Cell {
         }
     }
 
-    pub fn glyph(&self) -> Glyph {
-        match self.feature {
-            Some(Stairs(dir, _)) => match dir {
-                Ascending  => Glyph::StairsUp,
-                Descending => Glyph::StairsDown,
-            },
-            _ => self.get_appearance()
-        }
+    pub fn glyph(&self) -> &'static str {
+        self.get_appearance()
     }
 
-    fn get_appearance(&self) -> Glyph {
+    fn get_appearance(&self) -> &'static str {
         match self.type_ {
-            CellType::Wall  => Glyph::Wall,
-            CellType::Floor => Glyph::Floor,
-            CellType::Air   => Glyph::None,
-            CellType::Important   => Glyph::Important,
-            _               => Glyph::DebugDraw,
+            CellType::Wall  => "water",
+            CellType::Grass  => "grass",
+            CellType::Sand  => "sand",
+            CellType::Floor => "stone_road",
+            _               => "stone_road",
         }
     }
 }
@@ -100,7 +96,16 @@ pub const WALL: Cell = Cell {
     feature: None,
 };
 
-// TEMP: A tile ID is all that should be needed, not type and glyph
+pub const GRASS: Cell = Cell {
+    type_: CellType::Grass,
+    feature: None,
+};
+
+pub const SAND: Cell = Cell {
+    type_: CellType::Sand,
+    feature: None,
+};
+
 pub const DECOR: Cell = Cell {
     type_: CellType::Floor,
     feature: None,

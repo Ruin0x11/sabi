@@ -1,4 +1,5 @@
 use std::ops::Add;
+use std::slice::Iter;
 
 use rand::{self, Rng};
 
@@ -57,6 +58,10 @@ impl Direction {
 
     pub fn choose8() -> Direction {
         rand::thread_rng().choose(&DIRECTIONS).unwrap().clone()
+    }
+
+    pub fn iter8() -> Iter<'static, Direction> {
+        DIRECTIONS.into_iter()
     }
 
     pub fn from_neighbors(from: Point, to: Point) -> Option<Direction> {

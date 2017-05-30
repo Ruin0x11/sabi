@@ -7,7 +7,7 @@ use graphics::cell::Cell;
 use world::EcsWorld;
 use world::traits::*;
 
-use point::Point;
+use point::{Point, RectangleIter};
 
 pub trait WorldQuery {
     fn can_walk(&self, pos: Point, walkability: Walkability) -> bool;
@@ -17,6 +17,46 @@ pub trait WorldQuery {
                      dimensions: Point,
                      callback: F)
         where F: FnMut(Point, &Cell);
+
+    fn cell_const(&self, pos: &Point) -> Option<&Cell>;
+}
+
+
+impl WorldQuery for EcsWorld {
+    fn can_walk(&self, pos: Point, walkability: Walkability) -> bool {
+        let cell_walkable = self.terrain.cell(&pos).map_or(false, |c| c.can_pass_through());
+        // TODO: Should be anything blocking, like blocking terrain features
+        let no_mob = walkability.can_walk(self, &pos);
+        cell_walkable && no_mob
+    }
+
+    fn pos_valid(&self, pos: &Point) -> bool {
+        self.terrain.pos_valid(pos)
+    }
+
+    fn with_cells<F>(&self, top_left: Point,
+                     dimensions: Point,
+                     mut callback: F) where F: FnMut(Point, &Cell) {
+        let bottom_right = top_left + dimensions;
+        for point in RectangleIter::new(top_left, bottom_right) {
+            if let Some(cell) = self.terrain.cell(&point) {
+                callback(point, cell);
+            }
+        }
+    }
+
+    fn cell_const(&self, pos: &Point) -> Option<&Cell> {
+        if !self.pos_valid(pos) {
+            return None;
+        }
+
+        let idx = ChunkIndex::from(*pos);
+        if !self.terrain().chunk_loaded(&idx) {
+            return None;
+        }
+
+        self.terrain().cell(pos)
+    }
 }
 
 pub trait WorldMutate {
