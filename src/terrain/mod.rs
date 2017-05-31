@@ -1,7 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
 use graphics::cell::{self, CellFeature, StairDir, StairDest};
-use world::regions::Regions;
 use world::traits::*;
 use world::{Bounds, MapId};
 use prefab::Prefab;
@@ -12,6 +11,12 @@ use chunk::serial::SerialChunk;
 use world::WorldPosition;
 
 use infinigen::*;
+
+pub mod traits;
+pub mod regions;
+
+use self::regions::Regions;
+use self::traits::*;
 
 impl BoundedTerrain<WorldPosition, ChunkIndex> for Terrain {
     fn in_bounds(&self, pos: &WorldPosition) -> bool {

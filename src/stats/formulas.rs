@@ -1,10 +1,11 @@
 use std::fmt::{self, Display};
 
 use calx_ecs::Entity;
+use ecs::traits::*;
 use rand;
 use rand::distributions::{Range, IndependentSample};
 
-use world::traits::{ComponentQuery, Query};
+use world::traits::Query;
 use world::EcsWorld;
 
 struct Dice {

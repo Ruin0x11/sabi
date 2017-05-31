@@ -7,7 +7,8 @@ use calx_ecs::Entity;
 
 use logic::Action;
 use ai::sensors::{Sensor};
-use world::traits::{ComponentQuery, Query};
+use ecs::traits::ComponentQuery;
+use world::traits::Query;
 use world::EcsWorld;
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -100,13 +101,20 @@ thread_local! {
     static SENSORS: HashMap<AiProp, Sensor> = sensors::make_sensors();
 }
 
-pub fn run(entity: Entity, world: &EcsWorld) -> Action {
+pub fn run(entity: Entity, world: &EcsWorld) -> Option<Action> {
     assert!(!world.is_player(entity), "Tried running AI on current player!");
+
+    if !world.ecs().ais.has(entity) {
+        assert!(!world.turn_order().contains(entity), "Entity without ai in turn order!");
+        return None;
+    }
 
     check_target(entity, world);
     update_goal(entity, world);
     update_memory(entity, world);
-    choose_action(entity, world)
+    let action = choose_action(entity, world);
+
+    Some(action)
 }
 
 fn check_target(entity: Entity, world: &EcsWorld) {

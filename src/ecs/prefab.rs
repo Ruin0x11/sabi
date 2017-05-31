@@ -2,18 +2,17 @@ use ai::Ai;
 use ecs::Loadout;
 use ecs::components::*;
 use data::fov::FieldOfView;
-use graphics::Glyph;
 
 pub struct Prefab {
     pub loadout: Loadout,
 }
 
-pub fn mob(name: &str, health: i32, glyph: Glyph) -> Prefab {
+pub fn mob(name: &str, health: i32, sprite: &str) -> Prefab {
     Prefab {
         loadout: Loadout::new()
             .c(Name::new(name))
             .c(Health::new(health))
-            .c(Appearance::new(glyph))
+            .c(Appearance::new(sprite))
             .c(Turn::new(100))
             .c(FieldOfView::new())
             .c(Ai::new())

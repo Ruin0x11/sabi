@@ -1,6 +1,7 @@
 pub mod components;
 pub mod instantiate;
 pub mod prefab;
+pub mod traits;
 
 use ai;
 use data::fov;

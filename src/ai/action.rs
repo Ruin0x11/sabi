@@ -1,5 +1,6 @@
 use calx_ecs::Entity;
 
+use ecs::traits::*;
 use point::Direction;
 use logic::Action;
 use data::Walkability;

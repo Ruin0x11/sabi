@@ -3,3 +3,5 @@ callgrind*
 \#*\#
 save/
 target/
+data/.packed
+.DS_Store

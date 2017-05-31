@@ -1,4 +1,3 @@
-use graphics::Glyph;
 use world::WorldPosition;
 
 const ITEM_PILE_LIMIT: usize = 9999;
@@ -24,7 +23,7 @@ pub struct ItemDesc {
     pub weight: f32,
     pub id: u32,
     pub container: bool,
-    pub glyph: Glyph,
+    pub sprite: String,
 }
 
 pub trait ItemCollection {
@@ -270,17 +269,17 @@ mod tests {
                                                            id: 1,
                                                            weight: 0.1,
                                                            container: false,
-                                                           glyph: Glyph::Item },
+                                                           sprite: "none".to_string() },
                                                 ItemDesc { name: "kitchen knife",
                                                            id: 2,
                                                            weight: 10.0,
                                                            container: false,
-                                                           glyph: Glyph::Item },
+                                                           sprite: "none".to_string() },
                                                 ItemDesc { name: "meatchest",
                                                            id: 3,
                                                            weight: 50.0,
                                                            container: true,
-                                                           glyph: Glyph::Item }];
+                                                           sprite: "none".to_string() }];
     }
 
     #[test]

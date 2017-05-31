@@ -1,7 +1,5 @@
 use std::slice;
 
-pub use world::terrain_traits::*;
-pub use world::world_traits::*;
 // TODO: infinigen::traits::*;
 pub use infinigen::*;
 
@@ -13,64 +11,13 @@ use data::{TurnOrder, Walkability};
 use point::Direction;
 use ecs::*;
 use ecs::prefab::*;
+use ecs::traits::*;
 use world::WorldPosition;
 use world::flags::Flags;
+use world::traits::Query;
 
 use point::Point;
 use chunk::*;
-
-// FIXME: Move these appropriately.
-// FIXME: Refactor.
-
-pub trait Query {
-    fn position(&self, e: Entity) -> Option<Point>;
-
-    fn is_player(&self, e: Entity) -> bool;
-
-    fn player(&self) -> Option<Entity>;
-
-    fn seed(&self) -> u32;
-
-    fn entities(&self) -> slice::Iter<Entity>;
-
-    fn entities_at(&self, loc: Point) -> Vec<Entity>;
-
-    fn entities_in_chunk(&self, index: &ChunkIndex) -> Vec<Entity>;
-
-    fn frozen_in_chunk(&self, index: &ChunkIndex) -> Vec<Entity>;
-
-    fn ecs<'a>(&'a self) -> &'a Ecs;
-
-    fn flags<'a>(&'a self) -> &'a Flags;
-
-    fn turn_order<'a>(&'a self) -> &'a TurnOrder;
-
-    // FIXME: This is confusing. "Dead" has both the meaning of "not on map" and
-    // "health is zero".
-    fn is_alive(&self, e: Entity) -> bool;
-
-    fn is_active(&self, e: Entity) -> bool;
-
-    fn can_see(&self, viewer: Entity, pos: WorldPosition) -> bool;
-
-    fn seen_entities(&self, viewer: Entity) -> Vec<Entity>;
-
-    fn is_mob(&self, e: Entity) -> bool {
-        let ecs = self.ecs();
-        ecs.ais.has(e)
-            && ecs.turns.has(e)
-            && ecs.healths.has(e)
-            && ecs.names.has(e)
-            && ecs.fovs.has(e)
-    }
-
-    /// Return mob (if any) at given position.
-    fn mob_at(&self, loc: Point) -> Option<Entity> {
-        self.entities_at(loc).into_iter().find(|&e| self.is_mob(e))
-    }
-
-    // fn extract_prefab
-}
 
 pub trait Mutate: Query + Sized {
     fn set_entity_location(&mut self, e: Entity, loc: Point);
@@ -144,35 +91,4 @@ pub trait Mutate: Query + Sized {
 
     // Drop in a predefined room.
     // fn create_terrain_prefab()
-}
-
-pub trait ComponentQuery<C: Component> {
-    /// Gets the component off this entity or panics.
-    fn get_or_err(&self, e: Entity) -> &C;
-
-    /// Gets a component off this entity and runs a callback, with a fallback
-    /// value if it doesn't exist.
-    fn map_or<F, T>(&self, default: T, callback: F, e: Entity) -> T
-        where F: FnOnce(&C,) -> T;
-
-    fn map<F, T>(&self, callback: F, e: Entity) -> Option<T>
-        where F: FnOnce(&C,) -> T;
-
-    fn has(&self, e: Entity) -> bool;
-}
-
-pub trait ComponentMutate<C: Component> {
-    fn get_mut_or_err(&mut self, e: Entity) -> &mut C;
-    fn map_mut<F, T>(&mut self, callback: F, e: Entity) -> Option<T>
-        where F: FnOnce(&mut C,) -> T;
-}
-
-pub type TransitionResult<T> = Result<T, ()>;
-
-/// A trait for transitioning between game worlds.
-pub trait Transition<T> {
-    fn map_id(&self) -> u32;
-    fn set_map_id(&mut self, id: u32);
-    fn get_transition_data(&mut self) -> TransitionResult<T>;
-    fn inject_transition_data(&mut self, data: T) -> TransitionResult<()>;
 }

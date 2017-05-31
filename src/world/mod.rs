@@ -1,39 +1,37 @@
-pub mod flags;
-mod regions;
-mod terrain;
-mod terrain_traits;
-mod world_traits;
-pub mod traits;
-pub mod serial;
-mod transition;
-mod bounds;
 #[cfg(test)] mod tests;
+mod bounds;
+mod transition;
+pub mod flags;
+pub mod serial;
+pub mod traits;
 
-pub use self::terrain::Terrain;
 pub use self::bounds::Bounds;
-use self::regions::Regions;
-use self::traits::*;
 use self::flags::Flags;
+use self::traits::*;
 
 use std::collections::HashSet;
 use std::slice;
 
 use calx_ecs::{ComponentData, Entity};
+use infinigen::*;
 use slog::Logger;
 
-use graphics::Glyph;
-use graphics::cell::{self, CellFeature, Cell, StairDir, StairDest};
 use chunk::*;
 use chunk::generator::ChunkType;
 use chunk::serial::SerialChunk;
 use data::spatial::{Spatial, Place};
 use data::{TurnOrder, Walkability};
 use ecs::*;
+use ecs::traits::*;
+use graphics::cell::{self, CellFeature, Cell, StairDir, StairDest};
 use log;
 use logic::{Action, CommandResult};
+use lua;
 use point::{Direction, POINT_ZERO, Point, RectangleIter};
 use prefab::{self, Prefab, PrefabMarker};
-use lua;
+use terrain::Terrain;
+use terrain::traits::*;
+use terrain::regions::Regions;
 
 pub type MapId = u32;
 pub type WorldPosition = Point;
@@ -358,7 +356,7 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
         let chunk_pos = ChunkPosition::from(Point::new(0, 0));
         let cell_pos = Chunk::world_position_at(&index, &chunk_pos);
         if self.can_walk(cell_pos, Walkability::MonstersBlocking) {
-            self.create(::ecs::prefab::mob("Putit", 10, Glyph::Putit),
+            self.create(::ecs::prefab::mob("Putit", 10, "putit"),
                         cell_pos);
         }
 

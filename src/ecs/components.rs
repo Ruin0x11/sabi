@@ -5,7 +5,6 @@ use serde::ser::{Serialize, Serializer};
 
 use slog::Logger;
 
-use graphics::Glyph;
 use log;
 use stats::properties::Properties;
 
@@ -59,13 +58,13 @@ impl Health {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Appearance {
-    pub glyph: Glyph,
+    pub kind: String
 }
 
 impl Appearance {
-    pub fn new(glyph: Glyph) -> Self {
+    pub fn new(kind: &str) -> Self {
         Appearance {
-            glyph: glyph,
+            kind: kind.to_string()
         }
     }
 }

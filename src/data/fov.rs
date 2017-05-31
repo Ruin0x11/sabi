@@ -1,8 +1,8 @@
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::f32;
-use world::traits::TerrainQuery;
-use world::Terrain;
+use world::EcsWorld;
+use world::traits::*;
 
 use point::*;
 
@@ -187,13 +187,13 @@ impl FieldOfView {
 
     /// Updates this field of view using the Precise Permissive Field of View
     /// algorithm.
-    pub fn update(&mut self, terrain: &Terrain, center: &Point, radius: i32) {
+    pub fn update(&mut self, world: &EcsWorld, center: &Point, radius: i32) {
         self.clear();
 
         self.visible.insert(center.clone());
 
-        let in_bounds = |pos: &Point| terrain.pos_valid(pos);
-        let blocked   = |pos: &Point| !terrain.cell(pos)
+        let in_bounds = |pos: &Point| world.pos_valid(pos);
+        let blocked   = |pos: &Point| !world.cell_const(pos)
                      .map_or(false, |c| c.can_pass_through());
 
         let mut quadrant = |dx, dy| {

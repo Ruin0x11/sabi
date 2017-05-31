@@ -6,7 +6,7 @@ use infinigen::ChunkedWorld;
 use ::GameContext;
 use ai;
 use chunk::generator::ChunkType;
-use graphics::Glyph;
+use ecs::traits::*;
 use graphics::cell;
 use point::POINT_ZERO;
 use logic::command;
@@ -101,18 +101,10 @@ fn process_actors(world: &mut EcsWorld) {
             break
         }
 
-        if !world.ecs().ais.has(entity) {
-            if world.turn_order().contains(entity) {
-                panic!("Entity without ai in turn order!");
-            }
-            continue;
+        if let Some(action) = ai::run(entity, world) {
+            process_action(world, entity, action);
+            process_events(world);
         }
-
-        let action = ai::run(entity, world);
-
-        process_action(world, entity, action);
-
-        process_events(world);
     }
 
     world.purge_dead();
@@ -211,7 +203,7 @@ pub fn load_context() -> GameContext {
     if let Ok(world) = world::serial::load_world(manifest.map_id) {
         context.state.world = world;
     } else {
-        let e = context.state.world.create(::ecs::prefab::mob("Player", 100000, Glyph::Player), WorldPosition::new(1,1));
+        let e = context.state.world.create(::ecs::prefab::mob("Player", 100000, "player"), WorldPosition::new(1,1));
         context.state.world.set_player(Some(e));
     }
 

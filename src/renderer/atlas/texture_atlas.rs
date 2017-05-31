@@ -57,8 +57,6 @@ impl<'a> TextureAtlasBuilder<'a> {
 
     pub fn build<F: Facade>(&self, display: &F) -> TextureAtlas {
         let image = ImageExporter::export(&self.packer).unwrap();
-        let mut file = File::create("data/pack.png").unwrap();
-        image.save(&mut file, image::PNG).unwrap();
 
         let texture = atlas::make_texture(display, image);
 

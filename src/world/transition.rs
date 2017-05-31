@@ -1,3 +1,5 @@
+use infinigen::*;
+
 use ecs::Loadout;
 use point::Point;
 use world::serial;
@@ -82,7 +84,7 @@ mod tests {
     fn test_modify_before_transition() {
         let mut context = test_context_bounded(128, 128);
 
-        let mut new_world = EcsWorld::new(Bounds::Bounded(64, 64), ChunkType::Blank, context.state.world.flags().seed());
+        let mut new_world = EcsWorld::new(Bounds::Bounded(64, 64), ChunkType::Blank, context.state.world.flags().seed(), 0);
         let change_pos = Point::new(0, 0);
         {
             let cell_mut = new_world.cell_mut(&change_pos);

@@ -1,9 +1,6 @@
 use std::cell::RefCell;
 use std::collections::VecDeque;
 
-use engine::canvas::{self, Canvas};
-use graphics::Glyph;
-
 pub struct DrawCalls {
     draw_calls: RefCell<VecDeque<Draw>>
 }
@@ -25,7 +22,6 @@ impl DrawCalls {
 
     pub fn draw_all(&self) {
         for draw_call in self.draw_calls.borrow().iter() {
-            canvas::with_mut(|c| draw_call.draw(c) );
         }
     }
 }
@@ -41,7 +37,6 @@ pub trait Drawable {
 impl Drawable for Draw {
     fn draw(&self, canvas: &mut Canvas) {
         match *self {
-            Draw::Point(x, y) => canvas.print_glyph(x, y, Glyph::DebugDraw)
         }
     }
 }

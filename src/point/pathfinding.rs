@@ -203,7 +203,6 @@ mod test {
     use testbed::make_grid_from_str;
     use tile::{self, Tile};
     use tile::TileType::{Wall, Floor};
-    use glyph::Glyph;
 
     struct Board {
         start: Point,
@@ -251,7 +250,6 @@ mod test {
                 };
                 board.level.set_tile(pt.clone(), Tile {
                     type_: tile_kind,
-                    glyph: Glyph::None,
                     feature: None,
                 });
         };

@@ -5,6 +5,7 @@ pub use self::action::Action;
 pub use self::command::{Command, CommandResult};
 
 use calx_ecs::Entity;
+use ecs::traits::*;
 use point::Direction;
 use stats;
 use world::traits::*;

@@ -89,7 +89,7 @@ pub fn try_use_stairs(dir: StairDir, world: &mut EcsWorld) -> CommandResult {
 }
 
 fn find_stair_dest(world: &EcsWorld, pos: Point, dir: StairDir) -> Result<StairDest, ()> {
-    let cell = match world.terrain().cell(&pos) {
+    let cell = match world.cell_const(&pos) {
         Some(c) => c,
         None    => return Err(())
     };
@@ -132,7 +132,7 @@ fn load_stair_dest(world: &mut EcsWorld, stair_pos: Point, next: StairDest) -> (
                                     stair_pos,
                                     stairs_mut)
             };
-            debug!(world.logger, "new stairs: {:?}", world.terrain().cell(&stair_pos));
+            debug!(world.logger, "new stairs: {:?}", world.cell_const(&stair_pos));
             res
         },
     }

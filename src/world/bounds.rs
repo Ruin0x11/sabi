@@ -1,4 +1,5 @@
 use world::traits::*;
+use terrain::traits::BoundedTerrain;
 
 use chunk::*;
 use point::{Point, POINT_ZERO};

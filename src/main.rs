@@ -50,6 +50,7 @@ mod renderer;
 mod state;
 mod stats;
 mod testbed;
+mod terrain;
 mod util;
 mod world;
 

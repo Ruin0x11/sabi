@@ -1,4 +1,3 @@
-use graphics::Glyph;
 use point::Point;
 use world::MapId;
 
