@@ -13,7 +13,7 @@ function rand.point_zero_to(hi)
 end
 
 function rand.shuffle(t)
-    assert( t, "shuffleTable() expected a table, got nil" )
+    assert( t, "rand.shuffle() expected a table, got nil" )
     local iterations = #t
     local j
 
