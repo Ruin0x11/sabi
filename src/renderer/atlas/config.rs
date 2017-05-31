@@ -8,7 +8,6 @@ use crypto::digest::Digest;
 use crypto::sha3::Sha3;
 use glium::backend::Facade;
 use glob;
-use graphics::cell::CellType;
 use image;
 use toml::Value;
 
@@ -137,7 +136,7 @@ impl TileAtlas {
                 None => TileKind::Static,
             };
 
-            let tile = AtlasTile {
+            let tile = AtlasTileData {
                 offset: (offset[0], offset[1]),
                 is_autotile: is_autotile,
                 tile_kind: tile_kind,

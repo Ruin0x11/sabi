@@ -40,8 +40,8 @@ fn make_instances<F: Facade>(display: &F, area: RectangleIter, visible: HashSet<
 
 impl ShadowMap {
     pub fn new<F: Facade>(display: &F, area: RectangleIter, visible: HashSet<Point>) -> Self {
-        let vertices = glium::VertexBuffer::immutable(display, &QUAD).unwrap();
-        let indices = glium::IndexBuffer::immutable(display, PrimitiveType::TrianglesList, &QUAD_INDICES).unwrap();
+        let (vertices, indices) = render::make_quad_buffers(display);
+
         let program = render::load_program(display, "shadow.vert", "shadow.frag").unwrap();
 
         ShadowMap {

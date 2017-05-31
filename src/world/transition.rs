@@ -67,7 +67,7 @@ impl EcsWorld {
         let player = self.player().expect("Player didn't move to new map!");
         self.set_entity_location(player, dest);
 
-        // self.flags.map_id = other.flags.map_id;
+        println!("id: {}", self.flags.map_id);
         Ok(())
     }
 }

@@ -35,9 +35,6 @@ impl Index for ChunkIndex {
 
 #[derive(Serialize, Deserialize)]
 pub struct Terrain {
-    #[serde(skip_serializing)]
-    #[serde(skip_deserializing)]
-    #[serde(default="Regions::new")]
     regions: Regions,
 
     chunks: HashMap<ChunkIndex, Chunk>,
@@ -48,13 +45,13 @@ pub struct Terrain {
 }
 
 impl Terrain {
-    pub fn new(bounds: Bounds) -> Self {
+    pub fn new(bounds: Bounds, id: u32) -> Self {
         Terrain {
-            regions: Regions::new(),
+            regions: Regions::new(id),
             chunks: HashMap::new(),
             bounds: bounds,
             stairs_in: HashSet::new(),
-            id: 0,
+            id: id,
         }
     }
 
@@ -69,7 +66,7 @@ impl TerrainQuery for Terrain {
         self.chunks.get(&index)
     }
 
-    fn pos_valid(&self, pos: &WorldPosition) -> bool {
+    fn pos_loaded(&self, pos: &WorldPosition) -> bool {
         self.cell(pos).is_some() && self.bounds.in_bounds(pos)
     }
 }
@@ -85,6 +82,8 @@ impl TerrainMutate for Terrain {
 
     fn insert_chunk(&mut self, index: ChunkIndex, chunk: Chunk) {
         self.chunks.insert(index, chunk);
+        // NOTE: cells are not cropped at bounds, but since there is a bounds
+        // check the squares out of bounds are treated as "None"
     }
 
     fn remove_chunk(&mut self, index: &ChunkIndex) -> Option<Chunk> {

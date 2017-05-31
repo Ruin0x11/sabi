@@ -22,7 +22,7 @@ pub enum Command {
 impl Command {
     pub fn from_key(key: Key) -> Command {
         match key {
-            Key { code: KeyCode::Esc,         .. } => Command::Quit,
+            Key { code: KeyCode::Escape,      .. } => Command::Quit,
             Key { code: KeyCode::Left,        .. } |
             Key { code: KeyCode::H,           .. } |
             Key { code: KeyCode::NumPad4,     .. } => Command::Move(Direction::W),
@@ -44,8 +44,8 @@ impl Command {
             Key { code: KeyCode::U,           .. } |
             Key { code: KeyCode::NumPad9,     .. } => Command::Move(Direction::NE),
 
-            Key { code: KeyCode::GreaterThan, .. } => Command::UseStairs(StairDir::Ascending),
-            Key { code: KeyCode::LessThan,    .. } => Command::UseStairs(StairDir::Descending),
+            Key { code: KeyCode::Period,      .. } => Command::UseStairs(StairDir::Ascending),
+            Key { code: KeyCode::Comma,       .. } => Command::UseStairs(StairDir::Descending),
 
             Key { code: KeyCode::T,           .. } => Command::TestScript,
 
@@ -152,8 +152,8 @@ fn generate_stair_dest(prev_id: MapId, next_id: MapId, seed: u32, old_pos: Point
 
         new_world.place_stairs(stair_dir.reverse(),
                                new_stair_pos,
-                          prev_id,
-                          old_pos);
+                               prev_id,
+                               old_pos);
 
         (new_world, new_stair_pos)
     } else {

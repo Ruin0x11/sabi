@@ -7,6 +7,7 @@ use ::GameContext;
 use ai;
 use chunk::generator::ChunkType;
 use ecs::traits::*;
+use engine::keys::Key;
 use graphics::cell;
 use point::POINT_ZERO;
 use logic::command;
@@ -56,25 +57,14 @@ fn show_messages(world: &mut EcsWorld) {
 fn draw_entities(world: &mut EcsWorld) {
 }
 
-fn get_player_command(context: &mut GameContext) -> Option<Command> {
-    let mut keys: Vec<::engine::keys::Key> = Vec::new();
-
-    let mut command = None;
-
-    if let Some(key) = keys.pop() {
-        info!(context.logger, "Key: {:?}", key);
-        command = Some(Command::from_key(key));
-    }
-    command
+fn get_player_command(context: &mut GameContext, key: Key) -> Option<Command> {
+    Some(Command::from_key(key))
 }
 
 fn run_action_queue<'a>(context: &'a mut GameContext) {
     while let Some(action) = context.state.action_queue.pop_front() {
         context.state.player_action(action)
     }
-}
-
-fn render_world(world: &mut EcsWorld) {
 }
 
 fn process_action(world: &mut EcsWorld, entity: Entity, action: Action) {
@@ -110,7 +100,7 @@ fn process_actors(world: &mut EcsWorld) {
     world.purge_dead();
 }
 
-fn check_player_dead(world: &mut EcsWorld) -> bool {
+fn check_player_dead(world: &EcsWorld) -> bool {
     let res = world.player().is_none();
     if res {
         info!(world.logger, "Player has died.");
@@ -128,7 +118,6 @@ fn process_events(_world: &mut EcsWorld) {
     //         // FIXME: don't delay actors here.
     //         logic::run_action(world, &id, action);
     //     }
-    //     //render_all(world, canvas);
     //     responses.extend(event::check_all(world));
     // }
 }
@@ -181,13 +170,6 @@ pub fn process(context: &mut GameContext) {
     process_actors(&mut context.state.world);
 }
 
-pub fn render(context: &mut GameContext) {
-    update_camera(&mut context.state.world);
-
-    render_world(&mut context.state.world);
-    // show_messages(&mut context.state.world);
-}
-
 pub fn init_headless(context: &mut GameContext) {
     update_world_terrain(&mut context.state.world);
 }
@@ -203,7 +185,7 @@ pub fn load_context() -> GameContext {
     if let Ok(world) = world::serial::load_world(manifest.map_id) {
         context.state.world = world;
     } else {
-        let e = context.state.world.create(::ecs::prefab::mob("Player", 100000, "player"), WorldPosition::new(1,1));
+        let e = context.state.world.create(::ecs::prefab::mob("Player", 10000, "player"), WorldPosition::new(1,1));
         context.state.world.set_player(Some(e));
     }
 
@@ -213,16 +195,17 @@ pub fn load_context() -> GameContext {
 
 pub fn init(context: &mut GameContext) {
     init_headless(context);
-    render(context);
 }
 
-pub fn game_step(context: &mut GameContext) {
-    if let Some(command) = get_player_command(context) {
-        run_command(context, command);
+pub fn game_step(context: &mut GameContext, input: Option<Key>) {
+    if let Some(key) = input {
+        if let Some(command) = get_player_command(context, key) {
+            run_command(context, command);
+        }
     }
-    render(context);
+    update_camera(&mut context.state.world);
 
-    let dead = check_player_dead(&mut context.state.world);
+    let dead = check_player_dead(&context.state.world);
     if dead {
         return;
     }

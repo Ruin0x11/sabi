@@ -61,6 +61,12 @@ impl Into<Point> for (i32, i32) {
     }
 }
 
+impl Into<(i32, i32)> for Point {
+    fn into(self) -> (i32, i32) {
+        (self.x, self.y)
+    }
+}
+
 impl Display for Point {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         write!(f, "({}, {})", self.x, self.y)

@@ -7,6 +7,7 @@ use glium::glutin;
 use glium::{DisplayBuild, Surface};
 use glium::backend::glutin_backend::GlutinFacade;
 use glium::backend::Facade;
+use glium::index::PrimitiveType;
 
 use point::{Point, CircleIter, RectangleIter};
 use renderer::interop::RenderUpdate;
@@ -28,15 +29,8 @@ use self::tilemap::TileMap;
 
 pub use self::viewport::Viewport;
 
-pub fn load_program<F: Facade>(display: &F, vert: &str, frag: &str) -> Result<glium::Program, glium::ProgramCreationError> {
-    let vertex_shader = util::read_string(&format!("data/shaders/{}", vert));
-    let fragment_shader = util::read_string(&format!("data/shaders/{}", frag));
-
-    glium::Program::from_source(display, &vertex_shader, &fragment_shader, None)
-}
-
-pub const SCREEN_WIDTH: u32 = 1280;
-pub const SCREEN_HEIGHT: u32 = 720;
+pub const SCREEN_WIDTH: u32 = 1440;
+pub const SCREEN_HEIGHT: u32 = 1080;
 
 pub const QUAD_INDICES: [u16; 6] = [0, 1, 2, 1, 3, 2];
 pub const QUAD: [Vertex; 4] = [
@@ -45,6 +39,19 @@ pub const QUAD: [Vertex; 4] = [
     Vertex { position: [0, 0], },
     Vertex { position: [1, 0], },
 ];
+
+pub fn load_program<F: Facade>(display: &F, vert: &str, frag: &str) -> Result<glium::Program, glium::ProgramCreationError> {
+    let vertex_shader = util::read_string(&format!("data/shaders/{}", vert));
+    let fragment_shader = util::read_string(&format!("data/shaders/{}", frag));
+
+    glium::Program::from_source(display, &vertex_shader, &fragment_shader, None)
+}
+
+pub fn make_quad_buffers<F: Facade>(display: &F) -> (glium::VertexBuffer<Vertex>, glium::IndexBuffer<u16>) {
+    let vertices = glium::VertexBuffer::immutable(display, &QUAD).unwrap();
+    let indices = glium::IndexBuffer::immutable(display, PrimitiveType::TrianglesList, &QUAD_INDICES).unwrap();
+    (vertices, indices)
+}
 
 #[derive(Copy, Clone)]
 pub struct Vertex {
@@ -134,13 +141,15 @@ impl RenderContext {
 
     pub fn update_camera(&mut self, context: &GameContext) {
         let camera = context.state.world.flags().camera;
-        self.viewport.camera = (camera.x * 48, camera.y * 48);
+        self.viewport.camera = self.viewport.camera_viewport_pos(camera);
     }
 
     pub fn update(&mut self, context: &GameContext) {
         self.update_camera(context);
 
-        self.tilemap.update(context);
+        self.tilemap.update(context, &self.viewport);
+        self.spritemap.update(context, &self.viewport);
+        self.ui.update(context, &self.viewport);
     }
 
     pub fn render(&mut self) {
@@ -150,8 +159,13 @@ impl RenderContext {
         let millis = self.accumulator.millis_since_start();
 
         self.background.render(&self.backend, &mut target, &self.viewport, millis);
+
+        self.tilemap.redraw(&self.backend, millis);
         self.tilemap.render(&self.backend, &mut target, &self.viewport, millis);
+
+        self.spritemap.redraw(&self.backend, millis);
         self.spritemap.render(&self.backend, &mut target, &self.viewport, millis);
+
         self.shadowmap.render(&self.backend, &mut target, &self.viewport, millis);
         self.ui.render(&self.backend, &mut target, &self.viewport, millis);
 
@@ -171,16 +185,16 @@ impl RenderContext {
         self.backend.poll_events().collect()
     }
 
-    pub fn update_ui(&mut self, event: &glutin::Event) -> bool {
-        if self.ui.is_active() {
-            self.ui.on_event(event.clone());
-            self.ui.update();
-            return true;
-        } else {
-            self.ui.update();
-            return false;
-        }
-    }
+    // pub fn update_ui(&mut self, event: &glutin::Event) -> bool {
+    //     if self.ui.is_active() {
+    //         self.ui.on_event(event.clone());
+    //         self.ui.update();
+    //         return true;
+    //     } else {
+    //         self.ui.update();
+    //         return false;
+    //     }
+    // }
 
     pub fn message(&mut self, text: &str) {
         self.ui.main_layer.log.append(text);

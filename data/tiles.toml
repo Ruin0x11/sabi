@@ -29,5 +29,17 @@ is_autotile=true
 [[tiles]]
 name="sand"
 atlas="map.png"
-offset=[0, 12]
+offset=[0, 9]
 is_autotile=true
+
+[[tiles]]
+name="stairs_down"
+atlas="map.png"
+offset=[0, 4]
+is_autotile=false
+
+[[tiles]]
+name="stairs_up"
+atlas="map.png"
+offset=[0, 3]
+is_autotile=false

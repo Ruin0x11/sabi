@@ -8,16 +8,20 @@ use infinigen::*;
 use world;
 
 /// Implementation of a region manager.
+#[derive(Serialize, Deserialize)]
 pub struct Regions {
+    #[serde(skip_serializing)]
+    #[serde(skip_deserializing)]
+    #[serde(default="HashMap::new")]
     pub regions: HashMap<RegionIndex, Region<ChunkIndex>>,
     pub id: u32,
 }
 
 impl Regions {
-    pub fn new() -> Self {
+    pub fn new(id: u32) -> Self {
         Regions {
             regions: HashMap::new(),
-            id: 0,
+            id: id,
         }
     }
     pub fn set_id(&mut self, id: u32) {

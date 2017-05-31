@@ -1,5 +1,6 @@
+use std;
 use renderer::ui::elements::UiElement;
-use renderer::ui::renderer::{TexDir, UiRenderer};
+use renderer::ui::renderer::UiRenderer;
 
 fn clamp(input: i32, min: i32, max: i32) -> i32 {
     if input > max {
@@ -21,8 +22,6 @@ pub struct UiBar {
 
 impl UiBar {
     pub fn new(pos: (i32, i32), max: i32, color: (u8, u8, u8, u8)) -> Self {
-        assert!(max >= 0);
-
         UiBar {
             pos: pos,
             max: max,
@@ -35,6 +34,11 @@ impl UiBar {
         self.current = clamp(amount, 0, self.max);
     }
 
+    pub fn set_max(&mut self, amount: i32) {
+        self.max = clamp(amount, 0, std::i32::MAX);
+        self.current = clamp(amount, 0, self.max);
+    }
+
     pub fn percent(&self) -> f32 {
         self.current as f32 / self.max as f32
     }
@@ -43,6 +47,7 @@ impl UiBar {
 
 impl UiElement for UiBar {
     fn draw(&self, renderer: &mut UiRenderer) {
+        println!("c: {} m: {}", self.current, self.max);
         let bar_portion = (258 as f32 * self.percent()) as u32;
         renderer.add_tex("bar", self.pos, None, (0, 30), (258, 30));
 

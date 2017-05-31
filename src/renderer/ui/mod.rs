@@ -13,6 +13,7 @@ pub use self::renderer::UiRenderer;
 pub use self::layer::{EventResult, UiLayer, UiQuery};
 
 use renderer::ui::elements::{UiBar, UiMessageLog};
+use renderer::render::SCREEN_HEIGHT;
 
 pub struct MainLayer {
     pub log: UiMessageLog,
@@ -23,7 +24,7 @@ impl MainLayer {
     pub fn new() -> Self {
         MainLayer {
             log: UiMessageLog::new(),
-            bar: UiBar::new((100, 460), 100, (255, 64, 64, 255)),
+            bar: UiBar::new((100, SCREEN_HEIGHT as i32 - 140), 100, (255, 64, 64, 255)),
         }
     }
 }
@@ -79,10 +80,6 @@ impl Ui {
     pub fn clear(&mut self) {
         self.renderer.clear();
         self.valid = true;
-    }
-
-    pub fn update(&mut self) {
-        self.redraw();
     }
 
     pub fn on_event(&mut self, event: glutin::Event) {
@@ -148,5 +145,27 @@ impl UiWindow {
             pos: pos,
             size: (300, 400),
         }
+    }
+}
+
+use renderer::interop::RenderUpdate;
+use world::traits::*;
+use GameContext;
+
+impl RenderUpdate for Ui {
+    fn should_update(&self, context: &GameContext) -> bool {
+        true
+    }
+
+    fn update(&mut self, context: &GameContext, viewport: &Viewport) {
+        let ref world = context.state.world;
+        if let Some(player) = world.player() {
+            if let Some(health) = world.ecs().healths.get(player) {
+                self.main_layer.bar.set_max(health.max_hit_points);
+                self.main_layer.bar.set(health.hit_points);
+            }
+        }
+        self.invalidate();
+        self.redraw();
     }
 }

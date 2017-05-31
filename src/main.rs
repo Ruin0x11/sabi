@@ -63,6 +63,7 @@ use glium::glutin;
 use glium::glutin::{VirtualKeyCode, ElementState};
 use state::GameState;
 use renderer::{Action, RenderContext};
+use engine::keys::{Key, KeyCode};
 
 pub struct GameContext {
     logger: Logger,
@@ -114,42 +115,23 @@ fn game_loop() {
                 _ => (),
             }
 
-            if renderer.update_ui(&event) {
-                return Action::Continue;
-            }
-
             match event {
                 glutin::Event::KeyboardInput(ElementState::Pressed, _, Some(code)) => {
                     println!("Key: {:?}", code);
                     {
-                        let ref mut world = context.state.world;
                         match code {
                             VirtualKeyCode::Escape => return Action::Stop,
-                            VirtualKeyCode::Up => {
-                                world.flags_mut().camera.y -= 1;
+                            _ => {
+                                let key = Key::from(KeyCode::from(code));
+                                state::game_step(&mut context, Some(key));
+                                renderer.update(&context);
                             },
-                            VirtualKeyCode::Down => {
-                                world.flags_mut().camera.y += 1;
-                            },
-                            VirtualKeyCode::Left => {
-                                world.flags_mut().camera.x -= 1;
-                            },
-                            VirtualKeyCode::Right => {
-                                world.flags_mut().camera.x += 1;
-                            },
-                            _ => (),
                         }
-                        let camera = world.flags().camera;
-                        world.update_chunks(camera);
                     }
                 },
                 _ => (),
             }
-
-            // state::game_step(&mut context);
         }
-
-        renderer.update(&context);
         renderer.render();
 
         Action::Continue

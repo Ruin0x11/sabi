@@ -62,7 +62,7 @@ fn generate_perlin(index: &ChunkIndex, seed: u32) -> Chunk {
             let conv = |a: f32, b| NOISE_SCALE * (a * COS_THETA + b * SIN_THETA);
             let res = gen.get([conv(ay, -ax), conv(ax, ay), az]);
 
-            if res < 0.1 {
+            if res < 0.02 {
                 cells.push(cell::WALL);
             } else if res < 0.4 {
                 cells.push(cell::SAND);

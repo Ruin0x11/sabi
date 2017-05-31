@@ -36,13 +36,7 @@ fn get_manifest_file() -> PathBuf {
 
 // TODO: Allow quicksaving, as in not unloading the entire world first
 pub fn save_world(world: &mut EcsWorld) -> SerialResult<()> {
-
-    let indices = world.terrain.chunk_indices();
-    info!(world.logger, "Saving world: {}", world.map_id());
-    info!(world.logger, "Loaded chunks: {}", indices.len());
-    for index in indices.iter() {
-        world.unload_chunk(index)?;
-    }
+    world.save()?;
 
     let data = bincode::serialize(&world, Infinite)?;
     let id = world.map_id();

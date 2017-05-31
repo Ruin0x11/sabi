@@ -71,40 +71,49 @@ impl EcsWorld {
     pub fn new(bounds: Bounds, chunk_type: ChunkType, seed: u32, id: u32) -> EcsWorld {
         EcsWorld {
             ecs_: Ecs::new(),
-            terrain: Terrain::new(bounds),
+            terrain: Terrain::new(bounds, id),
             spatial: Spatial::new(),
             turn_order: TurnOrder::new(),
-            flags: Flags::new(seed),
+            flags: Flags::new(seed, id),
             chunk_type: chunk_type,
             logger: get_world_log(),
         }
     }
 
-    fn cell_mut(&mut self, pos: &WorldPosition) -> Option<&mut Cell> {
-        let index = ChunkIndex::from(*pos);
+    // fn cell_mut(&mut self, pos: &WorldPosition) -> Option<&mut Cell> {
+    //     let index = ChunkIndex::from(*pos);
 
-        if !self.terrain.chunk_loaded(&index) {
-            self.load_chunk(&index).unwrap();
-            self.terrain_mut().regions_mut().notify_chunk_creation(&index);
-        }
-        self.terrain.cell_mut(pos)
-    }
+    //     if !self.terrain.chunk_loaded(&index) {
+    //         self.load_chunk(&index).unwrap();
+    //         self.terrain_mut().regions_mut().notify_chunk_creation(&index);
+    //     }
+    //     self.terrain.cell_mut(pos)
+    // }
 
     pub fn from_prefab(name: &str, seed: u32, id: u32) -> EcsWorld {
         let prefab = lua::with_mut(|l| prefab::map_from_prefab(l, name)).unwrap();
-        let mut world = EcsWorld::new(Bounds::Bounded(prefab.width(), prefab.height()), ChunkType::Perlin, seed, id);
+        let mut world = EcsWorld::new(Bounds::Bounded(prefab.width(), prefab.height()), ChunkType::Blank, seed, id);
+
+        debug!(world.logger, "About to load prefab \"{}\" over map {}...", name, world.flags().map_id);
 
         for (pos, cell) in prefab.iter() {
             if let Some(cell_mut) = world.cell_mut(&pos) {
                 *cell_mut = *cell;
+            }
+            {
+                let cellb = world.cell_const(&pos).clone();
+                debug!(world.logger, "{}: {:?}, {:?}", pos, cell.type_, cellb);
             }
         }
 
         for (pos, marker) in prefab.markers.iter() {
             if *marker == PrefabMarker::StairsIn {
                 world.terrain.stairs_in.insert(*pos);
+                // FIXME: kore kore kore
             }
         }
+
+        debug!(world.logger, "Finished loading prefab \"{}\".", name);
 
         world
     }
@@ -318,6 +327,7 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
     fn terrain_mut(&mut self) -> &mut Terrain { &mut self.terrain }
 
     fn load_chunk_internal(&mut self, chunk: SerialChunk, index: &ChunkIndex) -> Result<(), SerialError> {
+        debug!(self.logger, "LOAD CHUNK: {}", index);
         self.terrain.insert_chunk(index.clone(), chunk.chunk);
 
         let entities = self.frozen_in_chunk(index);
@@ -330,6 +340,7 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
     }
 
     fn unload_chunk_internal(&mut self, index: &ChunkIndex) -> Result<SerialChunk, SerialError> {
+        debug!(self.logger, "UNLOAD CHUNK: {}", index);
         let chunk = self.terrain.remove_chunk(index)
             .expect(&format!("Expected chunk at {}!", index));
 
@@ -343,6 +354,8 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
             self.turn_order.pause(e);
         }
 
+        debug!(self.logger, "Id: {}", self.flags().map_id);
+
         let serial = SerialChunk {
             chunk: chunk,
         };
@@ -350,7 +363,7 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
     }
 
     fn generate_chunk(&mut self, index: &ChunkIndex) -> SerialResult<()> {
-        debug!(self.logger, "GEN: {} {:?} reg: {}", index, self.chunk_type, self.terrain.id);
+        debug!(self.logger, "GEN: {} {:?} reg: {}, map: {}", index, self.chunk_type, self.terrain.id, self.flags().map_id);
         self.terrain.insert_chunk(index.clone(), self.chunk_type.generate(index, self.flags.seed()));
 
         let chunk_pos = ChunkPosition::from(Point::new(0, 0));
@@ -372,7 +385,9 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
 
     fn save(&mut self) -> Result<(), SerialError> {
         let indices = self.terrain.chunk_indices();
+        debug!(self.logger, "Saving world...");
         for index in indices.iter() {
+            debug!(self.logger, "SAVE/UNLOAD: {}", index);
             self.unload_chunk(index)?;
         }
         Ok(())

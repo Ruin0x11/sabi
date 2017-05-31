@@ -1,6 +1,7 @@
 use graphics::cell::{Cell, CellFeature};
 use point::Point;
 use infinigen::Index;
+use chunk::ChunkIndex;
 use world::WorldPosition;
 
 use chunk::*;
@@ -8,11 +9,18 @@ use chunk::*;
 // TODO: These should all be private. Let world mutation happen on a single
 // uniform API.
 
+pub trait BoundedTerrain<P, I>
+    where P: Into<Point>,
+          I: Index {
+    fn in_bounds(&self, pos: &WorldPosition) -> bool;
+    fn index_in_bounds(&self, index: &ChunkIndex) -> bool;
+}
+
 /// Queries that are directly related to the terrain itself, and not the
 /// entities on top of it.
-pub trait TerrainQuery {
+pub trait TerrainQuery: BoundedTerrain<WorldPosition, ChunkIndex> {
     fn chunk(&self, index: ChunkIndex) -> Option<&Chunk>;
-    fn pos_valid(&self, pos: &WorldPosition) -> bool { self.cell(pos).is_some() }
+    fn pos_loaded(&self, pos: &WorldPosition) -> bool;
 
     fn chunk_from_world_pos(&self, pos: WorldPosition) -> Option<&Chunk> {
         let index = ChunkIndex::from_world_pos(pos);
@@ -20,6 +28,10 @@ pub trait TerrainQuery {
     }
 
     fn cell(&self, world_pos: &WorldPosition) -> Option<&Cell> {
+        if !self.in_bounds(world_pos) {
+            return None;
+        }
+
         let chunk_pos = ChunkPosition::from_world(world_pos);
         let chunk_opt = self.chunk_from_world_pos(*world_pos);
         match chunk_opt {
@@ -31,7 +43,7 @@ pub trait TerrainQuery {
     }
 }
 
-pub trait TerrainMutate {
+pub trait TerrainMutate: BoundedTerrain<WorldPosition, ChunkIndex> {
     fn prune_empty_regions(&mut self);
 
     fn insert_chunk(&mut self, index: ChunkIndex, chunk: Chunk);
@@ -44,6 +56,10 @@ pub trait TerrainMutate {
     }
 
     fn cell_mut(&mut self, world_pos: &WorldPosition) -> Option<&mut Cell> {
+        if !self.in_bounds(world_pos) {
+            return None;
+        }
+
         let chunk_pos = ChunkPosition::from_world(world_pos);
         let chunk_opt = self.chunk_mut_from_world_pos(*world_pos);
         match chunk_opt {
@@ -66,11 +82,4 @@ pub trait TerrainMutate {
             cell_mut.feature = feature;
         }
     }
-}
-
-pub trait BoundedTerrain<P, I>
-    where P: Into<Point>,
-          I: Index {
-    fn in_bounds(&self, pos: &WorldPosition) -> bool;
-    fn index_in_bounds(&self, index: &ChunkIndex) -> bool;
 }

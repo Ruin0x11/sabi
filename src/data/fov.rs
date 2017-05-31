@@ -192,7 +192,7 @@ impl FieldOfView {
 
         self.visible.insert(center.clone());
 
-        let in_bounds = |pos: &Point| world.pos_valid(pos);
+        let in_bounds = |pos: &Point| world.pos_loaded(pos);
         let blocked   = |pos: &Point| !world.cell_const(pos)
                      .map_or(false, |c| c.can_pass_through());
 

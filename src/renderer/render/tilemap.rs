@@ -1,15 +1,14 @@
 use glium;
 use glium::backend::Facade;
-use glium::index::PrimitiveType;
 
 use point::Direction;
 use point::Point;
-use point;
 use renderer::atlas::*;
-use renderer::render::{self, Renderable, Vertex, Viewport, QUAD, QUAD_INDICES};
+use renderer::render::{self, Renderable, Vertex, Viewport};
 
 #[derive(Copy, Clone, Debug)]
 struct Instance {
+    tile_idx: usize,
     map_coord: [i32; 2],
     tex_offset: [f32; 2],
     quadrant: i8,
@@ -31,9 +30,11 @@ pub struct TileMap {
 
     indices: glium::IndexBuffer<u16>,
     vertices: glium::VertexBuffer<Vertex>,
+    instances: Vec<glium::VertexBuffer<Instance>>,
     program: glium::Program,
 
     tile_atlas: TileAtlas,
+    valid: bool,
 }
 
 fn dir_to_bit(dir: Direction) -> u8 {
@@ -116,46 +117,68 @@ impl TileMap {
     pub fn new<F: Facade>(display: &F) -> Self {
         let tile_atlas = TileAtlas::from_config(display, "data/tiles.toml");
 
-        let vertices = glium::VertexBuffer::immutable(display, &QUAD).unwrap();
-        let indices = glium::IndexBuffer::immutable(display, PrimitiveType::TrianglesList, &QUAD_INDICES).unwrap();
+        let (vertices, indices) = render::make_quad_buffers(display);
 
         let program = render::load_program(display, "tile.vert", "tile.frag").unwrap();
 
-        TileMap {
+        let mut tilemap = TileMap {
             map: Vec::new(),
             indices: indices,
             vertices: vertices,
+            instances: Vec::new(),
             program: program,
             tile_atlas: tile_atlas,
-        }
+            valid: false,
+        };
+
+        tilemap.redraw(display, 0);
+        tilemap
     }
 
-    fn create_instances<F>(&self, display: &F, pass: usize, msecs: u64) -> glium::VertexBuffer<Instance>
+    fn make_instances<F>(&mut self, display: &F, msecs: u64)
         where F: glium::backend::Facade {
 
-        let data = self.map.iter()
-            .filter(|&&(ref tile, _)| {
-                let texture_idx = self.tile_atlas.get_tile_texture_idx(tile.kind);
-                texture_idx == pass
-            })
-            .flat_map(|&(ref tile, c)| {
-                let mut res = Vec::new();
-                for quadrant in 0..4 {
-                    let (x, y) = (c.x, c.y);
-                    let (tx, ty) = self.tile_atlas.get_texture_offset(tile.kind, msecs);
+        let mut instances = Vec::new();
 
-                    let autotile_index = get_autotile_index(tile.edges, quadrant);
+        for pass in 0..self.tile_atlas.passes() {
+            let data = self.map.iter()
+                .filter(|&&(ref tile, _)| {
+                    let texture_idx = self.tile_atlas.get_tile_texture_idx(tile.kind);
+                    texture_idx == pass
+                })
+                .flat_map(|&(ref tile, c)| {
+                    let mut res = Vec::new();
+                    for quadrant in 0..4 {
+                        let (x, y) = (c.x, c.y);
+                        let (tx, ty) = self.tile_atlas.get_texture_offset(tile.kind, msecs);
 
-                    res.push(Instance { map_coord: [x, y],
-                                        tex_offset: [tx, ty],
-                                        quadrant: quadrant,
-                                        autotile: 1,
-                                        autotile_index: autotile_index, });
-                }
-                res
-            }).collect::<Vec<Instance>>();
+                        let autotile_index = get_autotile_index(tile.edges, quadrant);
 
-        glium::VertexBuffer::dynamic(display, &data).unwrap()
+                        let tile_idx = self.tile_atlas.get_tile_index(&tile.kind);
+
+                        res.push(Instance { tile_idx: tile_idx,
+                                            map_coord: [x, y],
+                                            tex_offset: [tx, ty],
+                                            quadrant: quadrant,
+                                            autotile: 1,
+                                            autotile_index: autotile_index, });
+                    }
+                    res
+                }).collect::<Vec<Instance>>();
+            instances.push(glium::VertexBuffer::dynamic(display, &data).unwrap());
+        }
+
+        self.instances = instances;
+    }
+
+    fn update_instances(&mut self, msecs:u64) {
+        for buffer in self.instances.iter_mut() {
+            for instance in buffer.map().iter_mut() {
+                let (tx, ty) = self.tile_atlas.get_texture_offset_indexed(instance.tile_idx, msecs);
+
+                instance.tex_offset = [tx, ty];
+            }
+        }
     }
 }
 
@@ -179,7 +202,7 @@ impl<'a> Renderable for TileMap {
                 tex_ratio: tex_ratio,
             };
 
-            let instances = self.create_instances(display, pass, msecs);
+            let instances = self.instances.get(pass).unwrap();
 
             let params = glium::DrawParameters {
                 blend: glium::Blend::alpha_blending(),
@@ -196,19 +219,18 @@ impl<'a> Renderable for TileMap {
     }
 }
 
+use graphics::cell::CellType;
 use world::EcsWorld;
 use world::traits::{Query, WorldQuery};
 use GameContext;
 use renderer::interop::RenderUpdate;
 use renderer::render::{SCREEN_WIDTH, SCREEN_HEIGHT};
 
-fn get_neighboring_edges(world: &EcsWorld, pos: Point) -> u8 {
-    let my_type = world.cell_const(&pos).unwrap().type_;
-
+fn get_neighboring_edges(world: &EcsWorld, pos: Point, cell_type: CellType) -> u8 {
     let mut res: u8 = 0;
     for dir in Direction::iter8() {
         let new_pos = pos + *dir;
-        let same_type = world.cell_const(&new_pos).map_or(false, |c| c.type_ == my_type);
+        let same_type = world.cell_const(&new_pos).map_or(false, |c| c.type_ == cell_type);
         if same_type {
             res |= 1 << dir_to_bit(*dir);
         }
@@ -220,14 +242,24 @@ fn renderable_area() -> Point {
     Point::new(SCREEN_WIDTH as i32 / 48, SCREEN_HEIGHT as i32 / 48)
 }
 
-fn make_map(world: &EcsWorld) -> Vec<(DrawTile, Point)> {
+fn make_map(world: &EcsWorld, viewport: &Viewport) -> Vec<(DrawTile, Point)> {
     let mut res = Vec::new();
-    world.with_cells(world.flags().camera, renderable_area(), |pos, &cell| {
+    let camera = world.flags().camera;
+    let start_corner = viewport.camera_tile_pos(camera).into();
+    world.with_cells(start_corner, renderable_area(), |pos, &cell| {
         let tile = DrawTile {
             kind: cell.glyph(),
-            edges: get_neighboring_edges(world, pos),
+            edges: get_neighboring_edges(world, pos, cell.type_),
         };
         res.push((tile, pos));
+
+        if let Some(feature) = cell.feature {
+            let feature_tile = DrawTile {
+                kind: feature.glyph(),
+                edges: 0,
+            };
+            res.push((feature_tile, pos));
+        }
     });
     res
 }
@@ -237,9 +269,19 @@ impl RenderUpdate for TileMap {
         true
     }
 
-    fn update(&mut self, context: &GameContext) {
+    fn update(&mut self, context: &GameContext, viewport: &Viewport) {
         let ref world = context.state.world;
-        self.map = make_map(world);
+        self.map = make_map(world, viewport);
+        self.valid = false;
+    }
+
+    fn redraw<F: Facade>(&mut self, display: &F, msecs: u64) {
+        if !self.valid {
+            self.make_instances(display, msecs);
+            self.valid = true;
+        } else {
+            self.update_instances(msecs);
+        }
     }
 }
 

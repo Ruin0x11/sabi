@@ -49,7 +49,7 @@ pub enum KeyCode {
 
     Enter,
     Space,
-    Esc,
+    Escape,
 
     Tab,
     Backspace,
@@ -63,6 +63,9 @@ pub enum KeyCode {
 
     GreaterThan,
     LessThan,
+
+    Comma,
+    Period,
 
     Unknown(char),
 }

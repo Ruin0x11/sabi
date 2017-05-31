@@ -30,14 +30,14 @@ impl GlobalFlags {
 }
 
 impl Flags {
-    pub fn new(seed: u32) -> Flags {
+    pub fn new(seed: u32, map_id: u32) -> Flags {
         Flags {
             globals: GlobalFlags {
                 player: None,
-                max_map_id: 0,
+                max_map_id: map_id,
             },
             camera: Point::new(0, 0),
-            map_id: 0,
+            map_id: map_id,
 
             seed: seed,
             rng: SeedableRng::from_seed([seed, seed, seed, seed]),

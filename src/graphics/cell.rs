@@ -42,6 +42,16 @@ pub enum CellFeature {
     Stairs(StairDir, StairDest),
 }
 
+impl CellFeature {
+    pub fn glyph(&self) -> &'static str {
+        match *self {
+            CellFeature::Door(..) => "door",
+            CellFeature::Stairs(StairDir::Ascending, _) => "stairs_up",
+            CellFeature::Stairs(StairDir::Descending, _) => "stairs_down",
+        }
+    }
+}
+
 use self::CellFeature::*;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]

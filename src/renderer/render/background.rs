@@ -38,8 +38,7 @@ impl Renderable for Background {
         let (w, h) = (viewport.size.0 as f32, viewport.size.1 as f32);
         let scale = viewport.scale;
 
-        let vertices = glium::VertexBuffer::immutable(display, &BG_QUAD).unwrap();
-        let indices = glium::IndexBuffer::immutable(display, PrimitiveType::TrianglesList, &QUAD_INDICES).unwrap();
+        let (vertices, indices) = render::make_quad_buffers(display);
 
         let uniforms = uniform! {
             u_resolution: [w * scale, h * scale],

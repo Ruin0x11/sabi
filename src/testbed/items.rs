@@ -139,24 +139,23 @@ impl Items {
 mod tests {
     use super::*;
     use testbed::item::*;
-    use graphics::Glyph;
 
     lazy_static! {
         static ref DESCS: Vec<ItemDesc>  = vec![ItemDesc { name: "dream",
                                                            id: 1,
                                                            weight: 0.1,
                                                            container: false,
-                                                           glyph: Glyph::Item },
+                                                           sprite: "none".to_string() },
                                                 ItemDesc { name: "kitchen knife",
                                                            id: 2,
                                                            weight: 10.0,
                                                            container: false,
-                                                           glyph: Glyph::Item },
+                                                           sprite: "none".to_string() },
                                                 ItemDesc { name: "meatchest",
                                                            id: 3,
                                                            weight: 50.0,
                                                            container: true,
-                                                           glyph: Glyph::Item }];
+                                                           sprite: "none".to_string() }];
     }
 
     #[test]

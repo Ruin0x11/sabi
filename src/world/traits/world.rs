@@ -15,7 +15,10 @@ use point::{Point, RectangleIter};
 
 pub trait WorldQuery {
     fn can_walk(&self, pos: Point, walkability: Walkability) -> bool;
-    fn pos_valid(&self, pos: &Point) -> bool;
+
+    /// Returns true if the given position has been loaded from disk and is
+    /// contained in the terrain structure.
+    fn pos_loaded(&self, pos: &Point) -> bool;
 
     fn with_cells<F>(&self, top_left: Point,
                      dimensions: Point,
@@ -34,8 +37,8 @@ impl WorldQuery for EcsWorld {
         cell_walkable && no_mob
     }
 
-    fn pos_valid(&self, pos: &Point) -> bool {
-        self.terrain.pos_valid(pos)
+    fn pos_loaded(&self, pos: &Point) -> bool {
+        self.terrain.pos_loaded(pos)
     }
 
     fn with_cells<F>(&self, top_left: Point,
@@ -50,12 +53,7 @@ impl WorldQuery for EcsWorld {
     }
 
     fn cell_const(&self, pos: &Point) -> Option<&Cell> {
-        if !self.pos_valid(pos) {
-            return None;
-        }
-
-        let idx = ChunkIndex::from(*pos);
-        if !self.terrain().chunk_loaded(&idx) {
+        if !self.pos_loaded(pos) {
             return None;
         }
 
@@ -68,29 +66,36 @@ pub trait WorldMutate {
     fn cell(&mut self, pos: &Point) -> Option<&Cell>;
 }
 
+impl EcsWorld {
+    fn autoload_chunk(&mut self, pos: &Point) {
+        let idx = ChunkIndex::from(*pos);
+        debug!(self.logger, "Chunk loaded at {}: {}", idx, self.terrain().chunk_loaded(&idx));
+        if !self.terrain().chunk_loaded(&idx) {
+            self.load_chunk(&idx).expect("Chunk load failed!");
+            self.terrain_mut().regions_mut().notify_chunk_creation(&idx);
+        }
+    }
+}
+
 impl WorldMutate for EcsWorld {
     fn cell_mut(&mut self, pos: &Point) -> Option<&mut Cell> {
-        if !self.pos_valid(pos) {
+        if !self.terrain().in_bounds(pos) {
+            debug!(self.logger, "invalid: {}", pos);
             return None;
         }
 
-        let idx = ChunkIndex::from(*pos);
-        if !self.terrain().chunk_loaded(&idx) {
-            self.load_chunk(&idx).expect("Chunk load failed!");
-        }
+        self.autoload_chunk(pos);
 
         self.terrain_mut().cell_mut(pos)
     }
 
     fn cell(&mut self, pos: &Point) -> Option<&Cell> {
-        if !self.pos_valid(pos) {
+        if !self.terrain().in_bounds(pos) {
+            debug!(self.logger, "invalid: {}", pos);
             return None;
         }
 
-        let idx = ChunkIndex::from(*pos);
-        if !self.terrain().chunk_loaded(&idx) {
-            self.load_chunk(&idx).expect("Chunk load failed!");
-        }
+        self.autoload_chunk(pos);
 
         self.terrain().cell(pos)
     }
@@ -99,6 +104,7 @@ impl WorldMutate for EcsWorld {
 impl EcsWorld {
     pub fn find_stairs_in(&mut self) -> Option<WorldPosition> {
         let stairs_in = self.terrain.stairs_in.clone();
+        debug!(self.logger, "{:?}", stairs_in);
         for pos in stairs_in.iter() {
             if let Some(_) = self.cell(&pos) {
                 return Some(*pos)
@@ -111,9 +117,9 @@ impl EcsWorld {
                         pos: WorldPosition,
                         leading_to: MapId,
                         dest_pos: WorldPosition) {
-            if let Some(cell_mut) = self.cell_mut(&pos) {
-                let dest = StairDest::Generated(leading_to, dest_pos);
-                cell_mut.feature = Some(CellFeature::Stairs(dir, dest));
-            }
+        if let Some(cell_mut) = self.cell_mut(&pos) {
+            let dest = StairDest::Generated(leading_to, dest_pos);
+            cell_mut.feature = Some(CellFeature::Stairs(dir, dest));
+        }
     }
 }

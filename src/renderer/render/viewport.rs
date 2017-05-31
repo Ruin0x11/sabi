@@ -21,6 +21,25 @@ impl Viewport {
         ((self.size.0 as f32 * self.scale) as u32, (self.size.1 as f32 * self.scale) as u32)
     }
 
+    pub fn visible_area(&self) -> (u32, u32) {
+        (self.size.0 / 48, self.size.1 / 48)
+    }
+
+    /// Returns the tile position of the upper-left corner of the viewport with
+    /// the given camera coordinates.
+    pub fn camera_tile_pos<I: Into<(i32, i32)>>(&self, camera: I) -> (i32, i32) {
+        let camera = camera.into();
+        let (vw, vh) = self.visible_area();
+        (camera.0 - (vw as i32 / 2), camera.1 - (vh as i32 / 2))
+    }
+
+    /// Returns the pixel position of the upper-left corner of the viewport with
+    /// the given camera coordinates.
+    pub fn camera_viewport_pos<I: Into<(i32, i32)>>(&self, camera: I) -> (i32, i32) {
+        let (cx, cy) = self.camera_tile_pos(camera);
+        (cx * 48, cy * 48)
+    }
+
     fn make_subarea(&self, area: (u32, u32, u32, u32)) -> RendererSubarea {
         (self.camera_projection(), self.scissor(area))
     }
