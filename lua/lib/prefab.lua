@@ -1,7 +1,7 @@
 local prefab_metatable = {}
 
-function Prefab.new(x, y, fill)
-   local prefab = Prefab.new_raw(x, y, fill)
+function Prefab.new(w, h, fill)
+   local prefab = Prefab.new_raw(w, h, fill)
    prefab = extend(prefab, prefab_metatable)
    return prefab
 end
@@ -32,6 +32,10 @@ end
 
 function prefab_metatable:place_stairs_out(point)
    return self:place_stairs_out_raw(point.x, point.y)
+end
+
+function prefab_metatable:iter()
+   return iter.rect_iterator(world.point(0, 0), self:size())
 end
 
 function prefab_metatable:random_point(filter)

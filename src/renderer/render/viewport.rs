@@ -1,5 +1,6 @@
 use cgmath;
 use glium;
+use renderer::render::{SCREEN_WIDTH, SCREEN_HEIGHT};
 
 #[derive(Debug)]
 pub struct Viewport {
@@ -24,6 +25,11 @@ impl Viewport {
     pub fn visible_area(&self) -> (u32, u32) {
         (self.size.0 / 48, self.size.1 / 48)
     }
+
+    pub fn renderable_area() -> (i32, i32) {
+        (SCREEN_WIDTH as i32 / 48, SCREEN_HEIGHT as i32 / 48)
+    }
+
 
     /// Returns the tile position of the upper-left corner of the viewport with
     /// the given camera coordinates.

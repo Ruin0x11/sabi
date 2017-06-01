@@ -94,6 +94,7 @@ impl TerrainMutate for Terrain {
 impl<'a> ChunkedTerrain<'a, ChunkIndex, SerialChunk, Regions> for Terrain
     where Region<ChunkIndex>: ManagedRegion<'a, ChunkIndex, SerialChunk> {
     fn regions_mut(&mut self) -> &mut Regions {
+        assert_eq!(self.regions.id, self.id);
         &mut self.regions
     }
 

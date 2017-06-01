@@ -18,39 +18,44 @@ struct Instance {
 implement_vertex!(Instance, map_coord, tile_index);
 
 pub struct ShadowMap {
+    shadows: HashSet<Point>,
     instances: glium::VertexBuffer<Instance>,
 
     indices: glium::IndexBuffer<u16>,
     vertices: glium::VertexBuffer<Vertex>,
     program: glium::Program,
-}
 
-fn make_instances<F: Facade>(display: &F, area: RectangleIter, visible: HashSet<Point>) -> glium::VertexBuffer<Instance> {
-    let mut instances = Vec::new();
-    for point in area {
-        if !visible.contains(&point) {
-            instances.push(Instance {
-                map_coord: [point.x, point.y],
-                tile_index: 4,
-            })
-        }
-    }
-    glium::VertexBuffer::immutable(display, &instances).unwrap()
+    valid: bool,
 }
 
 impl ShadowMap {
     pub fn new<F: Facade>(display: &F, area: RectangleIter, visible: HashSet<Point>) -> Self {
         let (vertices, indices) = render::make_quad_buffers(display);
 
+        let instances = glium::VertexBuffer::immutable(display, &[]).unwrap();
         let program = render::load_program(display, "shadow.vert", "shadow.frag").unwrap();
 
         ShadowMap {
-            instances: make_instances(display, area, visible),
+            shadows: HashSet::new(),
+            instances: instances,
             vertices: vertices,
             indices: indices,
             program: program,
+            valid: false,
         }
     }
+
+    fn make_instances<F: Facade>(&mut self, display: &F)  {
+        let mut instances = Vec::new();
+        for point in self.shadows.iter() {
+            instances.push(Instance {
+                map_coord: [point.x, point.y],
+                tile_index: 4,
+            })
+        }
+        self.instances = glium::VertexBuffer::immutable(display, &instances).unwrap();
+    }
+
 }
 
 impl Renderable for ShadowMap {
@@ -75,5 +80,52 @@ impl Renderable for ShadowMap {
                     &self.program,
                     &uniforms,
                     &params).unwrap();
+    }
+}
+
+use world::EcsWorld;
+use world::traits::Query;
+use GameContext;
+use point::CircleIter;
+use renderer::interop::RenderUpdate;
+
+fn make_map(world: &EcsWorld, viewport: &Viewport) -> HashSet<Point> {
+    let camera = world.flags().camera;
+    let start_corner = viewport.camera_tile_pos(camera);
+    println!("start: {:?}", start_corner);
+    let area = RectangleIter::new(start_corner, Viewport::renderable_area().into());
+
+    let mut visible = HashSet::new();
+    for point in CircleIter::new(camera, 5) {
+        visible.insert(point);
+    }
+
+    let mut shadows = HashSet::new();
+
+    for point in area {
+        if !visible.contains(&point) {
+            shadows.insert(point);
+        }
+    }
+
+    shadows
+}
+
+impl RenderUpdate for ShadowMap {
+    fn should_update(&self, context: &GameContext) -> bool {
+        true
+    }
+
+    fn update(&mut self, context: &GameContext, viewport: &Viewport) {
+        let ref world = context.state.world;
+        self.shadows = make_map(world, viewport);
+        self.valid = false;
+    }
+
+    fn redraw<F: Facade>(&mut self, display: &F, _msecs: u64) {
+        if !self.valid {
+            self.make_instances(display);
+            self.valid = true;
+        }
     }
 }

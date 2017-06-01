@@ -44,8 +44,7 @@ impl WorldQuery for EcsWorld {
     fn with_cells<F>(&self, top_left: Point,
                      dimensions: Point,
                      mut callback: F) where F: FnMut(Point, &Cell) {
-        let bottom_right = top_left + dimensions;
-        for point in RectangleIter::new(top_left, bottom_right) {
+        for point in RectangleIter::new(top_left, dimensions) {
             if let Some(cell) = self.terrain.cell(&point) {
                 callback(point, cell);
             }
@@ -71,6 +70,7 @@ impl EcsWorld {
         let idx = ChunkIndex::from(*pos);
         debug!(self.logger, "Chunk loaded at {}: {}", idx, self.terrain().chunk_loaded(&idx));
         if !self.terrain().chunk_loaded(&idx) {
+            assert_eq!(self.flags().map_id, self.terrain().id);
             self.load_chunk(&idx).expect("Chunk load failed!");
             self.terrain_mut().regions_mut().notify_chunk_creation(&idx);
         }

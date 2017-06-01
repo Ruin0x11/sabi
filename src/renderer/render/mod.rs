@@ -149,6 +149,7 @@ impl RenderContext {
 
         self.tilemap.update(context, &self.viewport);
         self.spritemap.update(context, &self.viewport);
+        self.shadowmap.update(context, &self.viewport);
         self.ui.update(context, &self.viewport);
     }
 
@@ -166,7 +167,9 @@ impl RenderContext {
         self.spritemap.redraw(&self.backend, millis);
         self.spritemap.render(&self.backend, &mut target, &self.viewport, millis);
 
+        self.shadowmap.redraw(&self.backend, millis);
         self.shadowmap.render(&self.backend, &mut target, &self.viewport, millis);
+
         self.ui.render(&self.backend, &mut target, &self.viewport, millis);
 
         target.finish().unwrap();

@@ -126,12 +126,12 @@ pub struct RectangleIter {
 }
 
 impl RectangleIter {
-    pub fn new<P: Into<Point>>(top_left: P, bottom_right: P) -> Self {
+    pub fn new<P: Into<Point>>(top_left: P, size: P) -> Self {
         let start = top_left.into();
         RectangleIter {
             pos: start.clone(),
             top_left: start.clone(),
-            bottom_right: bottom_right.into(),
+            bottom_right: start + size.into(),
             done: false,
         }
     }
@@ -222,7 +222,7 @@ mod test {
 
     #[test]
     fn test_rectangle() {
-        let actual: Vec<Point> = FromIterator::from_iter(RectangleIter::new((-1, -1), (1, 2)));
+        let actual: Vec<Point> = FromIterator::from_iter(RectangleIter::new((-1, -1), (2, 3)));
         let expected = [(-1, -1), (0, -1), (1, -1),
                         (-1,  0), (0,  0), (1,  0),
                         (-1,  1), (0,  1), (1,  1),

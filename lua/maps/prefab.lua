@@ -185,7 +185,7 @@ function create_rooms()
          for p in iter.rect_iterator(room_pos, room_pos + room_size) do
             room = rooms[i][j]
             room["rect"] = world.rect_from_pts(room_pos, room_size)
-            prefab:set_raw(p.x, p.y, "Floor")
+            prefab:set(p, "Floor")
          end
       end
    end
@@ -247,7 +247,7 @@ function get_wall_position(room, dir)
       door_pos = world.point(door, pos.y)
    end
 
-   prefab:set(door_pos, "Important")
+   prefab:set(door_pos, "Floor")
 
    return pos
 end
@@ -272,7 +272,7 @@ end
 
 function dig_tunnel(start_pos, end_pos, dir)
    local middle, tunnel_dir
-   local kind = "Fancy"
+   local tile= "Floor"
 
    log.info("diggin " .. tostring(start_pos) .. " " .. tostring(end_pos) .. " " .. dir)
 
@@ -285,13 +285,13 @@ function dig_tunnel(start_pos, end_pos, dir)
       middle = rand.between(start_pos.x, end_pos.x)
 
       for i = start_pos.x + 1, middle, 1 do
-         prefab:set_raw(i, start_pos.y, "Air")
+         prefab:set_raw(i, start_pos.y, tile)
       end
       for i = start_pos.y, end_pos.y, tunnel_dir do
-         prefab:set_raw(middle, i, "Air")
+         prefab:set_raw(middle, i, tile)
       end
       for i = middle, end_pos.x, 1 do
-         prefab:set_raw(i, end_pos.y, "Air")
+         prefab:set_raw(i, end_pos.y, tile)
       end
    else
       if start_pos.y > end_pos.y then
@@ -303,13 +303,28 @@ function dig_tunnel(start_pos, end_pos, dir)
       middle = rand.between(start_pos.y, end_pos.y)
 
       for i = start_pos.y + 1, middle, 1 do
-         prefab:set_raw(start_pos.x, i, "Air")
+         prefab:set_raw(start_pos.x, i, tile)
       end
       for i = start_pos.x, end_pos.x, tunnel_dir do
-         prefab:set_raw(i, middle, "Air")
+         prefab:set_raw(i, middle, tile)
       end
       for i = middle, end_pos.y, 1 do
-         prefab:set_raw(end_pos.x, i, "Air")
+         prefab:set_raw(end_pos.x, i, tile)
+      end
+   end
+end
+
+function add_seawall()
+   for pos in prefab:iter() do
+      local below_one = world.point(pos.x, pos.y + 1)
+      local below_two = world.point(pos.x, pos.y + 2)
+      if prefab:in_bounds(below_one) then
+         if prefab:get(pos) == "Floor" and prefab:get(below_one) == "Wall" then
+            prefab:set(below_one, "SeaWall")
+            if prefab:in_bounds(below_two) then
+               prefab:set(below_two, "SeaWall")
+            end
+         end
       end
    end
 end
@@ -336,4 +351,5 @@ create_rooms()
    end
 
 connect_rooms()
+add_seawall()
 put_stairs()

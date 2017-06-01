@@ -2,6 +2,7 @@
 name="sprite.png"
 tile_size=[34, 34]
 
+
 [[maps]]
 name="sprite2.png"
 tile_size=[24, 24]

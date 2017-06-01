@@ -105,34 +105,39 @@ fn game_loop() {
     rc.update(&context);
 
     rc.start_loop(|renderer| {
-        for event in renderer.poll_events() {
-            match event {
-                glutin::Event::Closed => return Action::Stop,
-                glutin::Event::Resized(w, h) => {
-                    renderer.set_viewport(w, h);
-                    return Action::Continue;
-                },
-                _ => (),
-            }
+        let events = renderer.poll_events();
+        if !events.is_empty() {
+            for event in events {
+                match event {
+                    glutin::Event::Closed => return Action::Stop,
+                    glutin::Event::Resized(w, h) => {
+                        renderer.set_viewport(w, h);
+                        return Action::Continue;
+                    },
+                    _ => (),
+                }
 
-            match event {
-                glutin::Event::KeyboardInput(ElementState::Pressed, _, Some(code)) => {
-                    println!("Key: {:?}", code);
-                    {
-                        match code {
-                            VirtualKeyCode::Escape => return Action::Stop,
-                            _ => {
-                                let key = Key::from(KeyCode::from(code));
-                                state::game_step(&mut context, Some(key));
-                                renderer.update(&context);
-                            },
+                match event {
+                    glutin::Event::KeyboardInput(ElementState::Pressed, _, Some(code)) => {
+                        println!("Key: {:?}", code);
+                        {
+                            match code {
+                                VirtualKeyCode::Escape => return Action::Stop,
+                                _ => {
+                                    let key = Key::from(KeyCode::from(code));
+                                    state::game_step(&mut context, Some(key));
+                                    renderer.update(&context);
+                                },
+                            }
                         }
-                    }
-                },
-                _ => (),
+                    },
+                    _ => (),
+                }
+                renderer.render();
             }
+        } else {
+            renderer.render();
         }
-        renderer.render();
 
         Action::Continue
     });

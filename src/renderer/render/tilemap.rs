@@ -238,15 +238,11 @@ fn get_neighboring_edges(world: &EcsWorld, pos: Point, cell_type: CellType) -> u
     res
 }
 
-fn renderable_area() -> Point {
-    Point::new(SCREEN_WIDTH as i32 / 48, SCREEN_HEIGHT as i32 / 48)
-}
-
 fn make_map(world: &EcsWorld, viewport: &Viewport) -> Vec<(DrawTile, Point)> {
     let mut res = Vec::new();
     let camera = world.flags().camera;
     let start_corner = viewport.camera_tile_pos(camera).into();
-    world.with_cells(start_corner, renderable_area(), |pos, &cell| {
+    world.with_cells(start_corner, Viewport::renderable_area().into(), |pos, &cell| {
         let tile = DrawTile {
             kind: cell.glyph(),
             edges: get_neighboring_edges(world, pos, cell.type_),

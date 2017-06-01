@@ -21,6 +21,14 @@ anim_frames=3
 anim_delay=400
 
 [[tiles]]
+name="sea_wall"
+atlas="map2.png"
+offset=[0, 3]
+is_autotile=true
+anim_frames=3
+anim_delay=400
+
+[[tiles]]
 name="grass"
 atlas="map.png"
 offset=[2, 0]

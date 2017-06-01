@@ -5,6 +5,8 @@ macro_attr! {
     #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Copy, Clone, EnumFromStr!)]
     pub enum CellType {
         Wall,
+        Water,
+        SeaWall,
         Floor,
         Grass,
         Sand,
@@ -72,8 +74,10 @@ impl Cell {
 
     pub fn can_pass_through(&self) -> bool {
         match self.type_ {
-            CellType::Wall => false,
-            _              => true,
+            CellType::Wall  |
+            CellType::Water |
+            CellType::SeaWall => false,
+            _                 => true,
         }
     }
 
@@ -91,6 +95,7 @@ impl Cell {
     fn get_appearance(&self) -> &'static str {
         match self.type_ {
             CellType::Wall  => "water",
+            CellType::SeaWall  => "sea_wall",
             CellType::Grass  => "grass",
             CellType::Sand  => "sand",
             CellType::Floor => "stone_road",
@@ -112,11 +117,6 @@ pub const GRASS: Cell = Cell {
 
 pub const SAND: Cell = Cell {
     type_: CellType::Sand,
-    feature: None,
-};
-
-pub const DECOR: Cell = Cell {
-    type_: CellType::Floor,
     feature: None,
 };
 
