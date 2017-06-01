@@ -11,5 +11,6 @@ pub enum Action {
 
     TestScript,
 
+    Teleport(Point),
     TeleportUnchecked(Point),
 }

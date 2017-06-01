@@ -1,3 +1,4 @@
+#[cfg(test)]
 mod grid_from_str;
 
 #[cfg(test)]
