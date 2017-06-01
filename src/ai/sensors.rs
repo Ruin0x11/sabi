@@ -48,7 +48,7 @@ fn has_target(_world: &EcsWorld, _entity: &Entity, ai: &Ai) -> bool {
     ai.target.borrow().is_some()
 }
 
-fn health_low(_world: &EcsWorld, _entity: &Entity, ai: &Ai) -> bool {
+fn health_low(_world: &EcsWorld, _entity: &Entity, _ai: &Ai) -> bool {
     false
 }
 

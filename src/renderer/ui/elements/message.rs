@@ -80,7 +80,7 @@ impl UiElement for UiMessageLog {
                 for wrapped in renderer.font().wrap_text(line, w - 16) {
                     let offset = (idx * LINE_HEIGHT) as i32;
 
-                    renderer.add_string_shadow((tx, ty - offset), None, (255, 255, 255, 255), &wrapped);
+                    renderer.add_string_shadow((tx, ty - offset), None, &wrapped);
 
                     idx += 1;
 

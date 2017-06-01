@@ -37,7 +37,7 @@ impl UiElement for MainLayer {
 }
 
 impl UiLayer for MainLayer {
-    fn on_event(&mut self, event: glutin::Event) -> EventResult {
+    fn on_event(&mut self, _event: glutin::Event) -> EventResult {
         EventResult::Ignored
     }
 }
@@ -57,10 +57,6 @@ impl Ui {
             layers: Vec::new(),
             main_layer: MainLayer::new(),
         }
-    }
-
-    pub fn is_active(&self) -> bool {
-        !self.layers.is_empty()
     }
 
     pub fn draw_layer<T: 'static + UiLayer>(&mut self, layer: &T) {
@@ -127,10 +123,10 @@ impl Ui {
 }
 
 impl<'a> Renderable for Ui {
-    fn render<F, S>(&self, display: &F, target: &mut S, viewport: &Viewport, msecs: u64)
+    fn render<F, S>(&self, display: &F, target: &mut S, viewport: &Viewport)
         where F: glium::backend::Facade, S: glium::Surface {
 
-        self.renderer.render(display, target, viewport, msecs);
+        self.renderer.render(display, target, viewport);
     }
 }
 
@@ -153,11 +149,11 @@ use world::traits::*;
 use GameContext;
 
 impl RenderUpdate for Ui {
-    fn should_update(&self, context: &GameContext) -> bool {
+    fn should_update(&self, _context: &GameContext) -> bool {
         true
     }
 
-    fn update(&mut self, context: &GameContext, viewport: &Viewport) {
+    fn update(&mut self, context: &GameContext, _viewport: &Viewport) {
         let ref world = context.state.world;
         if let Some(player) = world.player() {
             if let Some(health) = world.ecs().healths.get(player) {

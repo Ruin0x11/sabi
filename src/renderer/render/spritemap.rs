@@ -1,11 +1,9 @@
 use glium;
 use glium::backend::Facade;
-use glium::index::PrimitiveType;
-use cgmath;
 
 use point::Point;
 use renderer::atlas::*;
-use renderer::render::{self, Renderable, Viewport, Vertex, QUAD, QUAD_INDICES};
+use renderer::render::{self, Renderable, Viewport, Vertex};
 
 #[derive(Copy, Clone)]
 struct Instance {
@@ -103,7 +101,7 @@ impl SpriteMap {
 }
 
 impl<'a> Renderable for SpriteMap {
-    fn render<F, S>(&self, display: &F, target: &mut S, viewport: &Viewport, msecs: u64)
+    fn render<F, S>(&self, _display: &F, target: &mut S, viewport: &Viewport)
         where F: glium::backend::Facade, S: glium::Surface {
 
         let (proj, scissor) = viewport.main_window();
@@ -138,21 +136,22 @@ impl<'a> Renderable for SpriteMap {
 }
 
 use world::EcsWorld;
-use world::traits::{Query, WorldQuery};
-use ecs::traits::ComponentQuery;
+use world::traits::Query;
 use GameContext;
 use renderer::interop::RenderUpdate;
-use renderer::render::{SCREEN_WIDTH, SCREEN_HEIGHT};
 
-fn make_sprites(world: &EcsWorld) -> Vec<(DrawSprite, Point)> {
+fn make_sprites(world: &EcsWorld, viewport: &Viewport) -> Vec<(DrawSprite, Point)> {
     let mut res = Vec::new();
+    let camera = world.flags().camera;
+    let start_corner: Point = viewport.camera_tile_pos(camera).into();
+
     for entity in world.entities() {
         if let Some(pos) = world.position(*entity) {
             if let Some(appearance) = world.ecs().appearances.get(*entity) {
                 let sprite = DrawSprite {
                     kind: appearance.kind.clone()
                 };
-                res.push((sprite, pos));
+                res.push((sprite, pos - start_corner));
             }
         }
     }
@@ -160,13 +159,13 @@ fn make_sprites(world: &EcsWorld) -> Vec<(DrawSprite, Point)> {
 }
 
 impl RenderUpdate for SpriteMap {
-    fn should_update(&self, context: &GameContext) -> bool {
+    fn should_update(&self, _context: &GameContext) -> bool {
         true
     }
 
     fn update(&mut self, context: &GameContext, viewport: &Viewport) {
         let ref world = context.state.world;
-        self.sprites = make_sprites(world);
+        self.sprites = make_sprites(world, viewport);
         self.valid = false;
     }
 

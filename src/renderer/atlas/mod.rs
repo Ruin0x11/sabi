@@ -18,8 +18,6 @@ pub mod texture_atlas;
 
 use self::config::TileAtlasConfig;
 
-pub type TileOffset = (u32, u32);
-
 pub type Texture2d = glium::texture::CompressedSrgbTexture2d;
 
 type AnimFrames = u64;

@@ -57,8 +57,6 @@ mod world;
 #[cfg(test)]
 mod testing;
 
-use slog::Logger;
-
 use glium::glutin;
 use glium::glutin::{VirtualKeyCode, ElementState};
 use state::GameState;
@@ -66,14 +64,12 @@ use renderer::{Action, RenderContext};
 use engine::keys::{Key, KeyCode};
 
 pub struct GameContext {
-    logger: Logger,
     state: GameState,
 }
 
 impl GameContext {
     pub fn new() -> Self {
         GameContext {
-            logger: log::make_logger("main"),
             state: GameState::new(),
         }
     }
@@ -94,8 +90,6 @@ pub fn run() {
 
     println!("Exited cleanly.");
 }
-
-use world::traits::*;
 
 fn game_loop() {
     world::serial::init_paths().unwrap();

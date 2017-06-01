@@ -61,6 +61,6 @@ impl UiElement for UiBar {
         let text_pos = (self.pos.0 + (258 / 2) - (text_width / 2),
                         self.pos.1 + 30 - (renderer.font().get_font_size() as i32));
 
-        renderer.add_string_shadow(text_pos, None, (255, 255, 255, 255), &text);
+        renderer.add_string_shadow(text_pos, None, &text);
     }
 }

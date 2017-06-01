@@ -22,21 +22,23 @@ fn pre_tick_entity(_world: &mut EcsWorld, _entity: Entity) {
 
 }
 
-pub fn run_action(world: &mut EcsWorld, entity: Entity, action: Action) {
+pub fn run_action(world: &mut EcsWorld, entity: Entity, action: Action) -> CommandResult {
     // Events are gathered up all at once. If an entity has already died in the
     // process of handling the previous events, it shouldn't get to run its
     // action.
     if !world.is_alive(entity) {
-        return;
+        return Err(());
     }
 
     pre_tick(world);
 
     pre_tick_entity(world, entity);
-    run_entity_action(world, entity, action.clone());
+    let result = run_entity_action(world, entity, action.clone());
     post_tick_entity(world, entity);
 
     post_tick(world);
+
+    result
 }
 
 fn post_tick_entity(world: &mut EcsWorld, entity: Entity) {

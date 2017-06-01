@@ -39,13 +39,6 @@ impl Viewport {
         (camera.0 - (vw as i32 / 2), camera.1 - (vh as i32 / 2))
     }
 
-    /// Returns the pixel position of the upper-left corner of the viewport with
-    /// the given camera coordinates.
-    pub fn camera_viewport_pos<I: Into<(i32, i32)>>(&self, camera: I) -> (i32, i32) {
-        let (cx, cy) = self.camera_tile_pos(camera);
-        (cx * 48, cy * 48)
-    }
-
     fn make_subarea(&self, area: (u32, u32, u32, u32)) -> RendererSubarea {
         (self.camera_projection(), self.scissor(area))
     }

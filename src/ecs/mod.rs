@@ -4,7 +4,6 @@ pub mod prefab;
 pub mod traits;
 
 use ai;
-use data::fov;
 
 Ecs! {
     healths: components::Health,
@@ -13,6 +12,5 @@ Ecs! {
     turns: components::Turn,
     props: components::Props,
     ais: ai::Ai,
-    fovs: fov::FieldOfView,
     logs: components::Log,
 }

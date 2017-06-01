@@ -48,23 +48,6 @@ impl Spatial {
     /// Insert an entity into space.
     pub fn insert_at(&mut self, e: Entity, loc: Point) { self.insert(e, At(loc)); }
 
-    /// Return whether the parent entity or an entity contained in the parent
-    /// entity contains entity e.
-    pub fn contains(&self, parent: Entity, e: Entity) -> bool {
-        match self.entity_to_place.get(&e) {
-            Some(&In(p)) if p == parent => true,
-            Some(&In(p)) => self.contains(parent, p),
-            _ => false,
-        }
-    }
-
-    /// Insert an entity into container.
-    pub fn insert_in(&mut self, e: Entity, parent: Entity) {
-        assert!(!self.contains(e, parent),
-                "Trying to create circular containment");
-        self.insert(e, In(parent));
-    }
-
     /// Remove an entity from the local structures but do not pop out its
     /// items. Unless the entity is added back in or the contents are handled
     /// somehow, this will leave the spatial index in an inconsistent state.
@@ -215,7 +198,6 @@ impl serde::Deserialize for Spatial {
 mod test {
     use super::{Place, Spatial};
     use ecs::Ecs;
-    use calx_ecs::Entity;
     use point::Point;
 
     #[cfg(never)]

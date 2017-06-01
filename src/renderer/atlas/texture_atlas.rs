@@ -1,9 +1,8 @@
 use std::collections::HashMap;
-use std::fs::File;
 use std::path::Path;
 
 use glium::backend::Facade;
-use image::{self, DynamicImage, Rgba};
+use image::{DynamicImage, Rgba};
 use texture_packer::Rect;
 use texture_packer::SkylinePacker;
 use texture_packer::{TexturePacker, TexturePackerConfig};

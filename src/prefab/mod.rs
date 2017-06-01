@@ -2,12 +2,11 @@ mod interop;
 
 pub use self::interop::{map_from_prefab, add_lua_interop};
 
-use std::collections::{hash_map, HashMap};
-use std::fmt;
+use std::collections::HashMap;
 
 use hlua;
 
-use graphics::cell::{self, Cell, StairDir};
+use graphics::cell::{self, Cell};
 use point::{Point};
 
 #[derive(Debug)]
@@ -132,22 +131,6 @@ impl Prefab {
             width: self.width(),
             inner: self.cells.iter(),
         }
-    }
-}
-
-impl fmt::Display for Prefab {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "\n")?;
-        for j in 0..self.size.y {
-            for i in 0..self.size.x {
-                let pos = Point::new(i, j);
-                let ch = 'a'; // TODO: map ascii?
-                // let ch = self.get(&pos).glyph().lookup_ascii().ch;
-                write!(f, "{}", ch)?;
-            }
-            write!(f, "\n")?;
-        }
-        Ok(())
     }
 }
 

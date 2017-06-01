@@ -1,16 +1,6 @@
 use calx_ecs::Entity;
 
-use logic::CommandResult;
-use graphics::cell::Cell;
-use data::{TurnOrder, Walkability};
-use point::Direction;
 use ecs::*;
-use ecs::prefab::*;
-use world::WorldPosition;
-use world::flags::Flags;
-
-use point::Point;
-use chunk::*;
 
 pub trait ComponentQuery<C: Component> {
     /// Gets the component off this entity or panics.

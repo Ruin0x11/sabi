@@ -148,11 +148,11 @@ mod tests {
         let mut ecs = get_ecs();
         let mut turn_order = TurnOrder::new();
         let entity = ecs.make();
-        turn_order.insert(entity, 0);
+        turn_order.insert(entity, 0).unwrap();
 
         assert_eq!(turn_order.next(), Some(entity));
 
-        turn_order.add_delay_for(entity, 100);
+        turn_order.add_delay_for(entity, 100).unwrap();
 
         assert_eq!(turn_order.next(), Some(entity));
     }
@@ -164,18 +164,18 @@ mod tests {
 
         let first_entity = ecs.make();
         let second_entity = ecs.make();
-        turn_order.insert(first_entity, 0);
-        turn_order.insert(second_entity, 10);
+        turn_order.insert(first_entity, 0).unwrap();
+        turn_order.insert(second_entity, 10).unwrap();
 
         assert_eq!(turn_order.next(), Some(first_entity));
 
-        turn_order.add_delay_for(first_entity, 100);
+        turn_order.add_delay_for(first_entity, 100).unwrap();
         assert_eq!(turn_order.next(), Some(second_entity));
 
-        turn_order.add_delay_for(second_entity, 100);
+        turn_order.add_delay_for(second_entity, 100).unwrap();
         assert_eq!(turn_order.next(), Some(first_entity));
 
-        turn_order.advance_time_for(second_entity, 100);
+        turn_order.advance_time_for(second_entity, 100).unwrap();
         assert_eq!(turn_order.next(), Some(second_entity));
     }
 
@@ -186,17 +186,17 @@ mod tests {
 
         let fast = ecs.make();
         let slow = ecs.make();
-        turn_order.insert(fast, 1);
-        turn_order.insert(slow, 10000);
+        turn_order.insert(fast, 1).unwrap();
+        turn_order.insert(slow, 10000).unwrap();
 
         assert_eq!(turn_order.next(), Some(fast));
 
-        turn_order.pause(fast);
+        turn_order.pause(fast).unwrap();
         assert_eq!(turn_order.next(), Some(slow));
         assert_eq!(turn_order.get_time_for(fast), Err(EntityPaused));
         assert_eq!(turn_order.add_delay_for(fast, 100), Err(EntityPaused));
 
-        turn_order.resume(fast);
+        turn_order.resume(fast).unwrap();
         assert_eq!(turn_order.next(), Some(fast));
         assert_eq!(turn_order.get_time_for(fast), Ok(1));
         assert_eq!(turn_order.add_delay_for(fast, 100), Ok(()));
@@ -212,7 +212,7 @@ mod tests {
         assert_eq!(turn_order.insert(entity, 1), Ok(()));
         assert_eq!(turn_order.insert(entity, 100), Err(AlreadyExists));
 
-        turn_order.pause(entity);
+        turn_order.pause(entity).unwrap();
         assert_eq!(turn_order.insert(entity, 100), Err(AlreadyExists));
     }
 
@@ -222,13 +222,13 @@ mod tests {
         let mut turn_order = TurnOrder::new();
 
         let entity = ecs.make();
-        turn_order.insert(entity, 1);
+        turn_order.insert(entity, 1).unwrap();
 
         assert_eq!(turn_order.remove(entity), Ok(()));
         assert_eq!(turn_order.remove(entity), Err(NoSuchEntity));
 
-        turn_order.insert(entity, 1);
-        turn_order.pause(entity);
+        turn_order.insert(entity, 1).unwrap();
+        turn_order.pause(entity).unwrap();
         assert_eq!(turn_order.remove(entity), Ok(()));
         assert_eq!(turn_order.remove(entity), Err(NoSuchEntity));
     }
@@ -244,8 +244,8 @@ mod tests {
         assert_eq!(turn_order.pause(fast), Err(NoSuchEntity));
         assert_eq!(turn_order.resume(fast), Err(NoSuchEntity));
 
-        turn_order.insert(fast, 1);
-        turn_order.insert(slow, 10000);
+        turn_order.insert(fast, 1).unwrap();
+        turn_order.insert(slow, 10000).unwrap();
 
         assert_eq!(turn_order.resume(fast), Err(EntityActive));
 

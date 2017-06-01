@@ -330,22 +330,23 @@ impl UiRenderer {
 
     pub fn add_string_shadow(&mut self, screen_pos: (i32, i32),
                              clipping_rect: Option<(u32, u32, u32, u32)>,
-                             color: (u8, u8, u8, u8),
                              text: &str) {
         let shadow_pos = (screen_pos.0 + 1, screen_pos.1 + 1);
         let color = self.get_color();
 
-        self.add_string(shadow_pos, clipping_rect, (0, 0, 0, 255), text);
-        self.add_string(screen_pos, clipping_rect, color, text);
+        self.add_string(shadow_pos, clipping_rect, text);
+        self.with_color(color, |r| {
+            r.add_string(screen_pos, clipping_rect, text);
+        });
     }
 
     pub fn add_string(&mut self, screen_pos: (i32, i32),
                       clipping_rect: Option<(u32, u32, u32, u32)>,
-                      color: (u8, u8, u8, u8),
                       text: &str) {
         if text.len() == 0 {
             return;
         }
+        let color = self.get_color();
 
         let mut total_text_width = 0.0;
         for ch in text.chars() { // FIXME: apparently wrong, but only thing stable
@@ -403,7 +404,7 @@ fn make_scissor(clip_rect: (f32, f32, f32, f32), height: f32, scale: f32) -> Rec
 }
 
 impl<'a> Renderable for UiRenderer {
-    fn render<F, S>(&self, display: &F, target: &mut S, viewport: &Viewport, msecs: u64)
+    fn render<F, S>(&self, display: &F, target: &mut S, viewport: &Viewport)
         where F: glium::backend::Facade, S: glium::Surface {
 
         let proj = viewport.static_projection();

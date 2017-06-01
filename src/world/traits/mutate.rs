@@ -1,23 +1,16 @@
-use std::slice;
-
-// TODO: infinigen::traits::*;
 pub use infinigen::*;
 
 use calx_ecs::Entity;
 
 use logic::CommandResult;
-use graphics::cell::Cell;
-use data::{TurnOrder, Walkability};
-use point::Direction;
 use ecs::*;
 use ecs::prefab::*;
 use ecs::traits::*;
-use world::WorldPosition;
+use point::Direction;
 use world::flags::Flags;
 use world::traits::Query;
 
 use point::Point;
-use chunk::*;
 
 pub trait Mutate: Query + Sized {
     fn set_entity_location(&mut self, e: Entity, loc: Point);

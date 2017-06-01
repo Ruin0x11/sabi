@@ -75,17 +75,6 @@ impl Color256 {
             _ => panic!("Unimplemented color {}", self.0),
         }
     }
-
-    pub fn mix(&self, color : Color256, s : u8) -> Color256 {
-        assert!(s < 6);
-        let s_rgb = self.to_color216();
-        let c_rgb = color.to_color216();
-        Color216::new(
-            (s_rgb.r * (5 - s) + c_rgb.r * s) / 5,
-            (s_rgb.g * (5 - s) + c_rgb.g * s) / 5,
-            (s_rgb.b * (5 - s) + c_rgb.b * s) / 5,
-            ).into()
-    }
 }
 
 impl From<Color216> for Color256 {

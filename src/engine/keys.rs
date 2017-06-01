@@ -51,8 +51,6 @@ pub enum KeyCode {
     Space,
     Escape,
 
-    Tab,
-    Backspace,
     Delete,
     Insert,
 
@@ -70,17 +68,11 @@ pub enum KeyCode {
     Unknown(char),
 }
 
-pub enum NumkeyType {
-    Digit,
-    NumPad,
-    Function
-}
-
 impl From<char> for KeyCode {
     fn from(ch: char) -> KeyCode {
         if ch.is_numeric() {
             let numeric_ch = ch.to_digit(10).unwrap();
-            return Key::numkey_code_from_digit(numeric_ch, NumkeyType::Digit);
+            return Key::numkey_code_from_digit(numeric_ch);
         }
         // Lowercasing in Rust returns an iterator, making this match necessary.
         let ch_lower_iter = ch.to_lowercase().next();
@@ -125,50 +117,19 @@ impl From<char> for KeyCode {
 }
 
 impl Key {
-    pub fn numkey_code_from_digit(digit: u32, type_: NumkeyType) -> KeyCode {
-        match type_ {
-            NumkeyType::Digit => match digit {
-                1 => KeyCode::D1,
-                2 => KeyCode::D2,
-                3 => KeyCode::D3,
-                4 => KeyCode::D4,
-                5 => KeyCode::D5,
-                6 => KeyCode::D6,
-                7 => KeyCode::D7,
-                8 => KeyCode::D8,
-                9 => KeyCode::D9,
-                0 => KeyCode::D0,
-                _ => KeyCode::Unknown(digit as u8 as char),
-            },
-            NumkeyType::NumPad => match digit {
-                1 => KeyCode::NumPad1,
-                2 => KeyCode::NumPad2,
-                3 => KeyCode::NumPad3,
-                4 => KeyCode::NumPad4,
-                5 => KeyCode::NumPad5,
-                6 => KeyCode::NumPad6,
-                7 => KeyCode::NumPad7,
-                8 => KeyCode::NumPad8,
-                9 => KeyCode::NumPad9,
-                0 => KeyCode::NumPad0,
-                _ => KeyCode::Unknown(digit as u8 as char),
-            },
-            NumkeyType::Function => match digit {
-                1 => KeyCode::F1,
-                2 => KeyCode::F2,
-                3 => KeyCode::F3,
-                4 => KeyCode::F4,
-                5 => KeyCode::F5,
-                6 => KeyCode::F6,
-                7 => KeyCode::F7,
-                8 => KeyCode::F8,
-                9 => KeyCode::F9,
-                10 => KeyCode::F10,
-                11 => KeyCode::F11,
-                12 => KeyCode::F12,
-                _ => KeyCode::Unknown(digit as u8 as char),
-            }
+    pub fn numkey_code_from_digit(digit: u32) -> KeyCode {
+        match digit {
+            1 => KeyCode::D1,
+            2 => KeyCode::D2,
+            3 => KeyCode::D3,
+            4 => KeyCode::D4,
+            5 => KeyCode::D5,
+            6 => KeyCode::D6,
+            7 => KeyCode::D7,
+            8 => KeyCode::D8,
+            9 => KeyCode::D9,
+            0 => KeyCode::D0,
+            _ => KeyCode::Unknown(digit as u8 as char),
         }
     }
-
 }

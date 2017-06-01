@@ -1,14 +1,11 @@
 use std::collections::VecDeque;
 
 use calx_ecs::Entity;
-use infinigen::ChunkedWorld;
 
 use ::GameContext;
 use ai;
 use chunk::generator::ChunkType;
-use ecs::traits::*;
 use engine::keys::Key;
-use graphics::cell;
 use point::POINT_ZERO;
 use logic::command;
 use logic::{self, Action, Command};
@@ -47,18 +44,8 @@ fn draw_overlays(world: &mut EcsWorld) {
     world.draw_calls.clear();
 }
 
-fn draw_world(world: &mut EcsWorld) {
-}
-
 #[cfg(never)]
 fn show_messages(world: &mut EcsWorld) {
-}
-
-fn draw_entities(world: &mut EcsWorld) {
-}
-
-fn get_player_command(context: &mut GameContext, key: Key) -> Option<Command> {
-    Some(Command::from_key(key))
 }
 
 fn run_action_queue<'a>(context: &'a mut GameContext) {
@@ -145,24 +132,6 @@ pub fn run_command(context: &mut GameContext, command: Command) {
     process(context);
 }
 
-pub fn run_action(context: &mut GameContext, action: Action) {
-    context.state.player_action(action);
-    run_action_queue(context);
-    process(context);
-}
-
-/// Treats all actors as frozen and only updates the world/chunk loading.
-pub fn run_action_no_ai(context: &mut GameContext, action: Action) {
-    context.state.player_action(action);
-    run_action_queue(context);
-
-    update_world_terrain(&mut context.state.world);
-}
-
-pub fn run_action_on(context: &mut GameContext, entity: Entity, action: Action) {
-    process_action(&mut context.state.world, entity, action);
-}
-
 // TEMP: Just to bootstrap things dirtily.
 pub fn process(context: &mut GameContext) {
     update_world_terrain(&mut context.state.world);
@@ -199,9 +168,8 @@ pub fn init(context: &mut GameContext) {
 
 pub fn game_step(context: &mut GameContext, input: Option<Key>) {
     if let Some(key) = input {
-        if let Some(command) = get_player_command(context, key) {
-            run_command(context, command);
-        }
+        let command = Command::from(key);
+        run_command(context, command);
     }
     update_camera(&mut context.state.world);
 
@@ -209,4 +177,21 @@ pub fn game_step(context: &mut GameContext, input: Option<Key>) {
     if dead {
         return;
     }
+}
+
+
+#[cfg(test)]
+pub fn run_action(context: &mut GameContext, action: Action) {
+    context.state.player_action(action);
+    run_action_queue(context);
+    process(context);
+}
+
+/// Treats all actors as frozen and only updates the world/chunk loading.
+#[cfg(test)]
+pub fn run_action_no_ai(context: &mut GameContext, action: Action) {
+    context.state.player_action(action);
+    run_action_queue(context);
+
+    update_world_terrain(&mut context.state.world);
 }

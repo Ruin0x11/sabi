@@ -5,7 +5,6 @@ use engine::keys::{Key, KeyCode};
 use graphics::cell::{Cell, CellFeature, StairDest, StairDir};
 use world::EcsWorld;
 use point::Point;
-use chunk::ChunkIndex;
 use world::MapId;
 use world::traits::*;
 
@@ -19,8 +18,8 @@ pub enum Command {
     Quit,
 }
 
-impl Command {
-    pub fn from_key(key: Key) -> Command {
+impl From<Key> for Command {
+    fn from(key: Key) -> Command {
         match key {
             Key { code: KeyCode::Escape,      .. } => Command::Quit,
             Key { code: KeyCode::Left,        .. } |
@@ -54,15 +53,16 @@ impl Command {
     }
 }
 
-pub fn process_player_command(context: &mut GameContext, command: Command) {
+pub fn process_player_command(context: &mut GameContext, command: Command) -> CommandResult {
     match command {
         // TEMP: Commands can still be run even if there is no player?
         Command::Quit           => (),
         Command::Move(dir)      => context.state.add_action(Action::MoveOrAttack(dir)),
-        Command::Wait           => context.state.add_action(Action::Dood),
-        Command::TestScript           => context.state.add_action(Action::TestScript),
-        Command::UseStairs(dir) => {try_use_stairs(dir, &mut context.state.world);},
+        Command::Wait           => context.state.add_action(Action::Wait),
+        Command::TestScript     => context.state.add_action(Action::TestScript),
+        Command::UseStairs(dir) => return try_use_stairs(dir, &mut context.state.world),
     }
+    Ok(())
 }
 
 pub fn try_use_stairs(dir: StairDir, world: &mut EcsWorld) -> CommandResult {

@@ -1,12 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
-use graphics::cell::{self, CellFeature, StairDir, StairDest};
-use world::traits::*;
-use world::{Bounds, MapId};
-use prefab::Prefab;
+use world::Bounds;
 
 use chunk::*;
-use chunk::generator::ChunkType;
 use chunk::serial::SerialChunk;
 use world::WorldPosition;
 

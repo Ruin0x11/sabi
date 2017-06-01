@@ -1,13 +1,11 @@
 use std::collections::HashSet;
 
-use cgmath;
 use glium;
 use glium::backend::Facade;
-use glium::index::PrimitiveType;
 
 use point::Point;
 use point::RectangleIter;
-use renderer::render::{self, Renderable, Vertex, Viewport, QUAD, QUAD_INDICES};
+use renderer::render::{self, Renderable, Vertex, Viewport};
 
 #[derive(Clone, Copy)]
 struct Instance {
@@ -29,7 +27,7 @@ pub struct ShadowMap {
 }
 
 impl ShadowMap {
-    pub fn new<F: Facade>(display: &F, area: RectangleIter, visible: HashSet<Point>) -> Self {
+    pub fn new<F: Facade>(display: &F) -> Self {
         let (vertices, indices) = render::make_quad_buffers(display);
 
         let instances = glium::VertexBuffer::immutable(display, &[]).unwrap();
@@ -59,7 +57,7 @@ impl ShadowMap {
 }
 
 impl Renderable for ShadowMap {
-    fn render<F, S>(&self, display: &F, target: &mut S, viewport: &Viewport, msecs: u64)
+    fn render<F, S>(&self, _display: &F, target: &mut S, viewport: &Viewport)
         where F: glium::backend::Facade, S: glium::Surface {
 
         let (proj, scissor) = viewport.main_window();
@@ -104,7 +102,7 @@ fn make_map(world: &EcsWorld, viewport: &Viewport) -> HashSet<Point> {
 
     for point in area {
         if !visible.contains(&point) {
-            shadows.insert(point);
+            shadows.insert(point - start_corner);
         }
     }
 
@@ -112,7 +110,7 @@ fn make_map(world: &EcsWorld, viewport: &Viewport) -> HashSet<Point> {
 }
 
 impl RenderUpdate for ShadowMap {
-    fn should_update(&self, context: &GameContext) -> bool {
+    fn should_update(&self, _context: &GameContext) -> bool {
         true
     }
 

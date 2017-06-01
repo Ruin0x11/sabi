@@ -7,13 +7,9 @@ pub enum Action {
     Move(Direction),
     MoveOrAttack(Direction),
     Wait,
-    Dood,
-    Explod,
-    Hurt(u32),
     SwingAt(Entity),
 
     TestScript,
 
-    Teleport(Point),
     TeleportUnchecked(Point),
 }

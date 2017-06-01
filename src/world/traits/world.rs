@@ -2,7 +2,6 @@ use infinigen::*;
 
 use chunk::ChunkIndex;
 use data::Walkability;
-use ecs::traits::*;
 use graphics::cell::Cell;
 use graphics::cell::{CellFeature, StairDest, StairDir};
 use terrain::traits::*;

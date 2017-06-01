@@ -26,7 +26,7 @@ struct DrawTile {
 }
 
 pub struct TileMap {
-    map: Vec<(DrawTile, Point)>,
+    tiles: Vec<(DrawTile, Point)>,
 
     indices: glium::IndexBuffer<u16>,
     vertices: glium::VertexBuffer<Vertex>,
@@ -122,7 +122,7 @@ impl TileMap {
         let program = render::load_program(display, "tile.vert", "tile.frag").unwrap();
 
         let mut tilemap = TileMap {
-            map: Vec::new(),
+            tiles: Vec::new(),
             indices: indices,
             vertices: vertices,
             instances: Vec::new(),
@@ -141,7 +141,7 @@ impl TileMap {
         let mut instances = Vec::new();
 
         for pass in 0..self.tile_atlas.passes() {
-            let data = self.map.iter()
+            let data = self.tiles.iter()
                 .filter(|&&(ref tile, _)| {
                     let texture_idx = self.tile_atlas.get_tile_texture_idx(tile.kind);
                     texture_idx == pass
@@ -183,7 +183,7 @@ impl TileMap {
 }
 
 impl<'a> Renderable for TileMap {
-    fn render<F, S>(&self, display: &F, target: &mut S, viewport: &Viewport, msecs: u64)
+    fn render<F, S>(&self, _display: &F, target: &mut S, viewport: &Viewport)
         where F: glium::backend::Facade, S: glium::Surface {
 
         let (proj, scissor) = viewport.main_window();
@@ -224,7 +224,6 @@ use world::EcsWorld;
 use world::traits::{Query, WorldQuery};
 use GameContext;
 use renderer::interop::RenderUpdate;
-use renderer::render::{SCREEN_WIDTH, SCREEN_HEIGHT};
 
 fn get_neighboring_edges(world: &EcsWorld, pos: Point, cell_type: CellType) -> u8 {
     let mut res: u8 = 0;
@@ -247,27 +246,27 @@ fn make_map(world: &EcsWorld, viewport: &Viewport) -> Vec<(DrawTile, Point)> {
             kind: cell.glyph(),
             edges: get_neighboring_edges(world, pos, cell.type_),
         };
-        res.push((tile, pos));
+        res.push((tile, pos - start_corner));
 
         if let Some(feature) = cell.feature {
             let feature_tile = DrawTile {
                 kind: feature.glyph(),
                 edges: 0,
             };
-            res.push((feature_tile, pos));
+            res.push((feature_tile, pos - start_corner));
         }
     });
     res
 }
 
 impl RenderUpdate for TileMap {
-    fn should_update(&self, context: &GameContext) -> bool {
+    fn should_update(&self, _context: &GameContext) -> bool {
         true
     }
 
     fn update(&mut self, context: &GameContext, viewport: &Viewport) {
         let ref world = context.state.world;
-        self.map = make_map(world, viewport);
+        self.tiles = make_map(world, viewport);
         self.valid = false;
     }
 

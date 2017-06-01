@@ -1,7 +1,8 @@
-use world::*;
-use testing::*;
-use state;
 use graphics::cell::CellType;
+use logic::Action;
+use state;
+use testing::*;
+use world::*;
 
 #[test]
 fn test_persistence() {

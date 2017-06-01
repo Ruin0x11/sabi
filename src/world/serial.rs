@@ -6,7 +6,7 @@ use bincode::{self, Infinite};
 
 use infinigen::*;
 use world::{EcsWorld, MapId};
-use world::traits::{Transition, Mutate};
+use world::traits::Transition;
 use world::flags::GlobalFlags;
 
 pub const SAVE_DIRECTORY: &'static str = "save";
@@ -115,7 +115,7 @@ impl SaveManifest {
 mod tests {
     use super::*;
     use testing::*;
-    use world::traits::Query;
+    use world::traits::*;
 
     #[test]
     fn test_manifest() {

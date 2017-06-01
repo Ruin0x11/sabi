@@ -65,7 +65,7 @@ impl UiElement for UiText {
     fn draw(&self, renderer: &mut UiRenderer) {
         for (idx, line) in self.text_lines.iter().enumerate() {
             let pos = (self.pos.0, self.pos.1 + (idx as u32 * renderer.get_font_size()) as i32);
-            renderer.add_string(pos, None, (0, 0, 0, 255), line);
+            renderer.add_string(pos, None, line);
         }
     }
 }

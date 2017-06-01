@@ -23,12 +23,12 @@ use data::spatial::{Spatial, Place};
 use data::{TurnOrder, Walkability};
 use ecs::*;
 use ecs::traits::*;
-use graphics::cell::{self, CellFeature, Cell, StairDir, StairDest};
+use graphics::cell::{CellFeature, StairDir, StairDest};
 use log;
-use logic::{Action, CommandResult};
+use logic::{CommandResult};
 use lua;
-use point::{Direction, POINT_ZERO, Point, RectangleIter};
-use prefab::{self, Prefab, PrefabMarker};
+use point::{Direction, Point};
+use prefab::{self, PrefabMarker};
 use terrain::Terrain;
 use terrain::traits::*;
 use terrain::regions::Regions;
@@ -179,9 +179,9 @@ impl Query for EcsWorld {
     }
 
     fn seen_entities(&self, viewer: Entity) -> Vec<Entity> {
-        if !self.ecs().fovs.has(viewer) {
-            return vec![];
-        }
+        // if !self.ecs().fovs.has(viewer) {
+        //     return vec![];
+        // }
 
         let mut seen = Vec::new();
         for entity in self.entities() {
@@ -215,7 +215,10 @@ impl Mutate for EcsWorld {
     fn kill_entity(&mut self, e: Entity) {
         debug_ecs!(self, e, "Removing {:?} from turn order", e);
         self.spatial.remove(e);
-        self.turn_order.remove(e);
+        let result = self.turn_order.remove(e);
+        if let Err(err) = result {
+            warn_ecs!(self, e, "{:?} wasn't in turn order! {:?}", e, err);
+        }
     }
 
     fn unload_entity(&mut self, e: Entity) -> Loadout {
@@ -333,7 +336,10 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
         let entities = self.frozen_in_chunk(index);
         for e in entities {
             self.spatial.unfreeze(e);
-            self.turn_order.resume(e);
+            let result = self.turn_order.resume(e);
+            if let Err(err) = result {
+                warn_ecs!(self, e, "{:?} wasn't in turn order! {:?}", e, err);
+            }
         }
 
         Ok(())
@@ -351,7 +357,11 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
             }
 
             self.spatial.freeze(e);
-            self.turn_order.pause(e);
+            let result = self.turn_order.pause(e);
+            if let Err(err) = result {
+                warn_ecs!(self, e, "{:?} wasn't in turn order! {:?}", e, err);
+            }
+
         }
 
         debug!(self.logger, "Id: {}", self.flags().map_id);

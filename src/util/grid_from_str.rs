@@ -10,6 +10,7 @@ use point::Point;
 /// .#.#.
 /// .....
 /// ```
+#[cfg(test)]
 pub fn make_grid_from_str<M, F, T>(text: &str, mut constructor: M, mut callback: F) -> T
     where M: FnMut(Point) -> T,
           F: FnMut(&Point, char, &mut T) {

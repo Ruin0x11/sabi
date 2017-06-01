@@ -14,7 +14,6 @@ pub fn map_from_prefab<'a>(lua: &'a mut Lua, name: &str) -> PrefabResult<Prefab>
 
     match lua::run_script_and_return::<Prefab>(lua, map_filename, PREFAB_VARIABLE)? {
         Some(prefab) => {
-            lua::lua_log_info(prefab.to_string());
             Ok(prefab)
         },
         None         => Err(PrefabError::PrefabVarNotDeclared),
@@ -79,8 +78,8 @@ pub fn lua_height(prefab: &Prefab) -> i32 {
     prefab.height()
 }
 
-pub fn lua_print(prefab: &Prefab) {
-    lua::lua_log_info(format!("{}", prefab));
+pub fn lua_print(_prefab: &Prefab) {
+
 }
 
 pub fn lua_place_stairs_in(prefab: &mut Prefab, x: i32, y: i32) {

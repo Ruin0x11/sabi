@@ -1,16 +1,7 @@
 use glium;
 use glium::backend::Facade;
-use glium::index::PrimitiveType;
 
-use renderer::render::{self, Renderable, Viewport, Vertex, QUAD_INDICES};
-use util;
-
-pub const BG_QUAD: [Vertex; 4] = [
-    Vertex { position: [-1, 1], },
-    Vertex { position: [1, 1], },
-    Vertex { position: [-1, -1], },
-    Vertex { position: [1, -1], },
-];
+use renderer::render::{self, Renderable, Viewport};
 
 pub struct Background {
     program: glium::Program,
@@ -32,7 +23,7 @@ impl Background {
 }
 
 impl Renderable for Background {
-    fn render<F, S>(&self, display: &F, target: &mut S, viewport: &Viewport, msecs: u64)
+    fn render<F, S>(&self, display: &F, target: &mut S, viewport: &Viewport)
         where F: Facade, S: glium::Surface {
 
         let (w, h) = (viewport.size.0 as f32, viewport.size.1 as f32);
@@ -42,7 +33,7 @@ impl Renderable for Background {
 
         let uniforms = uniform! {
             u_resolution: [w * scale, h * scale],
-            u_time: msecs as f32 / 1000.0,
+            u_time: 0.0,
         };
 
         let params = glium::DrawParameters {

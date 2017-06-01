@@ -45,7 +45,6 @@ fn generate_perlin(index: &ChunkIndex, seed: u32) -> Chunk {
     const COS_THETA: f32 = 0.99854;
     const SIN_THETA: f32 = 0.05408;
     const NOISE_SCALE: f32 = 0.05;
-    const THRESHOLD: f32 = 0.30;
 
     let gen = Perlin::new().set_seed(seed as usize);
 

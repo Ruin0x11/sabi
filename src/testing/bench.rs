@@ -28,7 +28,7 @@ use renderer::RenderContext;
 
 #[bench]
 fn bench_renderer_update(b: &mut Bencher) {
-    let mut context = many_entities();
+    let context = many_entities();
     let mut renderer = RenderContext::new();
 
     b.iter(|| {
@@ -39,7 +39,7 @@ fn bench_renderer_update(b: &mut Bencher) {
 
 #[bench]
 fn bench_renderer_idle(b: &mut Bencher) {
-    let mut context = many_entities();
+    let context = many_entities();
     let mut renderer = RenderContext::new();
 
     renderer.update(&context);

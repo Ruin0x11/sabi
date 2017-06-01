@@ -5,12 +5,8 @@ pub use infinigen::*;
 
 use calx_ecs::Entity;
 
-use logic::CommandResult;
-use graphics::cell::Cell;
-use data::{TurnOrder, Walkability};
-use point::Direction;
+use data::TurnOrder;
 use ecs::*;
-use ecs::prefab::*;
 use ecs::traits::*;
 use world::WorldPosition;
 use world::flags::Flags;
@@ -57,7 +53,6 @@ pub trait Query {
             && ecs.turns.has(e)
             && ecs.healths.has(e)
             && ecs.names.has(e)
-            && ecs.fovs.has(e)
     }
 
     /// Return mob (if any) at given position.

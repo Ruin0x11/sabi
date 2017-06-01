@@ -1,5 +1,5 @@
 use glium::glutin::VirtualKeyCode;
-use engine::keys::{Key, KeyCode};
+use engine::keys::KeyCode;
 
 impl From<VirtualKeyCode> for KeyCode {
     fn from(key: VirtualKeyCode) -> KeyCode {
@@ -65,10 +65,6 @@ impl From<VirtualKeyCode> for KeyCode {
             VirtualKeyCode::Numpad7  => KeyCode::NumPad7,
             VirtualKeyCode::Numpad8  => KeyCode::NumPad8,
             VirtualKeyCode::Numpad9  => KeyCode::NumPad9,
-            VirtualKeyCode::Up       => KeyCode::Up,
-            VirtualKeyCode::Down     => KeyCode::Down,
-            VirtualKeyCode::Left     => KeyCode::Left,
-            VirtualKeyCode::Right    => KeyCode::Right,
             VirtualKeyCode::Comma    => KeyCode::Comma,
             VirtualKeyCode::Period   => KeyCode::Period,
 

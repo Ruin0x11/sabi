@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry::*;
 use self::PropErr::*;
-use self::Prop::*;
 
 use calx_ecs::Entity;
 
@@ -151,6 +150,7 @@ make_get_set!(i64,  PropType::Num);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::Prop::*;
 
     #[test]
     fn test_set() {

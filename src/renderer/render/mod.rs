@@ -9,11 +9,10 @@ use glium::backend::glutin_backend::GlutinFacade;
 use glium::backend::Facade;
 use glium::index::PrimitiveType;
 
-use point::{Point, CircleIter, RectangleIter};
+use point::{Point, CircleIter};
 use renderer::interop::RenderUpdate;
 use renderer::ui::*;
 use util;
-use world::traits::Query;
 use GameContext;
 
 pub mod background;
@@ -74,7 +73,7 @@ pub struct RenderContext {
 }
 
 impl RenderContext {
-    pub fn new() -> Self{
+    pub fn new() -> Self {
         let display = glutin::WindowBuilder::new()
             .with_vsync()
             .with_dimensions(SCREEN_WIDTH, SCREEN_HEIGHT)
@@ -91,7 +90,7 @@ impl RenderContext {
             vis.insert(point);
         }
 
-        let shadow = ShadowMap::new(&display, RectangleIter::new(Point::new(0, 0), Point::new(20, 20)), vis);
+        let shadow = ShadowMap::new(&display);
 
         let sprite = SpriteMap::new(&display);
 
@@ -139,14 +138,7 @@ impl RenderContext {
         self.background.refresh_shaders(&self.backend);
     }
 
-    pub fn update_camera(&mut self, context: &GameContext) {
-        let camera = context.state.world.flags().camera;
-        self.viewport.camera = self.viewport.camera_viewport_pos(camera);
-    }
-
     pub fn update(&mut self, context: &GameContext) {
-        self.update_camera(context);
-
         self.tilemap.update(context, &self.viewport);
         self.spritemap.update(context, &self.viewport);
         self.shadowmap.update(context, &self.viewport);
@@ -159,18 +151,18 @@ impl RenderContext {
 
         let millis = self.accumulator.millis_since_start();
 
-        self.background.render(&self.backend, &mut target, &self.viewport, millis);
+        self.background.render(&self.backend, &mut target, &self.viewport);
 
         self.tilemap.redraw(&self.backend, millis);
-        self.tilemap.render(&self.backend, &mut target, &self.viewport, millis);
+        self.tilemap.render(&self.backend, &mut target, &self.viewport);
 
         self.spritemap.redraw(&self.backend, millis);
-        self.spritemap.render(&self.backend, &mut target, &self.viewport, millis);
+        self.spritemap.render(&self.backend, &mut target, &self.viewport);
 
         self.shadowmap.redraw(&self.backend, millis);
-        self.shadowmap.render(&self.backend, &mut target, &self.viewport, millis);
+        self.shadowmap.render(&self.backend, &mut target, &self.viewport);
 
-        self.ui.render(&self.backend, &mut target, &self.viewport, millis);
+        self.ui.render(&self.backend, &mut target, &self.viewport);
 
         target.finish().unwrap();
     }
@@ -230,7 +222,7 @@ impl RenderContext {
 }
 
 pub trait Renderable {
-    fn render<F, S>(&self, display: &F, target: &mut S, viewport: &Viewport, msecs: u64)
+    fn render<F, S>(&self, display: &F, target: &mut S, viewport: &Viewport)
         where F: glium::backend::Facade, S: glium::Surface;
 }
 

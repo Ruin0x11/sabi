@@ -1,4 +1,3 @@
-use world::traits::*;
 use terrain::traits::BoundedTerrain;
 
 use chunk::*;
