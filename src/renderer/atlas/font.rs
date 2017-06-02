@@ -142,9 +142,9 @@ impl FontTexture {
     pub fn wrap_text(&self, text: &str, wraplimit_px: u32) -> Vec<String> {
         let wraplimit_ems = wraplimit_px as f32 / self.font_size as f32;
 
-        let words: Vec<String> = text.split(" ").map(|s| s.to_string()).collect();
+        let words: Vec<String> = text.split(' ').map(|s| s.to_string()).collect();
 
-        if words.len() == 0 {
+        if words.is_empty() {
             return Vec::new();
         }
 
@@ -278,9 +278,9 @@ fn build_font_image<I>(font: rusttype::Font, characters_list: I, font_size: u32)
 
                 for x in 0 .. bitmap.width {
                     // the values in source are bytes between 0 and 255, but we want floats between 0 and 1
-                    let val: u8 = *source.get(x as usize).unwrap();
+                    let val: u8 = source[x as usize];
                     let val = (val as f32) / (std::u8::MAX as f32);
-                    let dest = destination.get_mut(x as usize).unwrap();
+                    let dest = &mut destination[x as usize];
                     *dest = val;
                 }
             }
@@ -313,7 +313,7 @@ fn build_font_image<I>(font: rusttype::Font, characters_list: I, font_size: u32)
 
     // now our texture is finished
     // we know its final dimensions, so we can divide all the pixels values into (0,1) range
-    assert!((texture_data.len() as u32 % texture_width) == 0);
+    assert_eq!((texture_data.len() as u32 % texture_width), 0);
     let texture_height = (texture_data.len() as u32 / texture_width) as f32;
     let float_texture_width = texture_width as f32;
     let mut characters_infos = characters_infos.into_iter().map(|mut chr| {
@@ -345,10 +345,10 @@ fn build_font_image<I>(font: rusttype::Font, characters_list: I, font_size: u32)
 fn get_nearest_po2(mut x: u32) -> u32 {
     assert!(x > 0);
     x -= 1;
-    x = x | (x >> 1);
-    x = x | (x >> 2);
-    x = x | (x >> 4);
-    x = x | (x >> 8);
-    x = x | (x >> 16);
+    x |= x >> 1;
+    x |= x >> 2;
+    x |= x >> 4;
+    x |= x >> 8;
+    x |= x >> 16;
     x + 1
 }

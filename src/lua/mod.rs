@@ -32,7 +32,7 @@ pub fn run_script_and_return<'a, 'lua, T>(lua: &'a mut Lua<'lua>,
     Ok(lua.get(var_name))
 }
 
-fn open_libs<'a>(lua: &'a mut Lua) -> Result<(), hlua::LuaError> {
+fn open_libs(lua: &mut Lua) -> Result<(), hlua::LuaError> {
     lua.openlibs();
 
     self::log::add_lua_interop(lua);

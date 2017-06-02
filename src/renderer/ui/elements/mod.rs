@@ -49,7 +49,7 @@ pub struct UiText {
 
 impl UiText {
     pub fn new(pos: (i32, i32), text: &str) -> Self {
-        let split = text.split("\n").map(|s| s.to_string()).collect::<Vec<String>>();
+        let split = text.split('\n').map(|s| s.to_string()).collect::<Vec<String>>();
         UiText {
             pos: pos,
             text_lines: split,
@@ -82,7 +82,7 @@ impl UiList {
         let mut text_items = Vec::new();
         for (idx, item) in items.into_iter().enumerate() {
             let pos = (pos.0 as i32 + 32, pos.1 as i32 + 32 + (item_height * idx as u32) as i32);
-            let text = UiText::new(pos, &item);
+            let text = UiText::new(pos, item);
             text_items.push(text);
         }
 

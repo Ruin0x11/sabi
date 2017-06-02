@@ -80,7 +80,7 @@ impl Prefab {
     pub fn set(&mut self, pt: &Point, val: Cell) {
         if self.in_bounds(pt) {
             let idx = self.index(pt);
-            let mut v = self.cells.get_mut(idx).unwrap();
+            let mut v = &mut self.cells[idx];
             *v = val;
         }
     }
@@ -88,7 +88,7 @@ impl Prefab {
     pub fn get(&self, pt: &Point) -> Cell {
         if self.in_bounds(pt) {
             let idx = self.index(pt);
-            self.cells.get(idx).unwrap().clone()
+            self.cells[idx]
         } else {
             cell::NOTHING
         }

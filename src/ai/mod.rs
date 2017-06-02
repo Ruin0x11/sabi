@@ -72,7 +72,7 @@ impl Ai {
     }
 
     pub fn get_next_action(&self) -> Option<AiAction> {
-        self.get_plan().first().map(|a| a.clone())
+        self.get_plan().first().cloned()
     }
 
     pub fn goal_finished(&self) -> bool {

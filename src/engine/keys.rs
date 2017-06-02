@@ -20,10 +20,7 @@ impl From<KeyCode> for Key {
 
 impl From<char> for Key {
     fn from(ch: char) -> Key {
-        let mut shift = false;
-        if ch.is_uppercase() {
-            shift = true;
-        }
+        let shift = ch.is_uppercase();
 
         let keycode = KeyCode::from(ch); // Or unknown
 

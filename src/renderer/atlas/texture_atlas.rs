@@ -44,11 +44,11 @@ impl<'a> TextureAtlasBuilder<'a> {
     pub fn add_texture(&'a mut self, texture_name: &str) -> &'a mut Self {
         let path_str = format!("data/texture/{}.png", &texture_name);
         let path = Path::new(&path_str);
-        let texture = ImageImporter::import_from_file(&path).unwrap();
+        let texture = ImageImporter::import_from_file(path).unwrap();
 
         self.packer.pack_own(path_str.to_string(), texture).unwrap();
 
-        let rect = self.packer.get_frame(&path_str).unwrap().frame.clone();
+        let rect = self.packer.get_frame(&path_str).unwrap().frame;
         self.frames.insert(texture_name.to_string(), rect);
 
         self
@@ -77,6 +77,6 @@ impl TextureAtlas {
     }
 
     pub fn get_texture_area(&self, key: &str) -> &AtlasRect {
-        self.frames.get(key).unwrap()
+        &self.frames[key]
     }
 }

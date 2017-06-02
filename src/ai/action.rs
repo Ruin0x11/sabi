@@ -2,7 +2,7 @@ use calx_ecs::Entity;
 
 use ecs::traits::*;
 use point::Direction;
-use logic::Action;
+use logic::{self, Action};
 use data::Walkability;
 use point::Path;
 use world::traits::*;
@@ -16,14 +16,14 @@ pub fn wander(_entity: Entity, _world: &EcsWorld) -> Action {
 }
 
 pub fn swing_at(entity: Entity, world: &EcsWorld) -> Action {
-    let ref ais = world.ecs().ais;
+    let ais = &world.ecs().ais;
     let ai = ais.get_or_err(entity);
 
     Action::SwingAt(ai.target.borrow().unwrap())
 }
 
 pub fn move_closer(entity: Entity, world: &EcsWorld) -> Action {
-    let ref ais = world.ecs().ais;
+    let ais = &world.ecs().ais;
     let ai = ais.get_or_err(entity);
 
     let target = ai.target.borrow().unwrap();
@@ -32,7 +32,7 @@ pub fn move_closer(entity: Entity, world: &EcsWorld) -> Action {
     let my_pos = world.position(entity).unwrap();
     let target_pos = world.position(target).unwrap();
 
-    assert!(world.can_see(entity, target_pos), "Entity can't see target!");
+    assert!(logic::entity::has_los(entity, target_pos, world), "Entity can't see target!");
 
     if my_pos.is_next_to(target_pos) {
         return Action::Move(Direction::from_neighbors(my_pos, target_pos).unwrap());

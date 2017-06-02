@@ -42,7 +42,7 @@ pub fn write_tile_atlas_config(config: &TileAtlasConfig, config_name: &str) {
 
     let data = bincode::serialize(config, bincode::Infinite).unwrap();
     let mut file = File::create(path).unwrap();
-    file.write(data.as_slice()).unwrap();
+    file.write_all(data.as_slice()).unwrap();
 }
 
 fn hash_str(s: &str) -> String {
@@ -81,13 +81,10 @@ impl TileAtlas {
         let cached_texture_path = format!("{}/*.png", get_config_cache_path(packed_folder).display());
 
         for entry in glob::glob(&cached_texture_path).unwrap() {
-            match entry {
-                Ok(path) => {
-                    let image = image::open(&path).unwrap();
-                    let texture = make_texture(display, image);
-                    textures.push(texture);
-                },
-                Err(..) => (),
+            if let Ok(path) = entry {
+                let image = image::open(&path).unwrap();
+                let texture = make_texture(display, image);
+                textures.push(texture);
             }
         }
 
@@ -109,8 +106,8 @@ impl TileAtlas {
         };
 
         for map in maps.iter() {
-            let name: String = util::toml::expect_value_in_table(&map, "name");
-            let tile_size: [u32; 2] = util::toml::expect_value_in_table(&map, "tile_size");
+            let name: String = util::toml::expect_value_in_table(map, "name");
+            let tile_size: [u32; 2] = util::toml::expect_value_in_table(map, "tile_size");
             let file_path = format!("data/texture/{}", name);
             println!("Load: {}", file_path);
             builder.add_frame(&file_path, (tile_size[0], tile_size[1]));
@@ -122,15 +119,15 @@ impl TileAtlas {
         };
 
         for tile in tiles.iter() {
-            let name: String = util::toml::expect_value_in_table(&tile, "name");
+            let name: String = util::toml::expect_value_in_table(tile, "name");
 
-            let atlas: String = util::toml::expect_value_in_table(&tile, "atlas");
-            let offset: [u32; 2] = util::toml::expect_value_in_table(&tile, "offset");
-            let is_autotile: bool = util::toml::expect_value_in_table(&tile, "is_autotile");
-            let tile_kind = match util::toml::get_value_in_table(&tile, "anim_frames") {
+            let atlas: String = util::toml::expect_value_in_table(tile, "atlas");
+            let offset: [u32; 2] = util::toml::expect_value_in_table(tile, "offset");
+            let is_autotile: bool = util::toml::expect_value_in_table(tile, "is_autotile");
+            let tile_kind = match util::toml::get_value_in_table(tile, "anim_frames") {
                 Some(anim_frames) => {
                     let anim_frames = anim_frames.clone().try_into().unwrap();
-                    let anim_delay = util::toml::expect_value_in_table(&tile, "anim_delay");
+                    let anim_delay = util::toml::expect_value_in_table(tile, "anim_delay");
                     TileKind::Animated(anim_frames, anim_delay)
                 },
                 None => TileKind::Static,

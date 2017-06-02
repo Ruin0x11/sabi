@@ -51,3 +51,9 @@ name="stairs_up"
 atlas="map.png"
 offset=[0, 3]
 is_autotile=false
+
+[[tiles]]
+name="table"
+atlas="map.png"
+offset=[0, 6]
+is_autotile=true

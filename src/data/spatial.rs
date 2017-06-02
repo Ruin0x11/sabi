@@ -27,47 +27,44 @@ impl Spatial {
         }
     }
 
-    fn insert(&mut self, e: Entity, p: Place) {
+    fn insert(&mut self, entity: Entity, place: Place) {
         // Remove the entity from its old position.
-        self.single_remove(e);
+        self.single_remove(entity);
 
-        self.entity_to_place.insert(e, p);
-        match self.place_to_entities.get_mut(&p) {
-            Some(v) => {
-                v.push(e);
-                return;
-            }
-            _ => (),
+        self.entity_to_place.insert(entity, place);
+        if let Some(entities) = self.place_to_entities.get_mut(&place) {
+            entities.push(entity);
+            return;
         };
         // Didn't return above, that means this location isn't indexed
         // yet and needs a brand new container. (Can't do this in match
         // block because borrows.)
-        self.place_to_entities.insert(p, vec![e]);
+        self.place_to_entities.insert(place, vec![entity]);
     }
 
     /// Insert an entity into space.
-    pub fn insert_at(&mut self, e: Entity, loc: Point) { self.insert(e, At(loc)); }
+    pub fn insert_at(&mut self, entity: Entity, loc: Point) { self.insert(entity, At(loc)); }
 
     /// Remove an entity from the local structures but do not pop out its
     /// items. Unless the entity is added back in or the contents are handled
     /// somehow, this will leave the spatial index in an inconsistent state.
-    fn single_remove(&mut self, e: Entity) {
-        if !self.entity_to_place.contains_key(&e) {
+    fn single_remove(&mut self, entity: Entity) {
+        if !self.entity_to_place.contains_key(&entity) {
             return;
         }
 
-        let &p = self.entity_to_place.get(&e).unwrap();
-        self.entity_to_place.remove(&e);
+        let &place = &self.entity_to_place[&entity];
+        self.entity_to_place.remove(&entity);
 
         {
-            let v = self.place_to_entities.get_mut(&p).unwrap();
-            assert!(v.len() > 0);
-            if v.len() > 1 {
+            let entities = self.place_to_entities.get_mut(&place).unwrap();
+            assert!(!entities.is_empty());
+            if entities.len() > 1 {
                 // More than one entity present, remove this one, keep the
                 // rest.
-                for i in 0..v.len() {
-                    if v[i] == e {
-                        v.swap_remove(i);
+                for i in 0..entities.len() {
+                    if entities[i] == entity {
+                        entities.swap_remove(i);
                         return;
                     }
                 }
@@ -76,12 +73,12 @@ impl Spatial {
                 // This was the only entity in the location.
                 // Drop the entry for this location from the index.
                 // (Need to drop out of scope for borrows reasons)
-                assert!((*v)[0] == e);
+                assert_eq!((*entities)[0],  entity);
             }
         }
         // We only end up here if we need to clear the container for the
         // location.
-        self.place_to_entities.remove(&p);
+        self.place_to_entities.remove(&place);
     }
 
     /// Remove an entity from the space. Entities contained in the entity will
@@ -99,11 +96,8 @@ impl Spatial {
             return;
         }
 
-        match self.get(e) {
-            Some(At(pos)) => {
-                self.insert(e, Unloaded(pos));
-            },
-            _ => (),
+        if let Some(At(pos)) = self.get(e) {
+            self.insert(e, Unloaded(pos));
         }
     }
 
@@ -112,11 +106,8 @@ impl Spatial {
             return;
         }
 
-        match self.get(e) {
-            Some(Unloaded(pos)) => {
-                self.insert(e, At(pos));
-            },
-            _ => (),
+        if let Some(Unloaded(pos)) = self.get(e) {
+            self.insert(e, At(pos));
         }
     }
 
@@ -148,15 +139,15 @@ impl Spatial {
         // whole collection for every query.
         self.place_to_entities
             .iter()
-            .filter(|&(ref k, _)| { if let &&In(ref p) = k { *p == parent } else { false } })
-            .flat_map(|(_, ref v)| v.iter())
-            .map(|&x| x)
+            .filter(|&(k, _)| { if let &In(p) = k { p == parent } else { false } })
+            .flat_map(|(_, v)| v.iter())
+            .cloned()
             .collect()
     }
 
     /// Return the place of an entity if the entity is present in the space.
     pub fn get(&self, e: Entity) -> Option<Place> {
-        self.entity_to_place.get(&e).map(|&loc| loc)
+        self.entity_to_place.get(&e).cloned()
     }
 
     /// Flatten to an easily serializable vector.
@@ -224,11 +215,11 @@ mod test {
         places.sort();
         assert_eq!(places,
                    vec![
-                Place::In(e1, None),
-                Place::In(e1, Some(Slot::Melee)),
-                Place::In(e1, Some(Slot::Ranged)),
-                Place::In(e2, None),
-            ]);
+                       Place::In(e1, None),
+                       Place::In(e1, Some(Slot::Melee)),
+                       Place::In(e1, Some(Slot::Ranged)),
+                       Place::In(e2, None),
+                   ]);
     }
 
     #[test]
@@ -246,9 +237,9 @@ mod test {
         // spatial.insert(e2, p2);
 
         let saved = bincode::serialize(&spatial, bincode::Infinite)
-                        .expect("Spatial serialization failed");
+            .expect("Spatial serialization failed");
         let spatial2: Spatial = bincode::deserialize(&saved)
-                           .expect("Spatial deserialization failed");
+            .expect("Spatial deserialization failed");
 
         assert_eq!(spatial2.get(e1), Some(p1));
         // assert_eq!(spatial2.get(e2), Some(p2));

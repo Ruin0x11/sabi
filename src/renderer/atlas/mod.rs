@@ -133,12 +133,12 @@ impl <'a> TileAtlasBuilder<'a> {
         }
 
         let path = Path::new(&path_string);
-        let texture = ImageImporter::import_from_file(&path).unwrap();
+        let texture = ImageImporter::import_from_file(path).unwrap();
 
         for (idx, packer) in self.packers.iter_mut().enumerate() {
             if packer.can_pack(&texture) {
                 packer.pack_own(path_string.to_string(), texture).unwrap();
-                let rect = packer.get_frame(&path_string).unwrap().frame.clone();
+                let rect = packer.get_frame(path_string).unwrap().frame;
                 self.frames.insert(path_string.to_string(), AtlasFrame::new(idx, rect, tile_size));
                 // cannot return self here, since self already borrowed, so
                 // cannot use builder pattern.
@@ -153,9 +153,9 @@ impl <'a> TileAtlasBuilder<'a> {
             // len mut packer = self.newest_packer_mut();
 
             let packer_idx = self.packers.len() - 1;
-            let mut packer = self.packers.get_mut(packer_idx).unwrap();
+            let mut packer = &mut self.packers[packer_idx];
             packer.pack_own(path_string.to_string(), texture).unwrap();
-            let rect = packer.get_frame(&path_string).unwrap().frame.clone();
+            let rect = packer.get_frame(&path_string).unwrap().frame;
             self.frames.insert(path_string.to_string(), AtlasFrame::new(packer_idx, rect, tile_size));
         }
     }
@@ -258,12 +258,12 @@ impl TileAtlas {
     }
 
     fn texture_size(&self, texture_idx: usize) -> (u32, u32) {
-        self.textures.get(texture_idx).unwrap().dimensions()
+        self.textures[texture_idx].dimensions()
     }
 
     fn get_frame(&self, tile_type: &str) -> &AtlasFrame {
-        let tex_name = self.config.locations.get(tile_type).unwrap();
-        self.config.frames.get(tex_name).unwrap()
+        let tex_name = &self.config.locations[tile_type];
+        &self.config.frames[tex_name]
     }
 
     pub fn get_tile_texture_idx(&self, tile_type: &str) -> usize {
@@ -283,13 +283,13 @@ impl TileAtlas {
         let frame = self.get_frame(tile_type);
         let (mut sx, mut sy) = frame.tile_size;
 
-        if frame.offsets.get(tile_type).unwrap().data.is_autotile {
+        if frame.offsets[tile_type].data.is_autotile {
             // divide the autotile into 24x24 from 48x48
             sx /= 2;
             sy /= 2;
         }
 
-        let dimensions = self.frame_size(&frame);
+        let dimensions = self.frame_size(frame);
 
         let cols: f32 = dimensions.0 as f32 / sx as f32;
         let rows: f32 = dimensions.1 as f32 / sy as f32;
@@ -302,9 +302,9 @@ impl TileAtlas {
 
     pub fn get_texture_offset(&self, tile_type: &str, msecs: u64) -> (f32, f32) {
         let frame = self.get_frame(tile_type);
-        let tile = frame.offsets.get(tile_type).unwrap();
+        let tile = &frame.offsets[tile_type];
 
-        let (mut tx, ty, tw, _) = tile.cached_rect.borrow().clone()
+        let (mut tx, ty, tw, _) = tile.cached_rect.borrow()
             .expect("Texture atlas regions weren't cached yet.");
 
         match tile.data.tile_kind {
@@ -325,7 +325,7 @@ impl TileAtlas {
     }
 
     fn get_tile_kind_indexed(&self, tile_idx: usize) -> &String {
-        self.indices.get(tile_idx).unwrap()
+        &self.indices[tile_idx]
     }
 
     pub fn get_texture_offset_indexed(&self, tile_idx: usize, msecs: u64) -> (f32, f32) {
@@ -334,7 +334,7 @@ impl TileAtlas {
     }
 
     pub fn get_texture(&self, idx: usize) -> &Texture2d {
-        self.textures.get(idx).unwrap()
+        &self.textures[idx]
     }
 
     pub fn passes(&self) -> usize {

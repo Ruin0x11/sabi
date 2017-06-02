@@ -5,7 +5,7 @@ use point::Point;
 use renderer::atlas::*;
 use renderer::render::{self, Renderable, Viewport, Vertex};
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 struct Instance {
     tile_idx: usize,
     map_coord: [u32; 2],
@@ -17,7 +17,7 @@ struct Instance {
 implement_vertex!(Instance, map_coord, tex_offset, tex_ratio, sprite_size);
 
 pub struct SpriteMap {
-    sprites: Vec<(DrawSprite, Point)>,
+    sprites: Vec<(DrawSprite, (u32, u32))>,
 
     indices: glium::IndexBuffer<u16>,
     vertices: glium::VertexBuffer<Vertex>,
@@ -65,8 +65,9 @@ impl SpriteMap {
                     let texture_idx = self.tile_atlas.get_tile_texture_idx(&sprite.kind);
                     texture_idx == pass
                 })
-                .map(|&(ref sprite, c)| {
-                    let (x, y) = (c.x, c.y);
+                .map(|&(ref sprite, pos)| {
+                    let (x, y) = pos;
+
                     let (tx, ty) = self.tile_atlas.get_texture_offset(&sprite.kind, msecs);
                     let (sx, sy) = self.tile_atlas.get_tile_texture_size(&sprite.kind);
                     let tex_ratio = self.tile_atlas.get_sprite_tex_ratio(&sprite.kind);
@@ -78,7 +79,7 @@ impl SpriteMap {
                     let tile_idx = self.tile_atlas.get_tile_index(&sprite.kind);
 
                     Instance { tile_idx: tile_idx,
-                               map_coord: [x as u32, y as u32],
+                               map_coord: [x, y],
                                tex_offset: [tx, ty],
                                tex_ratio: tex_ratio,
                                sprite_size: [sx, sy], }
@@ -89,7 +90,7 @@ impl SpriteMap {
         self.instances = instances;
     }
 
-    fn update_instances(&mut self, msecs:u64) {
+    fn update_instances(&mut self, msecs: u64) {
         for buffer in self.instances.iter_mut() {
             for instance in buffer.map().iter_mut() {
                 let (tx, ty) = self.tile_atlas.get_texture_offset_indexed(instance.tile_idx, msecs);
@@ -124,7 +125,7 @@ impl<'a> Renderable for SpriteMap {
                 .. Default::default()
             };
 
-            let instances = self.instances.get(pass).unwrap();
+            let instances = &self.instances[pass];
 
             target.draw((&self.vertices, instances.per_instance().unwrap()),
                         &self.indices,
@@ -140,18 +141,34 @@ use world::traits::Query;
 use GameContext;
 use renderer::interop::RenderUpdate;
 
-fn make_sprites(world: &EcsWorld, viewport: &Viewport) -> Vec<(DrawSprite, Point)> {
+fn tile_in_viewport(viewport: &Viewport, camera: Point, tile: Point) -> bool {
+    let min: Point = viewport.min_tile_pos(camera).into();
+    let max: Point = viewport.max_tile_pos(camera).into();
+
+    min <= tile && max > tile
+}
+
+fn make_sprites(world: &EcsWorld, viewport: &Viewport) -> Vec<(DrawSprite, (u32, u32))> {
     let mut res = Vec::new();
     let camera = world.flags().camera;
-    let start_corner: Point = viewport.camera_tile_pos(camera).into();
+    let start_corner: Point = viewport.min_tile_pos(camera).into();
 
     for entity in world.entities() {
         if let Some(pos) = world.position(*entity) {
+            if !tile_in_viewport(viewport, camera, pos) {
+                continue;
+            }
+
             if let Some(appearance) = world.ecs().appearances.get(*entity) {
                 let sprite = DrawSprite {
                     kind: appearance.kind.clone()
                 };
-                res.push((sprite, pos - start_corner));
+
+                // Translate from world tilespace to screen tilespace (where
+                // (0, 0) is the upper-left corner)
+                let new_pos = pos - start_corner;
+
+                res.push((sprite, (new_pos.x as u32, new_pos.y as u32)));
             }
         }
     }
@@ -164,7 +181,7 @@ impl RenderUpdate for SpriteMap {
     }
 
     fn update(&mut self, context: &GameContext, viewport: &Viewport) {
-        let ref world = context.state.world;
+        let world = &context.state.world;
         self.sprites = make_sprites(world, viewport);
         self.valid = false;
     }

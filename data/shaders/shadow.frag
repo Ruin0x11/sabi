@@ -1,7 +1,9 @@
 #version 150
 
-out lowp vec4 color;
+in vec4 v_Color;
+
+out lowp vec4 out_color;
 
 void main() {
-  color = vec4(0.0, 0.0, 0.0, 0.5);
+  out_color = v_Color;
 }

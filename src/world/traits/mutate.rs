@@ -44,9 +44,9 @@ pub trait Mutate: Query + Sized {
 
     fn do_fov(&mut self, e: Entity);
 
-    fn ecs_mut<'a>(&'a mut self) -> &'a mut Ecs;
+    fn ecs_mut(&mut self) -> &mut Ecs;
 
-    fn flags_mut<'a>(&'a mut self) -> &'a mut Flags;
+    fn flags_mut(&mut self) -> &mut Flags;
 
     fn spawn(&mut self, loadout: &Loadout, pos: Point) -> Entity;
     fn create(&mut self, prefab: Prefab, pos: Point) -> Entity {

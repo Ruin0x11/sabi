@@ -1,5 +1,6 @@
 mod action;
 pub mod command;
+pub mod entity;
 
 pub use self::action::Action;
 pub use self::command::{Command, CommandResult};

@@ -32,7 +32,7 @@ fn generate_blank(cell: Cell) -> Chunk {
 
     for _ in 0..(CHUNK_WIDTH) {
         for _ in 0..(CHUNK_WIDTH) {
-            cells.push(cell.clone());
+            cells.push(cell);
         }
     }
 
@@ -62,7 +62,7 @@ fn generate_perlin(index: &ChunkIndex, seed: u32) -> Chunk {
             let res = gen.get([conv(ay, -ax), conv(ax, ay), az]);
 
             if res < 0.02 {
-                cells.push(cell::WALL);
+                cells.push(cell::TABLE);
             } else if res < 0.4 {
                 cells.push(cell::SAND);
             } else if res < 0.7 {

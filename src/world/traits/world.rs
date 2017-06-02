@@ -19,6 +19,10 @@ pub trait WorldQuery {
     /// contained in the terrain structure.
     fn pos_loaded(&self, pos: &Point) -> bool;
 
+    /// Returns true if it is possible to see past the tile for the purpose of
+    /// FOV/line of sight.
+    fn light_passes_through(&self, pos: &Point) -> bool;
+
     fn with_cells<F>(&self, top_left: Point,
                      dimensions: Point,
                      callback: F)
@@ -38,6 +42,10 @@ impl WorldQuery for EcsWorld {
 
     fn pos_loaded(&self, pos: &Point) -> bool {
         self.terrain.pos_loaded(pos)
+    }
+
+    fn light_passes_through(&self, pos: &Point) -> bool {
+        self.cell_const(&pos).map_or(false, |c| c.can_see_through())
     }
 
     fn with_cells<F>(&self, top_left: Point,
@@ -105,7 +113,7 @@ impl EcsWorld {
         let stairs_in = self.terrain.stairs_in.clone();
         debug!(self.logger, "{:?}", stairs_in);
         for pos in stairs_in.iter() {
-            if let Some(_) = self.cell(&pos) {
+            if self.cell(pos).is_some() {
                 return Some(*pos)
             }
         }

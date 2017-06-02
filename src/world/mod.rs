@@ -32,6 +32,7 @@ use prefab::{self, PrefabMarker};
 use terrain::Terrain;
 use terrain::traits::*;
 use terrain::regions::Regions;
+use util::fov;
 
 pub type MapId = u32;
 pub type WorldPosition = Point;
@@ -80,16 +81,6 @@ impl EcsWorld {
         }
     }
 
-    // fn cell_mut(&mut self, pos: &WorldPosition) -> Option<&mut Cell> {
-    //     let index = ChunkIndex::from(*pos);
-
-    //     if !self.terrain.chunk_loaded(&index) {
-    //         self.load_chunk(&index).unwrap();
-    //         self.terrain_mut().regions_mut().notify_chunk_creation(&index);
-    //     }
-    //     self.terrain.cell_mut(pos)
-    // }
-
     pub fn from_prefab(name: &str, seed: u32, id: u32) -> EcsWorld {
         let prefab = lua::with_mut(|l| prefab::map_from_prefab(l, name)).unwrap();
         let mut world = EcsWorld::new(Bounds::Bounded(prefab.width(), prefab.height()), ChunkType::Blank, seed, id);
@@ -101,7 +92,7 @@ impl EcsWorld {
                 *cell_mut = *cell;
             }
             {
-                let cellb = world.cell_const(&pos).clone();
+                let cellb = world.cell_const(&pos);
                 debug!(world.logger, "{}: {:?}, {:?}", pos, cell.type_, cellb);
             }
         }
@@ -155,7 +146,7 @@ impl Query for EcsWorld {
         for e in self.entities() {
             if let Some(pos) = self.position(*e) {
                 if ChunkIndex::from_world_pos(pos) == *index {
-                    result.push(e.clone());
+                    result.push(*e);
                 }
             }
         }
@@ -167,7 +158,7 @@ impl Query for EcsWorld {
         for (e, p) in self.spatial.iter() {
             if let Place::Unloaded(pos) = *p {
                 if ChunkIndex::from_world_pos(pos) == *index {
-                    result.push(e.clone());
+                    result.push(*e);
                 }
             }
         }
@@ -187,7 +178,7 @@ impl Query for EcsWorld {
         for entity in self.entities() {
             if let Some(pos) = self.position(*entity) {
                 if self.can_see(viewer, pos) && *entity != viewer {
-                    seen.push(entity.clone());
+                    seen.push(*entity);
                 }
             }
         }
@@ -200,11 +191,11 @@ impl Query for EcsWorld {
 
     fn entities_at(&self, loc: WorldPosition) -> Vec<Entity> { self.spatial.entities_at(loc) }
 
-    fn ecs<'a>(&'a self) -> &'a Ecs { &self.ecs_ }
+    fn ecs(&self) -> &Ecs { &self.ecs_ }
 
-    fn flags<'a>(&'a self) -> &'a Flags { &self.flags }
+    fn flags(&self) -> &Flags { &self.flags }
 
-    fn turn_order<'a>(&'a self) -> &'a TurnOrder { &self.turn_order }
+    fn turn_order(&self) -> &TurnOrder { &self.turn_order }
 }
 
 impl Mutate for EcsWorld {
@@ -230,9 +221,9 @@ impl Mutate for EcsWorld {
 
     fn remove_entity(&mut self, e: Entity) { self.ecs_.remove(e); }
 
-    fn ecs_mut<'a>(&'a mut self) -> &'a mut Ecs { &mut self.ecs_ }
+    fn ecs_mut(&mut self) -> &mut Ecs { &mut self.ecs_ }
 
-    fn flags_mut<'a>(&'a mut self) -> &'a mut Flags { &mut self.flags }
+    fn flags_mut(&mut self) -> &mut Flags { &mut self.flags }
 
     fn move_entity(&mut self, e: Entity, dir: Direction) -> CommandResult {
         let loc = try!(self.position(e).ok_or(())) + dir;
@@ -248,18 +239,26 @@ impl Mutate for EcsWorld {
         self.turn_order.next()
     }
 
-    fn do_fov(&mut self, _e: Entity) {
-        // if !self.ecs().fovs.has(e) {
-        //     return;
-        // }
+    fn do_fov(&mut self, e: Entity) {
+        if !self.ecs().fovs.has(e) {
+            return;
+        }
 
-        // if let Some(ref center) = self.position(e) {
-        //     const FOV_RADIUS: i32 = 12;
+        // because FOV is so expensive, monster detection is done
+        // through checking for LOS only.
+        if !self.is_player(e) {
+            return;
+        }
 
-        //     let ref mut fov = self.ecs_.fovs[e];
+        if let Some(center) = self.position(e) {
+            const FOV_RADIUS: i32 = 7;
 
-        //     fov.update(&self.terrain, center, FOV_RADIUS);
-        // }
+            let visible = fov::bresenham_fast(self, center, FOV_RADIUS);
+
+            let mut fov = &mut self.ecs_.fovs[e];
+            fov.visible = visible;
+
+        }
     }
 
     fn spawn(&mut self, loadout: &Loadout, pos: WorldPosition) -> Entity {
@@ -331,7 +330,7 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
 
     fn load_chunk_internal(&mut self, chunk: SerialChunk, index: &ChunkIndex) -> Result<(), SerialError> {
         debug!(self.logger, "LOAD CHUNK: {}", index);
-        self.terrain.insert_chunk(index.clone(), chunk.chunk);
+        self.terrain.insert_chunk(*index, chunk.chunk);
 
         let entities = self.frozen_in_chunk(index);
         for e in entities {
@@ -374,10 +373,10 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
 
     fn generate_chunk(&mut self, index: &ChunkIndex) -> SerialResult<()> {
         debug!(self.logger, "GEN: {} {:?} reg: {}, map: {}", index, self.chunk_type, self.terrain.id, self.flags().map_id);
-        self.terrain.insert_chunk(index.clone(), self.chunk_type.generate(index, self.flags.seed()));
+        self.terrain.insert_chunk(*index, self.chunk_type.generate(index, self.flags.seed()));
 
         let chunk_pos = ChunkPosition::from(Point::new(0, 0));
-        let cell_pos = Chunk::world_position_at(&index, &chunk_pos);
+        let cell_pos = Chunk::world_position_at(index, &chunk_pos);
         if self.can_walk(cell_pos, Walkability::MonstersBlocking) {
             self.create(::ecs::prefab::mob("Putit", 10, "putit"),
                         cell_pos);

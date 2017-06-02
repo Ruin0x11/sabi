@@ -87,12 +87,10 @@ fn get_autotile_index(edges: u8, quadrant: i8) -> i8 {
             tiles[1]
         } else if is_connected(horiz) && !is_connected(vert) {
             tiles[2]
+        } else if !is_connected(corner) {
+            corner_piece
         } else {
-            if !is_connected(corner) {
-                corner_piece
-            } else {
-                tiles[3]
-            }
+            tiles[3]
         }
     };
 
@@ -154,7 +152,7 @@ impl TileMap {
 
                         let autotile_index = get_autotile_index(tile.edges, quadrant);
 
-                        let tile_idx = self.tile_atlas.get_tile_index(&tile.kind);
+                        let tile_idx = self.tile_atlas.get_tile_index(tile.kind);
 
                         res.push(Instance { tile_idx: tile_idx,
                                             map_coord: [x, y],
@@ -202,7 +200,7 @@ impl<'a> Renderable for TileMap {
                 tex_ratio: tex_ratio,
             };
 
-            let instances = self.instances.get(pass).unwrap();
+            let instances = &self.instances[pass];
 
             let params = glium::DrawParameters {
                 blend: glium::Blend::alpha_blending(),
@@ -240,7 +238,7 @@ fn get_neighboring_edges(world: &EcsWorld, pos: Point, cell_type: CellType) -> u
 fn make_map(world: &EcsWorld, viewport: &Viewport) -> Vec<(DrawTile, Point)> {
     let mut res = Vec::new();
     let camera = world.flags().camera;
-    let start_corner = viewport.camera_tile_pos(camera).into();
+    let start_corner = viewport.min_tile_pos(camera).into();
     world.with_cells(start_corner, Viewport::renderable_area().into(), |pos, &cell| {
         let tile = DrawTile {
             kind: cell.glyph(),
@@ -265,7 +263,7 @@ impl RenderUpdate for TileMap {
     }
 
     fn update(&mut self, context: &GameContext, viewport: &Viewport) {
-        let ref world = context.state.world;
+        let world = &context.state.world;
         self.tiles = make_map(world, viewport);
         self.valid = false;
     }

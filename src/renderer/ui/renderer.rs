@@ -47,7 +47,7 @@ impl UiDrawList {
         }
 
         let should_merge = {
-            let last = self.commands.get(self.commands.len() - 1).unwrap();
+            let last = &self.commands[self.commands.len() - 1];
             last.is_text == cmd.is_text && last.clip_rect == cmd.clip_rect
         };
 
@@ -269,19 +269,19 @@ impl UiRenderer {
             UiVertex { pos: [sxa as f32, sya as f32],
                        tex_coords: [tex_coords.x1,
                                     tex_coords.y1],
-                       color: color.clone() },
+                       color: color },
             UiVertex { pos: [sxa as f32, syb as f32],
                        tex_coords: [tex_coords.x1,
                                     tex_coords.y2],
-                       color: color.clone() },
+                       color: color },
             UiVertex { pos: [sxb as f32, syb as f32],
                        tex_coords: [tex_coords.x2,
                                     tex_coords.y2],
-                       color: color.clone() },
+                       color: color },
             UiVertex { pos: [sxb as f32, sya as f32],
                        tex_coords: [tex_coords.x2,
                                     tex_coords.y1],
-                       color: color.clone() },
+                       color: color },
         ];
 
         let next_indices = |i| vec![i, i+1, i+2, i, i+2, i+3];
@@ -334,7 +334,9 @@ impl UiRenderer {
         let shadow_pos = (screen_pos.0 + 1, screen_pos.1 + 1);
         let color = self.get_color();
 
-        self.add_string(shadow_pos, clipping_rect, text);
+        self.with_color((0, 0, 0, 255), |r| {
+            r.add_string(shadow_pos, clipping_rect, text);
+        });
         self.with_color(color, |r| {
             r.add_string(screen_pos, clipping_rect, text);
         });
@@ -343,7 +345,7 @@ impl UiRenderer {
     pub fn add_string(&mut self, screen_pos: (i32, i32),
                       clipping_rect: Option<(u32, u32, u32, u32)>,
                       text: &str) {
-        if text.len() == 0 {
+        if text.is_empty() {
             return;
         }
         let color = self.get_color();

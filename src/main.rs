@@ -137,5 +137,5 @@ fn game_loop() {
     });
 
     world::serial::save_world(&mut context.state.world).unwrap();
-    world::serial::save_manifest(&mut context.state.world).unwrap();
+    world::serial::save_manifest(&context.state.world).unwrap();
 }

@@ -33,10 +33,19 @@ impl Viewport {
 
     /// Returns the tile position of the upper-left corner of the viewport with
     /// the given camera coordinates.
-    pub fn camera_tile_pos<I: Into<(i32, i32)>>(&self, camera: I) -> (i32, i32) {
+    pub fn min_tile_pos<I: Into<(i32, i32)>>(&self, camera: I) -> (i32, i32) {
         let camera = camera.into();
         let (vw, vh) = self.visible_area();
         (camera.0 - (vw as i32 / 2), camera.1 - (vh as i32 / 2))
+    }
+
+    /// Returns the tile position of the bottom-right corner of the viewport
+    /// with the given camera coordinates.
+    pub fn max_tile_pos<I: Into<(i32, i32)>>(&self, camera: I) -> (i32, i32) {
+        let c = self.min_tile_pos(camera);
+        let v = Viewport::renderable_area();
+
+        (c.0 + v.0, c.1 + v.1)
     }
 
     fn make_subarea(&self, area: (u32, u32, u32, u32)) -> RendererSubarea {

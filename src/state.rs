@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 
 use calx_ecs::Entity;
+use rand::{self, Rng};
 
 use ::GameContext;
 use ai;
@@ -21,8 +22,9 @@ pub struct GameState {
 
 impl GameState {
     pub fn new() -> Self {
+        let seed = rand::thread_rng().next_u32();
         GameState {
-            world: EcsWorld::new(Bounds::Unbounded, ChunkType::Perlin, 1, 0),
+            world: EcsWorld::new(Bounds::Unbounded, ChunkType::Perlin, seed, 0),
             action_queue: VecDeque::new(),
         }
     }
@@ -48,7 +50,7 @@ fn draw_overlays(world: &mut EcsWorld) {
 fn show_messages(world: &mut EcsWorld) {
 }
 
-fn run_action_queue<'a>(context: &'a mut GameContext) {
+fn run_action_queue(context: &mut GameContext) {
     while let Some(action) = context.state.action_queue.pop_front() {
         context.state.player_action(action)
     }

@@ -75,9 +75,9 @@ impl TurnOrder {
 
     pub fn remove(&mut self, id: Entity) -> TurnOrderResult<()> {
         let res = self.active.remove(&id);
-        if let None = res {
-            let res = self.paused.remove(&id);
-            if let None = res {
+        if res.is_none() {
+            let paused = self.paused.remove(&id);
+            if paused.is_none() {
                 return Err(NoSuchEntity);
             }
         }
@@ -128,7 +128,7 @@ impl TurnOrder {
 impl Iterator for TurnOrder {
     type Item = Entity;
     fn next(&mut self) -> Option<Entity> {
-        if self.active.len() == 0 {
+        if self.active.is_empty() {
             return None;
         }
 

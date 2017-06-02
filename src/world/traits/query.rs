@@ -5,9 +5,11 @@ pub use infinigen::*;
 
 use calx_ecs::Entity;
 
+use chunk::ChunkIndex;
 use data::TurnOrder;
 use ecs::*;
 use ecs::traits::*;
+use terrain::traits::*;
 use world::WorldPosition;
 use world::flags::Flags;
 
@@ -31,11 +33,11 @@ pub trait Query {
 
     fn frozen_in_chunk(&self, index: &ChunkIndex) -> Vec<Entity>;
 
-    fn ecs<'a>(&'a self) -> &'a Ecs;
+    fn ecs(&self) -> &Ecs;
 
-    fn flags<'a>(&'a self) -> &'a Flags;
+    fn flags(&self) -> &Flags;
 
-    fn turn_order<'a>(&'a self) -> &'a TurnOrder;
+    fn turn_order(&self) -> &TurnOrder;
 
     // FIXME: This is confusing. "Dead" has both the meaning of "not on map" and
     // "health is zero".

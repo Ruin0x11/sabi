@@ -154,7 +154,7 @@ impl RenderUpdate for Ui {
     }
 
     fn update(&mut self, context: &GameContext, _viewport: &Viewport) {
-        let ref world = context.state.world;
+        let world = &context.state.world;
         if let Some(player) = world.player() {
             if let Some(health) = world.ecs().healths.get(player) {
                 self.main_layer.bar.set_max(health.max_hit_points);

@@ -10,6 +10,7 @@ macro_attr! {
         Floor,
         Grass,
         Sand,
+        Table,
         Air,
         Important,
     }
@@ -94,12 +95,13 @@ impl Cell {
 
     fn get_appearance(&self) -> &'static str {
         match self.type_ {
-            CellType::Wall  => "water",
-            CellType::SeaWall  => "sea_wall",
-            CellType::Grass  => "grass",
-            CellType::Sand  => "sand",
-            CellType::Floor => "stone_road",
-            _               => "stone_road",
+            CellType::Wall    => "water",
+            CellType::SeaWall => "sea_wall",
+            CellType::Grass   => "grass",
+            CellType::Sand    => "sand",
+            CellType::Floor   => "stone_road",
+            CellType::Table   => "table",
+            _                 => "stone_road",
         }
     }
 }
@@ -117,6 +119,11 @@ pub const GRASS: Cell = Cell {
 
 pub const SAND: Cell = Cell {
     type_: CellType::Sand,
+    feature: None,
+};
+
+pub const TABLE: Cell = Cell {
+    type_: CellType::Table,
     feature: None,
 };
 

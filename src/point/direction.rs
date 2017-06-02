@@ -57,7 +57,7 @@ impl Direction {
     }
 
     pub fn choose8() -> Direction {
-        rand::thread_rng().choose(&DIRECTIONS).unwrap().clone()
+        *rand::thread_rng().choose(&DIRECTIONS).unwrap()
     }
 
     pub fn iter8() -> Iter<'static, Direction> {
@@ -74,8 +74,8 @@ impl Add<Direction> for Point {
 
     fn add(self, dir: Direction) -> Point {
         let (dx, dy) = dir.to_movement_offset();
-        let cx = self.x.clone() + dx;
-        let cy = self.y.clone() + dy;
+        let cx = self.x + dx;
+        let cy = self.y + dy;
         Point::new(cx, cy)
     }
 }

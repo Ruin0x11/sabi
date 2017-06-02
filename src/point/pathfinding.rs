@@ -31,7 +31,7 @@ impl Path {
             ( 1,  1).into(),
         ];
 
-        nearby_points.clone().iter()
+        nearby_points.iter()
             .map(|&d| current + d)
             .filter(|&point|
                     world.pos_loaded(&point)

@@ -56,7 +56,7 @@ impl<'a> RegionManager<'a, ChunkIndex, SerialChunk> for Regions
             unsaved_chunks: HashSet::new(),
         };
 
-        self.regions.insert(index.clone(), region);
+        self.regions.insert(index, region);
     }
 
     fn region_indices(&self) -> Vec<RegionIndex> {

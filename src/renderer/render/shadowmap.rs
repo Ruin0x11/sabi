@@ -3,7 +3,6 @@ use std::collections::HashSet;
 use glium;
 use glium::backend::Facade;
 
-use point::Point;
 use point::RectangleIter;
 use renderer::render::{self, Renderable, Vertex, Viewport};
 
@@ -11,12 +10,13 @@ use renderer::render::{self, Renderable, Vertex, Viewport};
 struct Instance {
     map_coord: [i32; 2],
     tile_index: i8,
+    color: [u8; 4],
 }
 
-implement_vertex!(Instance, map_coord, tile_index);
+implement_vertex!(Instance, map_coord, tile_index, color);
 
 pub struct ShadowMap {
-    shadows: HashSet<Point>,
+    shadows: Vec<Shadow>,
     instances: glium::VertexBuffer<Instance>,
 
     indices: glium::IndexBuffer<u16>,
@@ -24,6 +24,11 @@ pub struct ShadowMap {
     program: glium::Program,
 
     valid: bool,
+}
+
+struct Shadow {
+    pos: (i32, i32),
+    color: (u8, u8, u8, u8),
 }
 
 impl ShadowMap {
@@ -34,7 +39,7 @@ impl ShadowMap {
         let program = render::load_program(display, "shadow.vert", "shadow.frag").unwrap();
 
         ShadowMap {
-            shadows: HashSet::new(),
+            shadows: Vec::new(),
             instances: instances,
             vertices: vertices,
             indices: indices,
@@ -45,9 +50,13 @@ impl ShadowMap {
 
     fn make_instances<F: Facade>(&mut self, display: &F)  {
         let mut instances = Vec::new();
-        for point in self.shadows.iter() {
+        for shadow in self.shadows.iter() {
+            let (x, y) = shadow.pos;
+            let (r, g, b, a) = shadow.color;
+
             instances.push(Instance {
-                map_coord: [point.x, point.y],
+                map_coord: [x, y],
+                color: [r, g, b, a],
                 tile_index: 4,
             })
         }
@@ -84,29 +93,53 @@ impl Renderable for ShadowMap {
 use world::EcsWorld;
 use world::traits::Query;
 use GameContext;
-use point::CircleIter;
+use point::{CircleIter, Point};
 use renderer::interop::RenderUpdate;
 
-fn make_map(world: &EcsWorld, viewport: &Viewport) -> HashSet<Point> {
+fn make_shadows(world: &EcsWorld, viewport: &Viewport) -> Vec<Shadow> {
     let camera = world.flags().camera;
-    let start_corner = viewport.camera_tile_pos(camera);
+    let start_corner = viewport.min_tile_pos(camera);
     println!("start: {:?}", start_corner);
     let area = RectangleIter::new(start_corner, Viewport::renderable_area().into());
 
     let mut visible = HashSet::new();
-    for point in CircleIter::new(camera, 5) {
-        visible.insert(point);
+    let points: Vec<Point> = match world.player() {
+        Some(player) => {
+            if let Some(fov) = world.ecs().fovs.get(player) {
+                fov.visible.iter().cloned().collect()
+            } else {
+                area.clone().collect()
+            }
+        },
+        None => area.clone().collect(),
+    };
+
+    for point in points.iter() {
+        visible.insert(*point);
     }
 
-    let mut shadows = HashSet::new();
+    let mut shadows = Vec::new();
 
     for point in area {
         if !visible.contains(&point) {
-            shadows.insert(point - start_corner);
+            let shadow = Shadow {
+                pos: (point - start_corner).into(),
+                color: (0, 0, 0, 128)
+            };
+            shadows.push(shadow);
         }
     }
 
     shadows
+}
+
+fn make_map(world: &EcsWorld, viewport: &Viewport) -> Vec<Shadow> {
+    let mut map = Vec::new();
+    let shadows = make_shadows(world, viewport);
+
+    map.extend(shadows);
+
+    map
 }
 
 impl RenderUpdate for ShadowMap {
@@ -115,7 +148,7 @@ impl RenderUpdate for ShadowMap {
     }
 
     fn update(&mut self, context: &GameContext, viewport: &Viewport) {
-        let ref world = context.state.world;
+        let world = &context.state.world;
         self.shadows = make_map(world, viewport);
         self.valid = false;
     }

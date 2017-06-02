@@ -14,6 +14,7 @@ pub fn mob(name: &str, health: i32, sprite: &str) -> Prefab {
             .c(Appearance::new(sprite))
             .c(Turn::new(100))
             .c(Ai::new())
+            .c(Fov::new())
             .c(Log::new("mob"))
     }
 }

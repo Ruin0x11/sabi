@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt;
 
 use serde::de::{self, Deserialize, Deserializer, Visitor};
@@ -6,6 +7,7 @@ use serde::ser::{Serialize, Serializer};
 use slog::Logger;
 
 use log;
+use point::Point;
 use stats::properties::Properties;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -91,6 +93,19 @@ impl Turn {
 pub struct Item {
     pub can_equip: bool,
     pub count: u32,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Fov {
+    pub visible: HashSet<Point>
+}
+
+impl Fov {
+    pub fn new() -> Self {
+        Fov {
+            visible: HashSet::new(),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
