@@ -27,30 +27,6 @@ fn bench_many_entities(b: &mut Bencher) {
     });
 }
 
-use renderer::RenderContext;
-
-#[bench]
-fn bench_renderer_update(b: &mut Bencher) {
-    let context = many_entities();
-    let mut renderer = RenderContext::new();
-
-    b.iter(|| {
-        renderer.update(&context);
-        renderer.render();
-    });
-}
-
-#[bench]
-fn bench_renderer_idle(b: &mut Bencher) {
-    let context = many_entities();
-    let mut renderer = RenderContext::new();
-
-    renderer.update(&context);
-    b.iter(|| {
-        renderer.render();
-    });
-}
-
 #[bench]
 fn bench_fov(b: &mut Bencher) {
     let mut context = many_entities();
@@ -61,5 +37,29 @@ fn bench_fov(b: &mut Bencher) {
         for e in entities.iter() {
             world.do_fov(*e);
         }
+    });
+}
+
+use renderer::RenderContext;
+
+#[bench] #[ignore]
+fn bench_renderer_update(b: &mut Bencher) {
+    let context = many_entities();
+    let mut renderer = RenderContext::new();
+
+    b.iter(|| {
+        renderer.update(&context);
+        renderer.render();
+    });
+}
+
+#[bench] #[ignore]
+fn bench_renderer_idle(b: &mut Bencher) {
+    let context = many_entities();
+    let mut renderer = RenderContext::new();
+
+    renderer.update(&context);
+    b.iter(|| {
+        renderer.render();
     });
 }
