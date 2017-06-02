@@ -95,7 +95,7 @@ impl Cell {
 
     fn get_appearance(&self) -> &'static str {
         match self.type_ {
-            CellType::Wall    => "water",
+            CellType::Water   => "water",
             CellType::SeaWall => "sea_wall",
             CellType::Grass   => "grass",
             CellType::Sand    => "sand",

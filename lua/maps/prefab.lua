@@ -18,7 +18,7 @@ minh, maxh = get_grid_size(height, cells_vert)
 room_min = world.point(minw, minh)
 room_max = world.point(maxw, maxh)
 
-prefab = Prefab.new(width, height, "Wall")
+prefab = Prefab.new(width, height, "Water")
 log.info(tostring(prefab))
 
 cell_width = math.floor(width / cells_horiz)
@@ -319,7 +319,7 @@ function add_seawall()
       local below_one = world.point(pos.x, pos.y + 1)
       local below_two = world.point(pos.x, pos.y + 2)
       if prefab:in_bounds(below_one) then
-         if prefab:get(pos) == "Floor" and prefab:get(below_one) == "Wall" then
+         if prefab:get(pos) == "Floor" and prefab:get(below_one) == "Water" then
             prefab:set(below_one, "SeaWall")
             if prefab:in_bounds(below_two) then
                prefab:set(below_two, "SeaWall")

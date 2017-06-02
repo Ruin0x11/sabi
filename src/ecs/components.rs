@@ -106,6 +106,10 @@ impl Fov {
             visible: HashSet::new(),
         }
     }
+
+    pub fn is_visible(&self, pos: &Point) -> bool {
+        self.visible.contains(pos)
+    }
 }
 
 #[derive(Clone, Debug)]

@@ -140,7 +140,8 @@ fn update_goal(entity: Entity, world: &EcsWorld) {
         //     state_kill(*target, ai);
         // }
         world.player().map(|p| {
-            if world.seen_entities(entity).contains(&p) {
+            let pos = world.position(p).unwrap();
+            if world.can_see(entity, pos) {
                 state_kill(p, ai);
             }
         });

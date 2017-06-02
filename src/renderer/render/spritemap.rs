@@ -153,7 +153,15 @@ fn make_sprites(world: &EcsWorld, viewport: &Viewport) -> Vec<(DrawSprite, (u32,
     let camera = world.flags().camera;
     let start_corner: Point = viewport.min_tile_pos(camera).into();
 
-    for entity in world.entities() {
+    let player = match world.player() {
+        Some(p) => p,
+        None    => return Vec::new(),
+    };
+
+    let mut seen = vec![player];
+    seen.extend(world.seen_entities(player));
+
+    for entity in seen.iter() {
         if let Some(pos) = world.position(*entity) {
             if !tile_in_viewport(viewport, camera, pos) {
                 continue;
