@@ -1,7 +1,7 @@
 use calx_ecs::Entity;
 use data::Walkability;
 use ecs::traits::*;
-use logic::command::{Command, CommandResult};
+use logic::command::CommandResult;
 use logic::entity;
 use lua;
 use point::{Direction, Point};
@@ -54,24 +54,27 @@ fn move_or_attack(world: &mut EcsWorld, entity: Entity, dir: Direction) -> Comma
 
 fn swing_at(world: &mut EcsWorld, attacker: Entity, other: Entity) -> CommandResult {
     let damage;
-    let evaded;
     {
-        // if attacker.disposition == other.disposition {
-        //     return;
-        // }
         if !world.position(attacker).unwrap().is_next_to(world.position(other).unwrap()) {
-            return Err(())
+            return Err(());
         }
-        evaded = stats::formulas::check_evasion(world, &attacker, &other);
-        if evaded {
-            // world.message("Evaded!".to_string());
+
+        let missed = stats::formulas::check_evasion(world, &attacker, &other);
+        if missed {
+            mes!(world, "Miss.");
             return Ok(());
         }
+
         damage = stats::formulas::calculate_damage(world, &attacker, &other);
     }
     world.ecs_mut().healths.map_mut(|h| h.hurt(damage), other);
 
-    mes!(world, "{} hits {}! ({})", a=entity::name(attacker, world), b=entity::name(other, world), c=damage);
+    mes!(world, "The {} hits the {}! ({})", a=entity::name(attacker, world), b=entity::name(other, world), c=damage);
+
+    if entity::is_dead(other, world) {
+        mes!(world, "The {} kills the {}!", a=entity::name(attacker, world), b=entity::name(other, world));
+    }
+
     Ok(())
 }
 

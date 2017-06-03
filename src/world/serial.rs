@@ -64,8 +64,6 @@ pub fn load_world(id: u32) -> SerialResult<EcsWorld> {
     // TODO: shouldn't have to set manually.
     world.set_map_id(id);
 
-    world.on_load();
-
     Ok(world)
 }
 

@@ -45,8 +45,6 @@ pub trait Query {
 
     fn is_active(&self, e: Entity) -> bool;
 
-    fn can_see(&self, viewer: Entity, pos: WorldPosition) -> bool;
-
     fn seen_entities(&self, viewer: Entity) -> Vec<Entity>;
 
     fn is_mob(&self, e: Entity) -> bool {

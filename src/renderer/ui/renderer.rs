@@ -426,22 +426,18 @@ impl<'a> Renderable for UiRenderer {
                                                       .indices[idx_start..idx_end]).unwrap();
             idx_start = idx_end;
 
-            let uniforms = if cmd.is_text {
-                uniform! {
-                    matrix: proj,
-                    tex: self.font.get_texture().sampled()
-                        .wrap_function(glium::uniforms::SamplerWrapFunction::Clamp)
-                        .minify_filter(glium::uniforms::MinifySamplerFilter::Nearest)
-                        .magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
-                }
+            let texture = if cmd.is_text {
+                self.font.get_texture()
             } else {
-                uniform! {
-                    matrix: proj,
-                    tex: self.ui_atlas.get_texture().sampled()
-                        .wrap_function(glium::uniforms::SamplerWrapFunction::Clamp)
-                        .minify_filter(glium::uniforms::MinifySamplerFilter::Nearest)
-                        .magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
-                }
+                self.ui_atlas.get_texture()
+            };
+
+            let uniforms = uniform! {
+                matrix: proj,
+                tex: texture.sampled()
+                    .wrap_function(glium::uniforms::SamplerWrapFunction::Clamp)
+                    .minify_filter(glium::uniforms::MinifySamplerFilter::Nearest)
+                    .magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
             };
 
             let scissor = cmd.clip_rect.map(|rect| make_scissor(rect, height, viewport.scale));

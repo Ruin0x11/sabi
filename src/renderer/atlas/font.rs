@@ -73,14 +73,6 @@ impl<'a> glium::texture::Texture2dDataSource<'a> for &'a TextureData {
     }
 }
 
-#[derive(Copy, Clone)]
-struct VertexFormat {
-    position: [f32; 2],
-    tex_coords: [f32; 2],
-}
-
-implement_vertex!(VertexFormat, position, tex_coords);
-
 impl FontTexture {
     /// Vec<char> of complete ASCII range (from 0 to 255 bytes)
     pub fn ascii_character_list() -> Vec<char> {

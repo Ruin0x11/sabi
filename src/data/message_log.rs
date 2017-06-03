@@ -1,7 +1,4 @@
-use std::slice;
 use std::collections::VecDeque;
-
-const LINE_HEIGHT: usize =  16;
 
 pub struct MessageLog {
     log: VecDeque<String>,
@@ -16,10 +13,6 @@ impl MessageLog {
             next_line: true,
             valid: false,
         }
-    }
-
-    pub fn clear(&mut self) {
-        self.log.clear();
     }
 
     pub fn append(&mut self, text: &str) {

@@ -6,6 +6,7 @@ use std::cell::RefCell;
 use calx_ecs::Entity;
 
 use logic::Action;
+use logic::entity;
 use ai::sensors::{Sensor};
 use ecs::traits::ComponentQuery;
 use world::traits::Query;
@@ -140,8 +141,7 @@ fn update_goal(entity: Entity, world: &EcsWorld) {
         //     state_kill(*target, ai);
         // }
         world.player().map(|p| {
-            let pos = world.position(p).unwrap();
-            if world.can_see(entity, pos) {
+            if entity::can_see_other(entity, p, world) {
                 state_kill(p, ai);
             }
         });

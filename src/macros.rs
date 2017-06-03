@@ -12,6 +12,9 @@ macro_rules! mes {
     ($w:ident) => {
         $w.next_message();
     };
+    ($w:ident, $e:expr) => {
+        $w.message($e);
+    };
     ($w:ident, $e:expr, $( $x:ident=$y:expr ),+) => {
         $(
             let $x = $y;

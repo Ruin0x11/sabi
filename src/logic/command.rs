@@ -162,6 +162,16 @@ use renderer;
 use glium::glutin;
 use glium::glutin::{VirtualKeyCode, ElementState};
 
+fn maybe_examine_tile(pos: Point, world: &mut EcsWorld)  {
+    if let Some(mob) = world.mob_at(pos) {
+        if let Some(player) = world.player() {
+            if entity::can_see_other(player, mob, world) {
+                mes!(world, "You see here a {}.", a=entity::name(mob, world));
+            }
+        }
+    }
+}
+
 fn look(context: &mut GameContext) {
     renderer::with_mut(|rc| {
         rc.start_loop(|renderer| {
@@ -182,9 +192,8 @@ fn look(context: &mut GameContext) {
                                         VirtualKeyCode::Right => world.flags_mut().camera.x += 1,
                                         _ => (),
                                     }
-                                    if let Some(mob) = world.mob_at(world.flags().camera) {
-                                        mes!(world, "You see here a {}.", a=entity::name(mob, world));
-                                    }
+
+                                    maybe_examine_tile(world.flags().camera, world);
                                 }
 
                                 renderer.update(context);

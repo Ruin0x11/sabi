@@ -26,6 +26,7 @@ use ecs::traits::*;
 use graphics::cell::{CellFeature, StairDir, StairDest};
 use log;
 use logic::{self, CommandResult};
+use logic::entity;
 use lua;
 use point::{Direction, Point};
 use prefab::{self, PrefabMarker};
@@ -183,16 +184,6 @@ impl Query for EcsWorld {
         result
     }
 
-    fn can_see(&self, viewer: Entity, pos: WorldPosition) -> bool {
-        if !self.is_player(viewer) {
-            return logic::entity::has_los(viewer, pos, self);
-        }
-
-        let fov = self.ecs().fovs.get(viewer);
-
-        fov.map_or(false, |v| v.is_visible(&pos))
-    }
-
     fn seen_entities(&self, viewer: Entity) -> Vec<Entity> {
         if !self.ecs().fovs.has(viewer) {
             return vec![];
@@ -200,10 +191,8 @@ impl Query for EcsWorld {
 
         let mut seen = Vec::new();
         for entity in self.entities() {
-            if let Some(pos) = self.position(*entity) {
-                if self.can_see(viewer, pos) && *entity != viewer {
-                    seen.push(*entity);
-                }
+            if entity::can_see_other(viewer, *entity, self) && *entity != viewer {
+                seen.push(*entity);
             }
         }
         seen
