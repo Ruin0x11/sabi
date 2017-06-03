@@ -77,6 +77,8 @@ fn process_actors(world: &mut EcsWorld) {
         }
 
         if world.is_player(entity) {
+            world.next_message();
+
             break
         }
 

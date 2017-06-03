@@ -1,3 +1,26 @@
+/// A macro to send a message to the game message log. Gets around borrowing by
+/// automatically binding the provided arguments ahead of time. The syntax is
+/// similar to format!, but with an ident and '=' before the expression, like:
+///
+/// ```no_run
+/// mes!(world, "{}: {}", a=world.some_immut_fn(), b=world.some_mut_fn());
+/// ```
+///
+/// It would be better if some temporary names could be dynamically generated
+/// instead of having to provide them each time.
+macro_rules! mes {
+    ($w:ident) => {
+        $w.next_message();
+    };
+    ($w:ident, $e:expr, $( $x:ident=$y:expr ),+) => {
+        $(
+            let $x = $y;
+        )*
+
+        $w.message(&format!($e, $($x),+));
+    };
+}
+
 macro_rules! make_global {
     ($name:ident, $global_ty:ty, $maker:expr) => {
         mod instance {

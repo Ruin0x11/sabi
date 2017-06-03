@@ -175,6 +175,7 @@ fn make_sprites(world: &EcsWorld, viewport: &Viewport) -> Vec<(DrawSprite, (u32,
                 // Translate from world tilespace to screen tilespace (where
                 // (0, 0) is the upper-left corner)
                 let new_pos = pos - start_corner;
+                assert!(new_pos >= (0, 0), "{}", new_pos);
 
                 res.push((sprite, (new_pos.x as u32, new_pos.y as u32)));
             }

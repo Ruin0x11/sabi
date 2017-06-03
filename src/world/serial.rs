@@ -36,8 +36,10 @@ fn get_manifest_file() -> PathBuf {
 
 // TODO: Allow quicksaving, as in not unloading the entire world first
 pub fn save_world(world: &mut EcsWorld) -> SerialResult<()> {
+    // Unloads and saves the terrain.
     world.save()?;
 
+    // The following saves entities and world data besides terrain.
     let data = bincode::serialize(&world, Infinite)?;
     let id = world.map_id();
 
@@ -61,6 +63,8 @@ pub fn load_world(id: u32) -> SerialResult<EcsWorld> {
 
     // TODO: shouldn't have to set manually.
     world.set_map_id(id);
+
+    world.on_load();
 
     Ok(world)
 }

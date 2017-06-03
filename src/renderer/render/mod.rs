@@ -28,8 +28,8 @@ use self::tilemap::TileMap;
 
 pub use self::viewport::Viewport;
 
-pub const SCREEN_WIDTH: u32 = 1440;
-pub const SCREEN_HEIGHT: u32 = 1080;
+pub const SCREEN_WIDTH: u32 = 1024;
+pub const SCREEN_HEIGHT: u32 = 768;
 
 pub const QUAD_INDICES: [u16; 6] = [0, 1, 2, 1, 3, 2];
 pub const QUAD: [Vertex; 4] = [
@@ -124,10 +124,14 @@ impl RenderContext {
                 Action::Continue => ()
             };
 
-            self.accumulator.step_frame();
-
-            thread::sleep(self.accumulator.sleep_time());
+            self.step_frame();
         }
+    }
+
+    pub fn step_frame(&mut self) {
+        self.accumulator.step_frame();
+
+        thread::sleep(self.accumulator.sleep_time());
     }
 
     // pub fn update(&mut self, board: &Board) {
@@ -190,15 +194,6 @@ impl RenderContext {
     //         return false;
     //     }
     // }
-
-    pub fn message(&mut self, text: &str) {
-        self.ui.main_layer.log.append(text);
-        self.ui.invalidate();
-    }
-
-    pub fn next_line(&mut self) {
-        self.ui.main_layer.log.next_line();
-    }
 
     pub fn query<R, T: 'static + UiQuery<QueryResult=R>>(&mut self, layer: &mut T) -> R {
         loop {

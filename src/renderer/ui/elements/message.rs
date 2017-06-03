@@ -1,5 +1,3 @@
-use std::collections::VecDeque;
-
 use renderer::ui::elements::UiElement;
 use renderer::ui::renderer::{TexDir, UiRenderer};
 use renderer::render::{SCREEN_WIDTH, SCREEN_HEIGHT};
@@ -10,9 +8,7 @@ pub struct UiMessageLog {
     pos: (u32, u32),
     size: (u32, u32),
 
-    log: VecDeque<String>,
-
-    next_line: bool,
+    messages: Vec<String>,
 }
 
 impl UiMessageLog {
@@ -20,40 +16,16 @@ impl UiMessageLog {
         UiMessageLog {
             pos: (0, SCREEN_HEIGHT - 120),
             size: (SCREEN_WIDTH, 120),
-
-            log: VecDeque::new(),
-
-            next_line: true,
+            messages: Vec::new(),
         }
-    }
-
-    pub fn clear(&mut self) {
-        self.log.clear();
-    }
-
-    pub fn append(&mut self, text: &str) {
-        if self.next_line {
-            self.log.push_front(String::new());
-            self.next_line = false;
-        }
-
-        let mut current = match self.log.pop_front() {
-            Some(line) => line,
-            None       => String::new(),
-        };
-
-        current.push_str(text);
-        current.push_str(" ");
-
-        self.log.push_front(current);
-    }
-
-    pub fn next_line(&mut self) {
-        self.next_line = true;
     }
 
     pub fn max_lines(&self) -> usize {
         self.size.1 as usize / LINE_HEIGHT
+    }
+
+    pub fn update(&mut self, messages: Vec<String>) {
+        self.messages = messages;
     }
 }
 
@@ -75,7 +47,7 @@ impl UiElement for UiMessageLog {
         let max_lines = self.max_lines();
         let mut idx = 0;
 
-        for line in self.log.iter() {
+        for line in self.messages.iter() {
             if !line.is_empty() {
                 for wrapped in renderer.font().wrap_text(line, w - 16) {
                     let offset = (idx * LINE_HEIGHT) as i32;

@@ -20,7 +20,7 @@ use chunk::*;
 use chunk::generator::ChunkType;
 use chunk::serial::SerialChunk;
 use data::spatial::{Spatial, Place};
-use data::{TurnOrder, Walkability};
+use data::{TurnOrder, Walkability, MessageLog};
 use ecs::*;
 use ecs::traits::*;
 use graphics::cell::{CellFeature, StairDir, StairDest};
@@ -60,6 +60,11 @@ pub struct EcsWorld {
     turn_order: TurnOrder,
     flags: Flags,
 
+    #[serde(skip_serializing)]
+    #[serde(skip_deserializing)]
+    #[serde(default="MessageLog::new")]
+    messages: MessageLog,
+
     chunk_type: ChunkType,
 
     #[serde(skip_serializing)]
@@ -78,6 +83,7 @@ impl EcsWorld {
             flags: Flags::new(seed, id),
             chunk_type: chunk_type,
             logger: get_world_log(),
+            messages: MessageLog::new(),
         }
     }
 
@@ -107,6 +113,18 @@ impl EcsWorld {
         debug!(world.logger, "Finished loading prefab \"{}\".", name);
 
         world
+    }
+
+    pub fn get_messages(&self, count: usize) -> Vec<String> {
+        self.messages.get_lines(count)
+    }
+
+    pub fn message(&mut self, text: &str) {
+        self.messages.append(text);
+    }
+
+    pub fn next_message(&mut self) {
+        self.messages.next_line();
     }
 }
 
@@ -292,38 +310,6 @@ impl Mutate for EcsWorld {
         self.turn_order.add_delay_for(id, amount).unwrap();
     }
 }
-
-impl<C: Component> ComponentQuery<C> for ComponentData<C> {
-    fn get_or_err(&self, e: Entity) -> &C {
-        self.get(e).unwrap()
-    }
-
-    fn map_or<F, T>(&self, default: T, callback: F, e: Entity) -> T
-        where F: FnOnce(&C,) -> T {
-        self.get(e).map_or(default, callback)
-    }
-
-    fn map<F, T>(&self, callback: F, e: Entity) -> Option<T>
-        where F: FnOnce(&C,) -> T {
-        self.get(e).map(callback)
-    }
-
-    fn has(&self, e: Entity) -> bool {
-        self.get(e).is_some()
-    }
-}
-
-impl<C: Component> ComponentMutate<C> for ComponentData<C> {
-    fn get_mut_or_err(&mut self, e: Entity) -> &mut C {
-        self.get_mut(e).unwrap()
-    }
-
-    fn map_mut<F, T>(&mut self, callback: F, e: Entity) -> Option<T>
-        where F: FnOnce(&mut C,) -> T {
-        self.get_mut(e).map(callback)
-    }
-}
-
 const UPDATE_RADIUS: i32 = 3;
 
 fn is_persistent(world: &EcsWorld, entity: Entity) -> bool {
@@ -448,5 +434,15 @@ impl EcsWorld {
         self.terrain.prune_empty_regions();
 
         Ok(())
+    }
+
+    pub fn recalc_entity_fovs(&mut self) {
+        if let Some(p) = self.player() {
+            self.do_fov(p);
+        }
+    }
+
+    pub fn on_load(&mut self) {
+        self.recalc_entity_fovs();
     }
 }

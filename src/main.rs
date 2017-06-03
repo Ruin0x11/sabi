@@ -1,4 +1,5 @@
 #![feature(associated_consts)]
+#![feature(conservative_impl_trait)]
 #![feature(test)]
 
 #[macro_use] extern crate calx_ecs;
@@ -60,7 +61,7 @@ mod testing;
 use glium::glutin;
 use glium::glutin::{VirtualKeyCode, ElementState};
 use state::GameState;
-use renderer::{Action, RenderContext};
+use renderer::Action;
 use engine::keys::{Key, KeyCode};
 
 pub struct GameContext {
@@ -95,18 +96,17 @@ fn game_loop() {
     world::serial::init_paths().unwrap();
 
     let mut context = state::load_context();
-    let mut rc =  RenderContext::new();
-    rc.update(&context);
+    renderer::with_mut(|rc| rc.update(&context) );
 
-    rc.start_loop(|renderer| {
-        let events = renderer.poll_events();
+    'outer: loop {
+        let events = renderer::with(|rc| rc.poll_events());
         if !events.is_empty() {
             for event in events {
                 match event {
-                    glutin::Event::Closed => return Action::Stop,
+                    glutin::Event::Closed => break 'outer,
                     glutin::Event::Resized(w, h) => {
-                        renderer.set_viewport(w, h);
-                        return Action::Continue;
+                        renderer::with_mut(|renderer| renderer.set_viewport(w, h));
+                        continue;
                     },
                     _ => (),
                 }
@@ -116,25 +116,25 @@ fn game_loop() {
                         println!("Key: {:?}", code);
                         {
                             match code {
-                                VirtualKeyCode::Escape => return Action::Stop,
+                                VirtualKeyCode::Escape => break 'outer,
                                 _ => {
                                     let key = Key::from(KeyCode::from(code));
                                     state::game_step(&mut context, Some(key));
-                                    renderer.update(&context);
+                                    renderer::with_mut(|renderer| renderer.update(&context) );
                                 },
                             }
                         }
                     },
                     _ => (),
                 }
-                renderer.render();
+                renderer::with_mut(|renderer| renderer.render() );
             }
         } else {
-            renderer.render();
+            renderer::with_mut(|renderer| renderer.render() );
         }
 
-        Action::Continue
-    });
+        renderer::with_mut(|renderer| renderer.step_frame());
+    }
 
     world::serial::save_world(&mut context.state.world).unwrap();
     world::serial::save_manifest(&context.state.world).unwrap();

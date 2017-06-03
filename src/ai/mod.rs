@@ -19,9 +19,9 @@ pub enum Disposition {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Ai {
-    #[serde(default="make_planner")]
     #[serde(skip_serializing)]
     #[serde(skip_deserializing)]
+    #[serde(default="make_planner")]
     planner: AiPlanner,
 
     target: RefCell<Option<Entity>>,

@@ -23,7 +23,7 @@ impl Viewport {
     }
 
     pub fn visible_area(&self) -> (u32, u32) {
-        (self.size.0 / 48, self.size.1 / 48)
+        (self.size.0 / 48, (self.size.1 - 120) / 48)
     }
 
     pub fn renderable_area() -> (i32, i32) {

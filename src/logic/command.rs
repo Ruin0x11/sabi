@@ -1,5 +1,6 @@
 use ::GameContext;
 use logic::Action;
+use logic::entity;
 use point::Direction;
 use engine::keys::{Key, KeyCode};
 use graphics::cell::{Cell, CellFeature, StairDest, StairDir};
@@ -14,6 +15,7 @@ pub enum Command {
     Move(Direction),
     UseStairs(StairDir),
     TestScript,
+    Look,
     Wait,
     Quit,
 }
@@ -46,6 +48,8 @@ impl From<Key> for Command {
             Key { code: KeyCode::Period,      .. } => Command::UseStairs(StairDir::Ascending),
             Key { code: KeyCode::Comma,       .. } => Command::UseStairs(StairDir::Descending),
 
+            Key { code: KeyCode::M,           .. } => Command::Look,
+
             Key { code: KeyCode::T,           .. } => Command::TestScript,
 
             _                                  => Command::Wait
@@ -59,6 +63,7 @@ pub fn process_player_command(context: &mut GameContext, command: Command) -> Co
         Command::Quit           => (),
         Command::Move(dir)      => context.state.add_action(Action::MoveOrAttack(dir)),
         Command::Wait           => context.state.add_action(Action::Wait),
+        Command::Look           => look(context),
         Command::TestScript     => context.state.add_action(Action::TestScript),
         Command::UseStairs(dir) => return try_use_stairs(dir, &mut context.state.world),
     }
@@ -66,20 +71,9 @@ pub fn process_player_command(context: &mut GameContext, command: Command) -> Co
 }
 
 pub fn try_use_stairs(dir: StairDir, world: &mut EcsWorld) -> CommandResult {
-    let player = match world.player() {
-        Some(p) => p,
-        None    => return Err(()),
-    };
-
-    let pos = match world.position(player) {
-        Some(p) => p,
-        None    => return Err(()),
-    };
-
-    let next = match find_stair_dest(world, pos, dir) {
-        Ok(n)  => n,
-        Err(_) => return Err(()),
-    };
+    let player = world.player().ok_or(())?;
+    let pos = world.position(player).ok_or(())?;
+    let next = find_stair_dest(world, pos, dir)?;
 
     let (true_next, dest) = load_stair_dest(world, pos, next);
     world.move_to_map(true_next, dest).unwrap();
@@ -138,15 +132,17 @@ fn load_stair_dest(world: &mut EcsWorld, stair_pos: Point, next: StairDest) -> (
     }
 }
 
-fn generate_stair_dest(prev_id: MapId, next_id: MapId, seed: u32, old_pos: Point, stairs: &mut Cell) -> (EcsWorld, Point) {
-    // TODO: This should be replaced with the "make from prefab" function
+fn generate_stair_dest(prev_id: MapId,
+                       next_id: MapId,
+                       seed: u32,
+                       old_pos: Point,
+                       stairs: &mut Cell)
+                       -> (EcsWorld, Point) {
     let mut new_world = EcsWorld::from_prefab("prefab", seed, next_id);
 
     if let Some(CellFeature::Stairs(stair_dir, ref mut dest@StairDest::Ungenerated)) = stairs.feature {
-        let new_stair_pos = match new_world.find_stairs_in() {
-            Some(pos) => pos,
-            None      => panic!("Generated world has no stairs!"),
-        };
+        let new_stair_pos = new_world.find_stairs_in()
+            .expect("Generated world has no stairs!");
 
         *dest = StairDest::Generated(next_id, new_stair_pos);
 
@@ -159,4 +155,50 @@ fn generate_stair_dest(prev_id: MapId, next_id: MapId, seed: u32, old_pos: Point
     } else {
         panic!("Stairs should have already been found by now...");
     }
+}
+
+
+use renderer;
+use glium::glutin;
+use glium::glutin::{VirtualKeyCode, ElementState};
+
+fn look(context: &mut GameContext) {
+    renderer::with_mut(|rc| {
+        rc.start_loop(|renderer| {
+            let events = renderer.poll_events();
+            if !events.is_empty() {
+                for event in events {
+                    match event {
+                        glutin::Event::KeyboardInput(ElementState::Pressed, _, Some(code)) => {
+                            println!("Key: {:?}", code);
+                            {
+                                {
+                                    let world = &mut context.state.world;
+                                    match code {
+                                        VirtualKeyCode::Escape => return renderer::Action::Stop,
+                                        VirtualKeyCode::Up => world.flags_mut().camera.y -= 1,
+                                        VirtualKeyCode::Down => world.flags_mut().camera.y += 1,
+                                        VirtualKeyCode::Left => world.flags_mut().camera.x -= 1,
+                                        VirtualKeyCode::Right => world.flags_mut().camera.x += 1,
+                                        _ => (),
+                                    }
+                                    if let Some(mob) = world.mob_at(world.flags().camera) {
+                                        mes!(world, "You see here a {}.", a=entity::name(mob, world));
+                                    }
+                                }
+
+                                renderer.update(context);
+                            }
+                        },
+                        _ => (),
+                    }
+                    renderer.render();
+                }
+            } else {
+                renderer.render();
+            }
+
+            renderer::Action::Continue
+        });
+    });
 }

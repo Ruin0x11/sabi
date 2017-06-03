@@ -98,15 +98,15 @@ impl Ui {
     }
 
     pub fn render_all(&mut self) {
-            self.renderer.clear();
+        self.renderer.clear();
 
-            println!("Draw main");
-            self.main_layer.draw(&mut self.renderer);
-            println!("Draw next");
+        println!("Draw main");
+        self.main_layer.draw(&mut self.renderer);
+        println!("Draw next");
 
-            for layer in self.layers.iter() {
-                layer.draw(&mut self.renderer);
-            }
+        for layer in self.layers.iter() {
+            layer.draw(&mut self.renderer);
+        }
     }
 
     fn redraw(&mut self) {
@@ -155,12 +155,18 @@ impl RenderUpdate for Ui {
 
     fn update(&mut self, context: &GameContext, _viewport: &Viewport) {
         let world = &context.state.world;
+
         if let Some(player) = world.player() {
             if let Some(health) = world.ecs().healths.get(player) {
                 self.main_layer.bar.set_max(health.max_hit_points);
                 self.main_layer.bar.set(health.hit_points);
             }
         }
+
+        let max_lines = self.main_layer.log.max_lines();
+        let messages = world.get_messages(max_lines);
+        self.main_layer.log.update(messages);
+
         self.invalidate();
         self.redraw();
     }
