@@ -1,6 +1,6 @@
 use std::fs::{self, File};
 use std::io::{Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use bincode::{self, Infinite};
 
@@ -19,15 +19,15 @@ fn get_save_directory() -> String {
     }
 }
 
-pub fn get_world_save_dir(id: u32) -> String {
+pub fn get_world_save_dir(id: u32) -> PathBuf {
     let savedir = get_save_directory();
-    format!("{}/{}/", savedir, id)
+    PathBuf::from(format!("{}/{}/", savedir, id))
 }
 
 fn get_world_savefile(id: u32) -> PathBuf {
     let mut save_dir = get_world_save_dir(id);
-    save_dir.push_str("world.bin");
-    PathBuf::from(save_dir)
+    save_dir.push("world.bin");
+    save_dir
 }
 
 fn get_manifest_file() -> PathBuf {
@@ -51,6 +51,7 @@ pub fn save_world(world: &mut EcsWorld) -> SerialResult<()> {
     Ok(())
 }
 
+// TODO: load_world, or load_map? map_id?
 pub fn load_world(id: u32) -> SerialResult<EcsWorld> {
     fs::create_dir_all(get_world_save_dir(id)).map_err(SerialError::from)?;
 
@@ -65,6 +66,16 @@ pub fn load_world(id: u32) -> SerialResult<EcsWorld> {
     world.set_map_id(id);
 
     Ok(world)
+}
+
+pub fn delete_world_if_exists(id: u32) -> SerialResult<()> {
+    let savedir_buf = get_world_save_dir(id);
+
+    if Path::exists(savedir_buf.as_path()) {
+        fs::remove_dir_all(savedir_buf).map_err(SerialError::from)?;
+    }
+
+    Ok(())
 }
 
 pub fn save_manifest(world: &EcsWorld) -> SerialResult<()> {

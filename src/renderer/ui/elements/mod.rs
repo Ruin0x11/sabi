@@ -25,7 +25,7 @@ impl UiElement for UiWindow {
 
         renderer.repeat_tex("win", TexDir::Area,
                             (x,     y,
-                            x + w,  y + h),
+                             x + w,  y + h),
                             (0, 64), (64, 64));
 
         // corners
@@ -65,7 +65,9 @@ impl UiElement for UiText {
     fn draw(&self, renderer: &mut UiRenderer) {
         for (idx, line) in self.text_lines.iter().enumerate() {
             let pos = (self.pos.0, self.pos.1 + (idx as u32 * renderer.get_font_size()) as i32);
-            renderer.add_string(pos, None, line);
+            renderer.with_color((0, 0, 0, 255), |r| {
+                r.add_string(pos, None, line);
+            });
         }
     }
 }
@@ -77,12 +79,12 @@ pub struct UiList {
 }
 
 impl UiList {
-    pub fn new(pos: (u32, u32), items: Vec<&str>) -> Self {
+    pub fn new(pos: (u32, u32), items: Vec<String>) -> Self {
         let item_height = 20;
         let mut text_items = Vec::new();
         for (idx, item) in items.into_iter().enumerate() {
             let pos = (pos.0 as i32 + 32, pos.1 as i32 + 32 + (item_height * idx as u32) as i32);
-            let text = UiText::new(pos, item);
+            let text = UiText::new(pos, &item);
             text_items.push(text);
         }
 
@@ -96,21 +98,43 @@ impl UiList {
     }
 
     pub fn select_next(&mut self) {
+        if self.items.is_empty() {
+            return;
+        }
+
         if self.selected == self.items.len() - 1 {
             return;
         }
+
         self.selected += 1;
     }
 
     pub fn select_prev(&mut self) {
+        if self.items.is_empty() {
+            return;
+        }
+
         if self.selected == 0 {
             return;
         }
+
         self.selected -= 1;
     }
 
     pub fn get_selected(&self) -> Option<&UiText> {
+        if self.items.is_empty() {
+            return None;
+        }
+
         self.items.get(self.selected)
+    }
+
+    pub fn get_selected_idx(&self) -> Option<usize> {
+        if self.items.is_empty() {
+            return None;
+        }
+
+        Some(self.selected)
     }
 }
 

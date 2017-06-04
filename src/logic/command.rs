@@ -1,23 +1,35 @@
-use ::GameContext;
-use logic::Action;
-use logic::entity;
-use point::Direction;
+use std::fmt::Display;
+
+use GameContext;
+use data::Walkability;
 use engine::keys::{Key, KeyCode};
 use graphics::cell::{Cell, CellFeature, StairDest, StairDir};
-use world::EcsWorld;
-use point::Point;
-use world::MapId;
+use logic::Action;
+use logic::entity::EntityQuery;
+use point::{Direction, Point, POINT_ZERO};
+use prefab::{self, PrefabMarker};
 use world::traits::*;
+use world::{self, EcsWorld, MapId};
 
-pub type CommandResult = Result<(), ()>;
+pub type CommandResult<T> = Result<T, CommandError>;
 
+pub enum CommandError {
+    Bug(&'static str),
+    Invalid(&'static str),
+    Cancel,
+}
+
+/// A bindable command that can be executed by the player.
 pub enum Command {
     Move(Direction),
     UseStairs(StairDir),
-    TestScript,
     Look,
     Wait,
     Quit,
+
+    DebugMenu,
+    TestScript,
+    Teleport,
 }
 
 impl From<Key> for Command {
@@ -51,63 +63,132 @@ impl From<Key> for Command {
             Key { code: KeyCode::M,           .. } => Command::Look,
 
             Key { code: KeyCode::T,           .. } => Command::TestScript,
+            Key { code: KeyCode::E,           .. } => Command::Teleport,
+            Key { code: KeyCode::F1,          .. } => Command::DebugMenu,
 
-            _                                  => Command::Wait
+            _                                      => Command::Wait
         }
     }
 }
 
-pub fn process_player_command(context: &mut GameContext, command: Command) -> CommandResult {
+pub fn process_player_command(context: &mut GameContext, command: Command) -> CommandResult<()> {
     match command {
         // TEMP: Commands can still be run even if there is no player?
-        Command::Quit           => (),
-        Command::Move(dir)      => context.state.add_action(Action::MoveOrAttack(dir)),
-        Command::Wait           => context.state.add_action(Action::Wait),
-        Command::Look           => look(context),
-        Command::TestScript     => context.state.add_action(Action::TestScript),
-        Command::UseStairs(dir) => return try_use_stairs(dir, &mut context.state.world),
+        Command::Quit           => Err(CommandError::Invalid("Can't quit.")),
+
+        Command::Look           => cmd_look(context),
+        Command::UseStairs(dir) => cmd_use_stairs(context, dir),
+
+        Command::Move(dir)      => cmd_add_action(context, Action::MoveOrAttack(dir)),
+        Command::Wait           => cmd_add_action(context, Action::Wait),
+
+        Command::DebugMenu      => cmd_debug_menu(context),
+        Command::Teleport       => cmd_teleport(context),
+        Command::TestScript     => cmd_add_action(context, Action::TestScript),
     }
+}
+
+fn cmd_add_action(context: &mut GameContext, action: Action) -> CommandResult<()> {
+    context.state.add_action(action);
     Ok(())
 }
 
-pub fn try_use_stairs(dir: StairDir, world: &mut EcsWorld) -> CommandResult {
-    let player = world.player().ok_or(())?;
-    let pos = world.position(player).ok_or(())?;
+fn cmd_look(context: &mut GameContext) -> CommandResult<()> {
+    select_tile(context, maybe_examine_tile);
+    Ok(())
+}
+
+fn cmd_teleport(context: &mut GameContext) -> CommandResult<()> {
+    mes!(context.state.world, "Teleport where?");
+    let pos = select_tile(context, |_, _| return).ok_or(CommandError::Cancel)?;
+    if context.state.world.can_walk(pos, Walkability::MonstersBlocking) {
+        cmd_add_action(context, Action::Teleport(pos))
+    } else {
+        Err(CommandError::Invalid("The way is blocked."))
+    }
+}
+
+fn cmd_debug_menu(context: &mut GameContext) -> CommandResult<()> {
+    menu!(context,
+          "debug prefab" => debug_prefab(context)
+    )
+}
+
+fn debug_prefab(context: &mut GameContext) -> CommandResult<()> {
+    let prefabs = prefab::get_prefab_names();
+    let selected = menu_choice_indexed(context, prefabs)?;
+
+    // Whip up a new testing world and port us there
+    debug_regen_prefab(context, &selected);
+    Ok(())
+}
+
+fn debug_regen_prefab(context: &mut GameContext, prefab_name: &str) {
+    let world = &mut context.state.world;
+    const TEST_WORLD_ID: u32 = 10000000;
+
+    world::serial::delete_world_if_exists(TEST_WORLD_ID);
+
+    let prefab = match prefab::create(prefab_name) {
+        Ok(p)  => p,
+        Err(e) => {
+            mes!(world, "Lua error! {}", a=e);
+            return;
+        }
+    };
+
+    // If the map maker provided us with a start position, move there.
+    let start_pos = match prefab.find_marker(PrefabMarker::StairsIn) {
+        Some(pos) => pos,
+        None      => POINT_ZERO,
+    };
+
+    let mut debug_world = EcsWorld::from_prefab(prefab.clone(), world.flags_mut().rng().next_u32(), TEST_WORLD_ID);
+
+    for (pos, marker) in prefab.markers() {
+        debug_world.debug_overlay.add(*pos, marker.to_mark());
+    }
+
+    world.move_to_map(debug_world, start_pos).unwrap();
+}
+
+fn cmd_use_stairs(context: &mut GameContext, dir: StairDir) -> CommandResult<()> {
+    let world = &mut context.state.world;
+    let player = world.player().ok_or(CommandError::Bug("No player in the world!"))?;
+    let pos = world.position(player).ok_or(CommandError::Bug("Player has no position!"))?;
     let next = find_stair_dest(world, pos, dir)?;
 
-    let (true_next, dest) = load_stair_dest(world, pos, next);
+    let (true_next, dest) = load_stair_dest(world, pos, next)?;
     world.move_to_map(true_next, dest).unwrap();
 
     debug!(world.logger, "map id: {:?}", world.map_id());
     Ok(())
 }
 
-fn find_stair_dest(world: &EcsWorld, pos: Point, dir: StairDir) -> Result<StairDest, ()> {
-    let cell = match world.cell_const(&pos) {
-        Some(c) => c,
-        None    => return Err(())
-    };
+fn find_stair_dest(world: &EcsWorld, pos: Point, dir: StairDir) -> CommandResult<StairDest> {
+    let cell = world.cell_const(&pos).ok_or(CommandError::Bug("World was not loaded at pos!"))?;
 
     match cell.feature {
         Some(CellFeature::Stairs(stair_dir, dest)) => {
             if stair_dir != dir {
-                return Err(());
+                return Err(CommandError::Cancel);
             }
 
             debug!(world.logger, "STAIR at {}: {:?}", pos, dest);
 
             Ok(dest)
         }
-        _ => Err(())
+        _ => Err(CommandError::Cancel)
     }
 }
 
-fn load_stair_dest(world: &mut EcsWorld, stair_pos: Point, next: StairDest) -> (EcsWorld, Point) {
+fn load_stair_dest(world: &mut EcsWorld, stair_pos: Point, next: StairDest) -> CommandResult<(EcsWorld, Point)> {
     match next {
         StairDest::Generated(map_id, dest) => {
             debug!(world.logger, "Found stair leading to: {:?}", map_id);
-            let map = world.get_map(map_id).unwrap();
-            (map, dest)
+            let world = world::serial::load_world(map_id)
+                .map_err(|_| CommandError::Bug("Failed to load already generated world!"))?;
+            Ok((world, dest))
         },
         StairDest::Ungenerated => {
             debug!(world.logger, "Failed to load map, generating...");
@@ -137,12 +218,11 @@ fn generate_stair_dest(prev_id: MapId,
                        seed: u32,
                        old_pos: Point,
                        stairs: &mut Cell)
-                       -> (EcsWorld, Point) {
-    let mut new_world = EcsWorld::from_prefab("prefab", seed, next_id);
+                       -> CommandResult<(EcsWorld, Point)> {
+    let mut new_world = EcsWorld::from_prefab(prefab::create("prefab").unwrap(), seed, next_id);
 
     if let Some(CellFeature::Stairs(stair_dir, ref mut dest@StairDest::Ungenerated)) = stairs.feature {
-        let new_stair_pos = new_world.find_stairs_in()
-            .expect("Generated world has no stairs!");
+        let new_stair_pos = new_world.find_stairs_in().ok_or(CommandError::Bug("Generated world has no stairs!"))?;
 
         *dest = StairDest::Generated(next_id, new_stair_pos);
 
@@ -151,29 +231,55 @@ fn generate_stair_dest(prev_id: MapId,
                                prev_id,
                                old_pos);
 
-        (new_world, new_stair_pos)
+        Ok((new_world, new_stair_pos))
     } else {
-        panic!("Stairs should have already been found by now...");
+        Err(CommandError::Bug("Stairs should have already been found by now..."))
     }
 }
 
-
-use renderer;
-use glium::glutin;
 use glium::glutin::{VirtualKeyCode, ElementState};
+use glium::glutin;
+use graphics::Color;
+use point::LineIter;
+use renderer;
 
 fn maybe_examine_tile(pos: Point, world: &mut EcsWorld)  {
     if let Some(mob) = world.mob_at(pos) {
         if let Some(player) = world.player() {
-            if entity::can_see_other(player, mob, world) {
-                mes!(world, "You see here a {}.", a=entity::name(mob, world));
+            if player.can_see_other(mob, world) {
+                mes!(world, "You see here a {}.", a=mob.name(world));
             }
         }
     }
 }
 
-fn look(context: &mut GameContext) {
+fn draw_targeting_line(player_pos: Option<Point>, world: &mut EcsWorld) {
+    let camera = world.flags().camera;
+
+    if let Some(player_pos) = player_pos {
+        draw_line(player_pos, camera, world);
+    }
+}
+
+fn draw_line(start: Point, end: Point, world: &mut EcsWorld) {
+    world.marks.clear();
+    for pos in LineIter::new(start, end) {
+        world.marks.add(pos, Color::new(255, 255, 255));
+    }
+    world.marks.add(end, Color::new(255, 255, 255));
+}
+
+/// Allow the player to choose a tile.
+fn select_tile<F>(context: &mut GameContext, callback: F) -> Option<Point>
+    where F: Fn(Point, &mut EcsWorld) {
+    let mut selected = false;
+    let mut result = context.state.world.flags().camera;
+    let player_pos = context.state.world.player().map(|p| context.state.world.position(p)).unwrap_or(None);
+
     renderer::with_mut(|rc| {
+        draw_targeting_line(player_pos, &mut context.state.world);
+        rc.update(context);
+
         rc.start_loop(|renderer| {
             let events = renderer.poll_events();
             if !events.is_empty() {
@@ -185,15 +291,22 @@ fn look(context: &mut GameContext) {
                                 {
                                     let world = &mut context.state.world;
                                     match code {
-                                        VirtualKeyCode::Escape => return renderer::Action::Stop,
                                         VirtualKeyCode::Up => world.flags_mut().camera.y -= 1,
                                         VirtualKeyCode::Down => world.flags_mut().camera.y += 1,
                                         VirtualKeyCode::Left => world.flags_mut().camera.x -= 1,
                                         VirtualKeyCode::Right => world.flags_mut().camera.x += 1,
+                                        VirtualKeyCode::Escape => return renderer::Action::Stop,
+                                        VirtualKeyCode::Return => {
+                                            selected = true;
+                                            return renderer::Action::Stop;
+                                        },
                                         _ => (),
                                     }
+                                    let camera = world.flags().camera;
+                                    result = camera;
+                                    callback(camera, world);
 
-                                    maybe_examine_tile(world.flags().camera, world);
+                                    draw_targeting_line(player_pos, world);
                                 }
 
                                 renderer.update(context);
@@ -210,4 +323,89 @@ fn look(context: &mut GameContext) {
             renderer::Action::Continue
         });
     });
+
+
+    context.state.world.marks.clear();
+
+    if selected {
+        Some(result)
+    } else {
+        None
+    }
+}
+
+use renderer::ui::*;
+use renderer::ui::elements::*;
+
+struct ChoiceLayer {
+    list: UiList,
+}
+
+impl ChoiceLayer {
+    pub fn new(choices: Vec<String>) -> Self {
+        ChoiceLayer {
+            list: UiList::new((120, 120), choices),
+        }
+    }
+}
+
+impl UiElement for ChoiceLayer {
+    fn draw(&self, renderer: &mut UiRenderer) {
+        self.list.draw(renderer);
+    }
+}
+
+impl UiLayer for ChoiceLayer {
+    fn on_event(&mut self, event: glutin::Event) -> EventResult {
+        match event {
+            glutin::Event::KeyboardInput(ElementState::Pressed, _, Some(code)) => {
+                match code {
+                    VirtualKeyCode::Escape => EventResult::Done,
+                    VirtualKeyCode::Return => EventResult::Done,
+                    VirtualKeyCode::Up => {
+                        self.list.select_prev();
+                        EventResult::Consumed(None)
+                    },
+                    VirtualKeyCode::Down => {
+                        self.list.select_next();
+                        EventResult::Consumed(None)
+                    },
+                    _ => EventResult::Ignored,
+                }
+            },
+            _ => EventResult::Ignored,
+        }
+    }
+}
+
+impl UiQuery for ChoiceLayer {
+    type QueryResult = usize;
+
+    fn result(&self) -> Option<usize> {
+        self.list.get_selected_idx()
+    }
+}
+
+fn menu_choice(context: &mut GameContext, choices: Vec<String>) -> Option<usize> {
+    let mut selected = false;
+    let mut idx = None;
+
+    renderer::with_mut(|rc| {
+        rc.update(context);
+
+        idx = rc.query(&mut ChoiceLayer::new(choices));
+        selected = true;
+    });
+
+    if selected {
+        idx
+    } else {
+        None
+    }
+}
+
+fn menu_choice_indexed<T: Display + Clone>(context: &mut GameContext, mut choices: Vec<T>) -> CommandResult<T> {
+    let strings = choices.iter().cloned().map(|t| t.to_string()).collect();
+    let idx = menu_choice(context, strings).ok_or(CommandError::Cancel)?;
+    Ok(choices.remove(idx))
 }

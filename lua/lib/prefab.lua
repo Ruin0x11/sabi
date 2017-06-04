@@ -26,6 +26,10 @@ function prefab_metatable:in_bounds(point)
    return self:in_bounds_raw(point.x, point.y)
 end
 
+function prefab_metatable:place_door(point)
+   return self:place_door_raw(point.x, point.y)
+end
+
 function prefab_metatable:place_stairs_in(point)
    return self:place_stairs_in_raw(point.x, point.y)
 end

@@ -49,6 +49,11 @@ impl From<Rect> for AtlasRect {
 
 pub type AtlasTextureRegion = (f32, f32, f32, f32);
 
+pub enum TileShape {
+    Static,
+    Autotile,
+    Wall,
+}
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct AtlasTileData {
@@ -298,6 +303,11 @@ impl TileAtlas {
 
     pub fn get_tile_texture_size(&self, tile_type: &str) -> (u32, u32) {
         self.get_frame(tile_type).tile_size
+    }
+
+    pub fn get_tile(&self, tile_type: &str) -> &AtlasTile {
+        let frame = self.get_frame(tile_type);
+        &frame.offsets[tile_type]
     }
 
     pub fn get_texture_offset(&self, tile_type: &str, msecs: u64) -> (f32, f32) {

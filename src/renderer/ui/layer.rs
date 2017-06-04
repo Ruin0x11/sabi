@@ -13,7 +13,7 @@ pub trait UiLayer: UiElement {
 pub trait UiQuery: UiLayer {
     type QueryResult;
 
-    fn result(&self) -> Self::QueryResult;
+    fn result(&self) -> Option<Self::QueryResult>;
 }
 
 pub struct Callback(Rc<Box<Fn(&mut Ui)>>);

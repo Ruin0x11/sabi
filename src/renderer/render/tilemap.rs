@@ -60,6 +60,26 @@ use point::Direction::*;
 fn get_autotile_index(edges: u8, quadrant: i8) -> i8 {
     let is_connected = |dir: Direction| (edges & (1 << dir_to_bit(dir))) > 0;
 
+    // The autotile indices are laid out like so:
+    //
+    //       ___________Isolated tile
+    //      /      _________Inner corner tiles
+    //     /      /
+    // +-------------+
+    // | 0  1 | 2  3 |
+    // |      |      |
+    // | 4  5 | 6  7 |
+    // +------+------+
+    // | 8--9  10-11 |
+    // |  /      \   |
+    // |12-13  14-15 |
+    // |             | ------- Main tile atlas
+    // |16-17  18-19 |
+    // |  \      /   |
+    // |20-21  22-23 |
+    // +-------------+
+    //
+
     if !is_connected(N) && !is_connected(W) && !is_connected(E) && !is_connected(S) {
         let ret = match quadrant {
             QUAD_NW => {
@@ -79,7 +99,6 @@ fn get_autotile_index(edges: u8, quadrant: i8) -> i8 {
         return ret;
     }
 
-    // The tiles are in order from the corner inside.
     let lookup_idx = |horiz: Direction, vert: Direction, corner: Direction, tiles: [i8; 4], corner_piece: i8| {
         if !is_connected(horiz) && !is_connected(vert) {
             tiles[0]
@@ -108,6 +127,24 @@ fn get_autotile_index(edges: u8, quadrant: i8) -> i8 {
             lookup_idx(S, E, SE, [23, 22, 19, 18], 7)
         },
         _ => -1,
+    }
+}
+
+fn get_tile_index(quadrant: i8) -> i8 {
+    match quadrant {
+        QUAD_NW => {
+            0
+        },
+        QUAD_NE => {
+            1
+        },
+        QUAD_SW => {
+            4
+        },
+        QUAD_SE => {
+            5
+        },
+        _       => 0,
     }
 }
 
@@ -149,8 +186,13 @@ impl TileMap {
                     for quadrant in 0..4 {
                         let (x, y) = (c.x, c.y);
                         let (tx, ty) = self.tile_atlas.get_texture_offset(tile.kind, msecs);
+                        let is_autotile = self.tile_atlas.get_tile(tile.kind).data.is_autotile;
 
-                        let autotile_index = get_autotile_index(tile.edges, quadrant);
+                        let autotile_index = if is_autotile {
+                            get_autotile_index(tile.edges, quadrant)
+                        } else {
+                            get_tile_index(quadrant)
+                        };
 
                         let tile_idx = self.tile_atlas.get_tile_index(tile.kind);
 
@@ -217,11 +259,11 @@ impl<'a> Renderable for TileMap {
     }
 }
 
+use GameContext;
 use graphics::cell::CellType;
+use renderer::interop::RenderUpdate;
 use world::EcsWorld;
 use world::traits::{Query, WorldQuery};
-use GameContext;
-use renderer::interop::RenderUpdate;
 
 fn get_neighboring_edges(world: &EcsWorld, pos: Point, cell_type: CellType) -> u8 {
     let mut res: u8 = 0;
@@ -277,4 +319,3 @@ impl RenderUpdate for TileMap {
         }
     }
 }
-

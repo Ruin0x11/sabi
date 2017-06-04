@@ -11,6 +11,7 @@ macro_attr! {
         Grass,
         Sand,
         Table,
+        Tile,
         Air,
         Important,
     }
@@ -95,20 +96,22 @@ impl Cell {
 
     fn get_appearance(&self) -> &'static str {
         match self.type_ {
+            CellType::Wall    => "stonewall",
             CellType::Water   => "water",
             CellType::SeaWall => "sea_wall",
             CellType::Grass   => "grass",
             CellType::Sand    => "sand",
             CellType::Floor   => "stone_road",
             CellType::Table   => "table",
+            CellType::Tile    => "check_tile",
             _                 => "stone_road",
         }
     }
 }
 
 // TEMP: A tile ID is all that should be needed, not type and glyph
-pub const WALL: Cell = Cell {
-    type_: CellType::Wall,
+pub const TILE: Cell = Cell {
+    type_: CellType::Tile,
     feature: None,
 };
 

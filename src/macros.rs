@@ -9,19 +9,57 @@
 /// It would be better if some temporary names could be dynamically generated
 /// instead of having to provide them each time.
 macro_rules! mes {
-    ($w:ident) => {
+    ($w:expr) => {
         $w.next_message();
     };
-    ($w:ident, $e:expr) => {
+    ($w:expr, $e:expr) => {
         $w.message($e);
     };
-    ($w:ident, $e:expr, $( $x:ident=$y:expr ),+) => {
+    ($w:expr, $e:expr, $( $x:ident=$y:expr ),+) => {
         $(
             let $x = $y;
         )*
 
         $w.message(&format!($e, $($x),+));
     };
+}
+
+/// A macro to open a UI window with a set of string choices. Called like:
+///
+///```no_run
+/// menu!(context,
+///       "foo" => do_foo(),
+///       "bar" => do_bar(),
+///       "bar" => do_baz(),
+/// )
+///```
+macro_rules! menu {
+    ($context:ident, $( $x:expr => $y:expr ),*) => {
+        {
+            let mut temp_vec = Vec::new();
+
+            $(
+                temp_vec.push($x.to_string());
+            )*
+
+                match menu_choice($context, temp_vec) {
+                    Some(idx) => {
+                        let mut i: usize = 0;
+
+                        $(
+                            if idx == i {
+                                return $y;
+                            }
+                            i += 1;
+                        )*
+
+                            Err(CommandError::Cancel)
+                    },
+                    None => Err(CommandError::Cancel)
+                }
+
+        }
+    }
 }
 
 macro_rules! make_global {

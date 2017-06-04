@@ -1,7 +1,7 @@
 mod atlas;
 mod render;
 mod util;
-mod ui;
+pub mod ui;
 
 mod interop;
 

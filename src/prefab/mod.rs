@@ -1,12 +1,14 @@
 mod interop;
 
-pub use self::interop::{map_from_prefab, add_lua_interop};
+pub use self::interop::*;
 
 use std::collections::HashMap;
+use std::fmt;
 
 use hlua;
 
 use graphics::cell::{self, Cell};
+use graphics::Color;
 use point::{Point};
 
 #[derive(Debug)]
@@ -19,6 +21,17 @@ pub enum PrefabError {
 }
 
 use self::PrefabError::*;
+
+impl fmt::Display for PrefabError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        let string = match *self {
+            PrefabError::LuaException(hlua::LuaError::SyntaxError(ref e)) |
+            PrefabError::LuaException(hlua::LuaError::ExecutionError(ref e)) => e.clone(),
+            ref e => format!("{:?}", e),
+        };
+        write!(f, "{}", string)
+    }
+}
 
 impl From<hlua::LuaError>for PrefabError {
     fn from(err: hlua::LuaError) -> PrefabError {
@@ -42,6 +55,18 @@ pub enum PrefabMarker {
     StairsIn,
     StairsOut,
     Connection
+}
+
+impl PrefabMarker {
+    pub fn to_mark(&self) -> Color {
+        match *self {
+            PrefabMarker::Mob(..) => Color::new(255, 0, 255),
+            PrefabMarker::Door => Color::new(0, 0, 255),
+            PrefabMarker::StairsIn => Color::new(0, 255, 0),
+            PrefabMarker::StairsOut => Color::new(255, 255, 0),
+            PrefabMarker::Connection => Color::new(255, 0, 0),
+        }
+    }
 }
 
 impl<'lua, L> hlua::LuaRead<L> for Prefab
@@ -123,6 +148,10 @@ impl Prefab {
         for (point, cell) in other.iter() {
             self.set(&(point + offset), *cell);
         }
+    }
+
+    pub fn markers<'a>(&'a self) -> impl Iterator<Item=(&'a Point, &'a PrefabMarker)> {
+        self.markers.iter()
     }
 
     pub fn iter(&self) -> PrefabIter {

@@ -24,15 +24,12 @@ log.info(tostring(prefab))
 cell_width = math.floor(width / cells_horiz)
 cell_height = math.floor(height / cells_vert)
 
-for i = 0, cells_horiz, 1 do
+for i = 1, cells_horiz, 1 do
    rooms[i] = {}
-   for j = 0, cells_vert, 1 do
+   for j = 1, cells_vert, 1 do
       rooms[i][j] = {rect = world.rect(0, 0, 0, 0), connections = {}, cell = world.point(i, j)}
    end
 end
-
-current_cell = world.point(rand.zero_to(cells_horiz),
-                           rand.zero_to(cells_vert))
 
 function dir_sequence()
    local dirs = {NORTH, WEST, SOUTH, EAST}
@@ -40,11 +37,25 @@ function dir_sequence()
    return dirs
 end
 
+function has_value (tab, val)
+    for index, value in ipairs(tab) do
+        if value == val then
+            return true
+        end
+    end
+
+    return false
+end
+
 -- TODO: Run until all are connected
 function connect_randomly()
    local connected_cells = {}
    local room, other_room
    local next_cell
+   
+   local current_cell = world.point(rand.between(1, cells_horiz),
+                                    rand.between(1, cells_vert))
+
    repeat
       local found = false
       local dirs = dir_sequence()
@@ -53,24 +64,30 @@ function connect_randomly()
          local dir = table.remove(dirs)
          local offset = world.dir(dir)
          next_cell = current_cell + offset
-         local bounds = world.rect(0, 0, cells_horiz - 1, cells_vert - 1)
+         local bounds = world.rect(1, 1, cells_horiz - 1, cells_vert - 1)
 
          if bounds:contains(next_cell.x, next_cell.y) then
             room = rooms[current_cell.x][current_cell.y]
 
             if #room["connections"] > 0 then
-               if room["connections"][1] == next_cell then break end
+               if has_value(room["connections"], next_cell) then break end
             end
 
             other_room = rooms[next_cell.x][next_cell.y]
 
-            if #other_room["connections"] == 0 then
-               table.insert(other_room["connections"], current_cell)
+            already_connected = has_value(other_room["connections"], room["cell"])
+
+            if #other_room["connections"] == 0 or not already_connected then
+               table.insert(other_room["connections"], room["cell"])
+               table.insert(room["connections"], other_room["cell"])
+               log.debug("Connected " .. tostring(room["cell"]) .. " to " .. tostring(other_room["cell"]))
 
                table.insert(connected_cells, next_cell)
-               log.info("Connected " .. tostring(next_cell))
+
                current_cell = next_cell
                found = true
+            else
+               log.debug("not found")
             end
          end
       until #dirs == 0 or found == true
@@ -78,8 +95,8 @@ function connect_randomly()
 end
 
 function connect_neighbors()
-   for i = 0, cells_horiz, 1 do
-      for j = 0, cells_vert, 1 do
+   for i = 1, cells_horiz, 1 do
+      for j = 1, cells_vert, 1 do
          room = rooms[i][j]
 
          if #room["connections"] == 0 then
@@ -92,7 +109,7 @@ function connect_neighbors()
                local this_cell = world.point(i, j)
                local next_cell = this_cell + offset
 
-               local bounds = world.rect(0, 0, cells_horiz - 1, cells_vert - 1)
+               local bounds = world.rect(1, 1, cells_horiz - 1, cells_vert - 1)
 
                if bounds:contains(next_cell.x, next_cell.y) then
                   other_room = rooms[next_cell.x][next_cell.y]
@@ -112,15 +129,62 @@ function connect_neighbors()
             until #dirs == 0
 
             if valid then
+               table.insert(other_room["connections"], room["cell"])
                table.insert(room["connections"], other_room["cell"])
-               log.info("Now connected " .. tostring(room["cell"]))
+               log.debug("Connected " .. tostring(room["cell"]) .. " to " .. tostring(other_room["cell"]))
             else
-               log.warn("Could not connect room!")
+               log.warn("Could not connect room! " .. tostring(room["cell"]))
             end
-
          end
       end
    end
+end
+
+function all_connected()
+   local room = rooms[1][1]
+   local visited = {}
+
+   for i = 1, cells_horiz, 1 do
+      visited[i] = {}
+      for j = 1, cells_vert, 1 do
+         visited[i][j] = false
+      end
+   end
+
+   visited[1][1] = true
+
+   function dfs(room)
+      local total = 0
+      for cell in iter.list_iter(room["connections"]) do
+         if visited[cell.x][cell.y] == false then
+            visited[cell.x][cell.y] = true
+            total = total + 1 + dfs(rooms[cell.x][cell.y])
+         end
+      end
+      return total
+   end
+   local total_cells = cells_horiz * cells_vert
+   local tot = 1 + dfs(room)
+   local done = tot == total_cells
+
+   local asd = "\n"
+   for i = 1, cells_horiz, 1 do
+      for j = 1, cells_vert, 1 do
+         for con in iter.list_iter(rooms[i][j]["connections"]) do
+            log.debug(tostring(rooms[i][j]["cell"]) .. " => " .. tostring(con["cell"]))
+         end
+         if visited[i][j] then
+            asd = asd .. " O "
+         else
+            asd = asd .. " X "
+         end
+      end
+      asd = asd .. "\n"
+   end
+
+   log.debug(asd)
+   log.debug(tostring(tot))
+   return done
 end
 
 function round(num)
@@ -131,25 +195,25 @@ end
 function create_rooms()
    local room_size
    local room_pos
-   for i = 0, cells_horiz - 1, 1 do
-      for j = 0, cells_vert - 1, 1 do
-         room_pos = world.point(cell_width * i,
-                                cell_height * j)
+   for i = 1, cells_horiz, 1 do
+      for j = 1, cells_vert, 1 do
+         room_pos = world.point(cell_width * (i-1),
+                                cell_height * (j-1))
 
          if room_pos.x == 0 then room_pos.x = 1 end
          if room_pos.y == 0 then room_pos.y = 1 end
 
          room_size = rand.point_between(room_min, room_max)
 
-         if j > 0 then
+         if j > 1 then
             other_room = rooms[i][j-1]
             while (room_pos.y - other_room["rect"]:y() + other_room["rect"]:height()) < 3 do
                room_pos.y = room_pos.y + 1
             end
          end
 
-         if i > 0 then
-            other_room = rooms[i-i][j]
+         if i > 1 then
+            other_room = rooms[i-1][j]
             while (room_pos.x - other_room["rect"]:x() + other_room["rect"]:width()) < 3 do
                room_pos.x = room_pos.x + 1
             end
@@ -178,10 +242,6 @@ function create_rooms()
 
          room_pos = room_pos + offset
 
-         log.info(tostring(offset))
-         log.info(tostring(room_size))
-         log.info(tostring(room_pos) .. " " .. tostring(room_pos + room_size))
-
          for p in iter.rect_iterator(room_pos, room_pos + room_size) do
             room = rooms[i][j]
             room["rect"] = world.rect_from_pts(room_pos, room_size)
@@ -194,8 +254,8 @@ end
 function connect_rooms()
    local wall, other_wall
 
-   for i = 0, cells_horiz - 1, 1 do
-      for j = 0, cells_vert - 1, 1 do
+   for i = 1, cells_horiz, 1 do
+      for j = 1, cells_vert, 1 do
          room = rooms[i][j]
 
          for connection in iter.list_iter(room["connections"]) do
@@ -248,6 +308,7 @@ function get_wall_position(room, dir)
    end
 
    prefab:set(door_pos, "Floor")
+   prefab:place_door(door_pos)
 
    return pos
 end
@@ -340,15 +401,24 @@ function put_stairs()
    log.info("stairs at " .. tostring(point))
 end
 
-connect_randomly()
-connect_neighbors()
+i = 0
+repeat
+   log.debug("Iterating connections.")
+   connect_randomly()
+   connect_neighbors()
+   i = i + 1
+   if i > 100 then
+      error("die")
+   end
+until all_connected()
+
 create_rooms()
 
-   for i = 0, cells_horiz - 1, 1 do
-      for j = 0, cells_vert - 1, 1 do
-         log.info("ROOM " .. tostring(rooms[i][j]["rect"]) .. " " .. i .. " " .. j)
-      end
+for i = 1, cells_horiz, 1 do
+   for j = 1, cells_vert, 1 do
+      log.info("ROOM " .. tostring(rooms[i][j]["rect"]) .. " " .. i .. " " .. j)
    end
+end
 
 connect_rooms()
 add_seawall()

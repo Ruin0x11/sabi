@@ -38,14 +38,13 @@ impl Regions {
         let mut save_path = world::serial::get_world_save_dir(self.id);
         fs::create_dir_all(&save_path).unwrap();
 
-        save_path.push_str(&Regions::get_region_filename(index));
-        PathBuf::from(save_path)
+        save_path.push(&Regions::get_region_filename(index));
+        save_path
     }
 }
 
 impl<'a> RegionManager<'a, ChunkIndex, SerialChunk> for Regions
     where Region<ChunkIndex>: ManagedRegion<'a, ChunkIndex, SerialChunk>{
-    // TODO: Painful to use without being able to pass in the map id to load().
     fn load(&mut self, index: RegionIndex) {
         let path = self.get_region_path(&index);
 

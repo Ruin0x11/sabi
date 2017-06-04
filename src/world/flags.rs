@@ -1,6 +1,7 @@
 use calx_alg::EncodeRng;
 use calx_ecs::Entity;
 use rand::{Rng, SeedableRng, XorShiftRng};
+use world::MapId;
 
 use point::Point;
 
@@ -9,7 +10,7 @@ pub struct Flags {
     pub globals: GlobalFlags,
 
     pub camera: Point,
-    pub map_id: u32,
+    pub map_id: MapId,
     seed: u32,
     rng: EncodeRng<XorShiftRng>,
 }
@@ -30,7 +31,7 @@ impl GlobalFlags {
 }
 
 impl Flags {
-    pub fn new(seed: u32, map_id: u32) -> Flags {
+    pub fn new(seed: u32, map_id: MapId) -> Flags {
         Flags {
             globals: GlobalFlags {
                 player: None,

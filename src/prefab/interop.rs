@@ -1,3 +1,4 @@
+use glob;
 use hlua::{self, Lua};
 
 use point::Point;
@@ -6,6 +7,20 @@ use prefab::*;
 use lua;
 
 const PREFAB_VARIABLE: &str = "prefab";
+
+pub fn get_prefab_names() -> Vec<String> {
+    let mut names = Vec::new();
+    for entry in glob::glob("lua/maps/*.lua").expect("No prefab path!") {
+        if let Ok(path) = entry {
+            names.push(path.file_stem().unwrap().to_str().unwrap().to_owned());
+        }
+    }
+    names
+}
+
+pub fn create(name: &str) -> PrefabResult<Prefab> {
+    lua::with_mut(|l| map_from_prefab(l, name))
+}
 
 pub fn map_from_prefab<'a>(lua: &'a mut Lua, name: &str) -> PrefabResult<Prefab> {
     let map_filename = &format!("maps/{}", name);
@@ -34,7 +49,7 @@ pub fn lua_new(x: i32, y: i32, fill: String) -> PrefabResult<Prefab> {
     Ok(Prefab::new(x, y, cell))
 }
 
-pub fn lua_get(prefab: &Prefab, x: i32, y: i32) -> PrefabResult<String> {
+fn lua_get(prefab: &Prefab, x: i32, y: i32) -> PrefabResult<String> {
     let pt = Point::new(x, y);
     if !prefab.in_bounds(&pt) {
         return Err(OutOfBounds(x, y));
@@ -42,7 +57,7 @@ pub fn lua_get(prefab: &Prefab, x: i32, y: i32) -> PrefabResult<String> {
     Ok(format!("{:?}", prefab.get(&pt).type_))
 }
 
-pub fn lua_set(prefab: &mut Prefab, x: i32, y: i32, name: String) -> PrefabResult<()> {
+fn lua_set(prefab: &mut Prefab, x: i32, y: i32, name: String) -> PrefabResult<()> {
     let cell_type = match name.parse::<CellType>() {
         Ok(t)     => t,
         Err(_)    => return Err(CellTypeNotFound(name)),
@@ -57,7 +72,7 @@ pub fn lua_set(prefab: &mut Prefab, x: i32, y: i32, name: String) -> PrefabResul
     Ok(())
 }
 
-pub fn lua_blocked(prefab: &Prefab, x: i32, y: i32) -> bool {
+fn lua_blocked(prefab: &Prefab, x: i32, y: i32) -> bool {
     let pt = Point::new(x, y);
     if !prefab.in_bounds(&pt) {
         return true
@@ -65,29 +80,34 @@ pub fn lua_blocked(prefab: &Prefab, x: i32, y: i32) -> bool {
     !prefab.get(&pt).can_pass_through()
 }
 
-pub fn lua_in_bounds(prefab: &Prefab, x: i32, y: i32) -> bool {
+fn lua_in_bounds(prefab: &Prefab, x: i32, y: i32) -> bool {
     let pt = Point::new(x, y);
     prefab.in_bounds(&pt)
 }
 
-pub fn lua_width(prefab: &Prefab) -> i32 {
+fn lua_width(prefab: &Prefab) -> i32 {
     prefab.width()
 }
 
-pub fn lua_height(prefab: &Prefab) -> i32 {
+fn lua_height(prefab: &Prefab) -> i32 {
     prefab.height()
 }
 
-pub fn lua_print(_prefab: &Prefab) {
+fn lua_print(_prefab: &Prefab) {
 
 }
 
-pub fn lua_place_stairs_in(prefab: &mut Prefab, x: i32, y: i32) {
+fn lua_place_door(prefab: &mut Prefab, x: i32, y: i32) {
+    let pt = Point::new(x, y);
+    prefab.set_marker(&pt, PrefabMarker::Door);
+}
+
+fn lua_place_stairs_in(prefab: &mut Prefab, x: i32, y: i32) {
     let pt = Point::new(x, y);
     prefab.set_marker(&pt, PrefabMarker::StairsIn);
 }
 
-pub fn lua_place_stairs_out(prefab: &mut Prefab, x: i32, y: i32) {
+fn lua_place_stairs_out(prefab: &mut Prefab, x: i32, y: i32) {
     let pt = Point::new(x, y);
     prefab.set_marker(&pt, PrefabMarker::StairsOut);
 }
@@ -107,6 +127,7 @@ implement_lua_push!(Prefab, |mut metatable| {
     index.set("get_raw", hlua::function3(lua_get));
     index.set("blocked_raw", hlua::function3(lua_blocked));
     index.set("in_bounds_raw", hlua::function3(lua_in_bounds));
+    index.set("place_door_raw", hlua::function3(lua_place_door));
     index.set("place_stairs_in_raw", hlua::function3(lua_place_stairs_in));
     index.set("place_stairs_out_raw", hlua::function3(lua_place_stairs_out));
 

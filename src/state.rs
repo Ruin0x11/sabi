@@ -8,8 +8,8 @@ use ai;
 use chunk::generator::ChunkType;
 use engine::keys::Key;
 use point::POINT_ZERO;
-use logic::command;
-use logic::{self, Action, Command};
+use logic::command::{self, Command, CommandError};
+use logic::{self, Action};
 use stats;
 use world::serial::SaveManifest;
 use world::traits::*;
@@ -27,6 +27,10 @@ impl GameState {
             world: EcsWorld::new(Bounds::Unbounded, ChunkType::Perlin, seed, 0),
             action_queue: VecDeque::new(),
         }
+    }
+
+    pub fn clear_actions(&mut self) {
+        self.action_queue.clear();
     }
 
     pub fn add_action(&mut self, action: Action) {
@@ -113,38 +117,37 @@ fn process_events(_world: &mut EcsWorld) {
     // }
 }
 
-fn update_world_terrain(world: &mut EcsWorld) {
-    let center = match world.player() {
-        Some(p) => world.position(p).map_or(POINT_ZERO, |p| p),
-        None    => POINT_ZERO,
-    };
-
-    world.update_chunks(center).unwrap();
-}
-
-fn update_camera(world: &mut EcsWorld) {
-    if let Some(player) = world.player() {
-        if let Some(pos) = world.position(player) {
-            world.flags_mut().camera = pos;
+pub fn run_command(context: &mut GameContext, command: Command) {
+    match command::process_player_command(context, command) {
+        Err(e) => {
+            match e {
+                CommandError::Bug(reason)     => panic!("A bug occurred: {}", reason),
+                CommandError::Invalid(reason) => context.state.world.message(reason),
+                CommandError::Cancel          => (),
+            }
+            context.state.clear_actions();
+            context.state.world.update_camera();
+        },
+        Ok(..) => {
+            run_action_queue(context);
+            process(context);
         }
     }
 }
 
-pub fn run_command(context: &mut GameContext, command: Command) {
-    command::process_player_command(context, command);
-    run_action_queue(context);
-    process(context);
+fn update_world(context: &mut GameContext) {
+    context.state.world.update_terrain();
+    context.state.world.update_camera();
 }
 
 // TEMP: Just to bootstrap things dirtily.
 pub fn process(context: &mut GameContext) {
-    update_world_terrain(&mut context.state.world);
-
+    update_world(context);
     process_actors(&mut context.state.world);
 }
 
 pub fn init_headless(context: &mut GameContext) {
-    update_world_terrain(&mut context.state.world);
+    context.state.world.on_load();
 }
 
 pub fn load_context() -> GameContext {
@@ -158,7 +161,7 @@ pub fn load_context() -> GameContext {
     if let Ok(world) = world::serial::load_world(manifest.map_id) {
         context.state.world = world;
     } else {
-        let e = context.state.world.create(::ecs::prefab::mob("Player", 10000, "player"), WorldPosition::new(1,1));
+        let e = context.state.world.create(::ecs::prefab::mob("player", 10000, "player"), WorldPosition::new(1,1));
         context.state.world.set_player(Some(e));
     }
 
@@ -175,7 +178,6 @@ pub fn game_step(context: &mut GameContext, input: Option<Key>) {
         let command = Command::from(key);
         run_command(context, command);
     }
-    update_camera(&mut context.state.world);
 
     let dead = check_player_dead(&context.state.world);
     if dead {
@@ -197,5 +199,5 @@ pub fn run_action_no_ai(context: &mut GameContext, action: Action) {
     context.state.player_action(action);
     run_action_queue(context);
 
-    update_world_terrain(&mut context.state.world);
+    context.state.world.update_terrain();
 }

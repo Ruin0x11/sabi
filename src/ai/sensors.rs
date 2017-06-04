@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use calx_ecs::Entity;
 
 use ai::{Ai, AiProp};
-use logic;
+use logic::entity::EntityQuery;
 use world::traits::Query;
 use world::EcsWorld;
 
@@ -28,7 +28,7 @@ fn target_visible(world: &EcsWorld, entity: &Entity, ai: &Ai) -> bool {
     ai.target.borrow()
         .map_or(false, |t| {
             let pos = world.position(t).expect("Target didn't have position!");
-            logic::entity::has_los(*entity, pos, world)
+            entity.has_los(pos, world)
         })
 }
 

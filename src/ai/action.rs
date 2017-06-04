@@ -2,7 +2,8 @@ use calx_ecs::Entity;
 
 use ecs::traits::*;
 use point::Direction;
-use logic::{self, Action};
+use logic::Action;
+use logic::entity::EntityQuery;
 use data::Walkability;
 use point::Path;
 use world::traits::*;
@@ -32,7 +33,7 @@ pub fn move_closer(entity: Entity, world: &EcsWorld) -> Action {
     let my_pos = world.position(entity).unwrap();
     let target_pos = world.position(target).unwrap();
 
-    assert!(logic::entity::has_los(entity, target_pos, world), "Entity can't see target!");
+    assert!(entity.has_los(target_pos, world), "Entity can't see target!");
 
     if my_pos.is_next_to(target_pos) {
         return Action::Move(Direction::from_neighbors(my_pos, target_pos).unwrap());

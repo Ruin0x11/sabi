@@ -10,41 +10,51 @@ use point::{Point, LineIter};
 use world::traits::*;
 use world::EcsWorld;
 
-pub fn has_los(looker: Entity, target_pos: Point, world: &EcsWorld) -> bool {
-    let looker_pos = match world.position(looker) {
-        Some(p) => p,
-        None => return false,
-    };
+pub trait EntityQuery {
+    fn has_los(&self, target_pos: Point, world: &EcsWorld) -> bool;
+    fn name(&self, world: &EcsWorld) -> String;
+    fn is_dead(&self, world: &EcsWorld) -> bool;
+    fn can_see_other(&self, target: Entity, world: &EcsWorld) -> bool;
+}
 
-    for pos in LineIter::new(looker_pos, target_pos) {
-        if !world.light_passes_through(&pos) {
-            return false;
+impl EntityQuery for Entity {
+    fn has_los(&self, target_pos: Point, world: &EcsWorld) -> bool {
+        let my_pos = match world.position(*self) {
+            Some(p) => p,
+            None => return false,
+        };
+
+        for pos in LineIter::new(my_pos, target_pos) {
+            if !world.light_passes_through(&pos) {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    fn name(&self, world: &EcsWorld) -> String {
+        world.ecs().names.get(*self)
+            .map_or("(unnamed)".to_string(), |n| n.name.clone())
+    }
+
+    fn is_dead(&self, world: &EcsWorld) -> bool {
+        world.ecs().healths.get(*self)
+            .map_or(true, |h| h.is_dead())
+    }
+
+    fn can_see_other(&self, target: Entity, world: &EcsWorld) -> bool {
+        if let Some(target_pos) = world.position(target) {
+            if !world.is_player(*self) {
+                return self.has_los(target_pos, world);
+            }
+
+            let fov = world.ecs().fovs.get(*self);
+
+            fov.map_or(false, |v| v.is_visible(&target_pos))
+        } else {
+            false
         }
     }
 
-    true
-}
-
-pub fn name(entity: Entity, world: &EcsWorld) -> String {
-    world.ecs().names.get(entity)
-        .map_or("(unnamed)".to_string(), |n| n.name.clone())
-}
-
-pub fn is_dead(entity: Entity, world: &EcsWorld) -> bool {
-    world.ecs().healths.get(entity)
-        .map_or(true, |h| h.is_dead())
-}
-
-pub fn can_see_other(viewer: Entity, target: Entity, world: &EcsWorld) -> bool {
-    if let Some(target_pos) = world.position(target) {
-        if !world.is_player(viewer) {
-            return has_los(viewer, target_pos, world);
-        }
-
-        let fov = world.ecs().fovs.get(viewer);
-
-        fov.map_or(false, |v| v.is_visible(&target_pos))
-    } else {
-        false
-    }
 }

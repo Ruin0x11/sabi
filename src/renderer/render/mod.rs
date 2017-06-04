@@ -195,7 +195,7 @@ impl RenderContext {
     //     }
     // }
 
-    pub fn query<R, T: 'static + UiQuery<QueryResult=R>>(&mut self, layer: &mut T) -> R {
+    pub fn query<R, T: 'static + UiQuery<QueryResult=R>>(&mut self, layer: &mut T) -> Option<R> {
         loop {
             for event in self.backend.poll_events() {
                 match layer.on_event(event) {
@@ -213,6 +213,8 @@ impl RenderContext {
             self.render();
             self.accumulator.step_frame();
         }
+
+        None
     }
 }
 

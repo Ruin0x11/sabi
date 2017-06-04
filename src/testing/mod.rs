@@ -23,7 +23,7 @@ pub fn blank_world(w: i32, h: i32) -> EcsWorld {
 
 pub fn get_world_bounded(w: i32, h: i32) -> EcsWorld {
     let mut world = blank_world(w, h);
-    let e = world.create(prefab::mob("Player", 10000, "player"), Point::new(0,0));
+    let e = world.create(prefab::mob("player", 10000, "player"), Point::new(0,0));
     world.set_player(Some(e));
     world
 }
@@ -36,5 +36,5 @@ pub fn test_context_bounded(w: i32, h: i32) -> GameContext {
 }
 
 pub fn place_mob(world: &mut EcsWorld, pos: WorldPosition) -> Entity {
-    world.create(prefab::mob("Mob", 100, "putit"), pos)
+    world.create(prefab::mob("mob", 100, "putit"), pos)
 }

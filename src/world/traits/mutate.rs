@@ -34,7 +34,7 @@ pub trait Mutate: Query + Sized {
         self.after_entity_moved(e);
     }
 
-    fn move_entity(&mut self, e: Entity, dir: Direction) -> CommandResult;
+    fn move_entity(&mut self, e: Entity, dir: Direction) -> Result<(), ()>;
 
     fn next_entity(&mut self) -> Option<Entity>;
 

@@ -106,6 +106,14 @@ function rect:bottom()
   return self[2] + self[4]
 end
 
+function rect:upper_left()
+   return world.point(self:x(), self:y())
+end
+
+function rect:lower_right()
+   return world.point(self:right(), self:bottom())
+end
+
 --- Computes the rect formed from the area of two overlapping rects.
 -- @tparam rect r Rect to intersect with.
 -- @treturn rect|nil If the rects intersect, this function returns
@@ -192,6 +200,10 @@ end
 -- Clones this rect and returns the clone.
 function rect:clone()
   return rect.new(unpack(self))
+end
+
+function rect:iter()
+   return iter.rect_iterator(self:upper_left(), self:lower_right())
 end
 
 return rect

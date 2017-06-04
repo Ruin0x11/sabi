@@ -12,7 +12,7 @@ use self::traits::*;
 use std::collections::HashSet;
 use std::slice;
 
-use calx_ecs::{ComponentData, Entity};
+use calx_ecs::Entity;
 use infinigen::*;
 use slog::Logger;
 
@@ -24,12 +24,12 @@ use data::{TurnOrder, Walkability, MessageLog};
 use ecs::*;
 use ecs::traits::*;
 use graphics::cell::{CellFeature, StairDir, StairDest};
+use graphics::{Color, Marks};
 use log;
-use logic::{self, CommandResult};
-use logic::entity;
+use logic::entity::EntityQuery;
 use lua;
-use point::{Direction, Point};
-use prefab::{self, PrefabMarker};
+use point::{Direction, Point, POINT_ZERO};
+use prefab::{Prefab, PrefabMarker};
 use terrain::Terrain;
 use terrain::traits::*;
 use terrain::regions::Regions;
@@ -61,17 +61,27 @@ pub struct EcsWorld {
     turn_order: TurnOrder,
     flags: Flags,
 
-    #[serde(skip_serializing)]
-    #[serde(skip_deserializing)]
-    #[serde(default="MessageLog::new")]
-    messages: MessageLog,
-
     chunk_type: ChunkType,
 
     #[serde(skip_serializing)]
     #[serde(skip_deserializing)]
     #[serde(default="get_world_log")]
     pub logger: Logger,
+
+    #[serde(skip_serializing)]
+    #[serde(skip_deserializing)]
+    #[serde(default="MessageLog::new")]
+    messages: MessageLog,
+
+    #[serde(skip_serializing)]
+    #[serde(skip_deserializing)]
+    #[serde(default="Marks::new")]
+    pub marks: Marks,
+
+    #[serde(skip_serializing)]
+    #[serde(skip_deserializing)]
+    #[serde(default="Marks::new")]
+    pub debug_overlay: Marks,
 }
 
 impl EcsWorld {
@@ -83,16 +93,18 @@ impl EcsWorld {
             turn_order: TurnOrder::new(),
             flags: Flags::new(seed, id),
             chunk_type: chunk_type,
+
             logger: get_world_log(),
             messages: MessageLog::new(),
+            marks: Marks::new(),
+            debug_overlay: Marks::new(),
         }
     }
 
-    pub fn from_prefab(name: &str, seed: u32, id: u32) -> EcsWorld {
-        let prefab = lua::with_mut(|l| prefab::map_from_prefab(l, name)).unwrap();
+    pub fn from_prefab(prefab: Prefab, seed: u32, id: u32) -> EcsWorld {
         let mut world = EcsWorld::new(Bounds::Bounded(prefab.width(), prefab.height()), ChunkType::Blank, seed, id);
 
-        debug!(world.logger, "About to load prefab \"{}\" over map {}...", name, world.flags().map_id);
+        debug!(world.logger, "About to load prefab over map {}...", world.flags().map_id);
 
         for (pos, cell) in prefab.iter() {
             if let Some(cell_mut) = world.cell_mut(&pos) {
@@ -107,11 +119,10 @@ impl EcsWorld {
         for (pos, marker) in prefab.markers.iter() {
             if *marker == PrefabMarker::StairsIn {
                 world.terrain.stairs_in.insert(*pos);
-                // FIXME: kore kore kore
             }
         }
 
-        debug!(world.logger, "Finished loading prefab \"{}\".", name);
+        debug!(world.logger, "Finished loading prefab");
 
         world
     }
@@ -191,7 +202,7 @@ impl Query for EcsWorld {
 
         let mut seen = Vec::new();
         for entity in self.entities() {
-            if entity::can_see_other(viewer, *entity, self) && *entity != viewer {
+            if viewer.can_see_other(*entity, self) && *entity != viewer {
                 seen.push(*entity);
             }
         }
@@ -238,8 +249,8 @@ impl Mutate for EcsWorld {
 
     fn flags_mut(&mut self) -> &mut Flags { &mut self.flags }
 
-    fn move_entity(&mut self, e: Entity, dir: Direction) -> CommandResult {
-        let loc = try!(self.position(e).ok_or(())) + dir;
+    fn move_entity(&mut self, e: Entity, dir: Direction) -> Result<(), ()> {
+        let loc = self.position(e).ok_or(())? + dir;
         if self.can_walk(loc, Walkability::MonstersBlocking) {
             self.place_entity(e, loc);
             return Ok(());
@@ -359,7 +370,7 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
         let chunk_pos = ChunkPosition::from(Point::new(0, 0));
         let cell_pos = Chunk::world_position_at(index, &chunk_pos);
         if self.can_walk(cell_pos, Walkability::MonstersBlocking) {
-            self.create(::ecs::prefab::mob("Putit", 10, "putit"),
+            self.create(::ecs::prefab::mob("putit", 10, "putit"),
                         cell_pos);
         }
 
@@ -431,7 +442,26 @@ impl EcsWorld {
         }
     }
 
+    pub fn update_camera(&mut self) {
+        if let Some(player) = self.player() {
+            if let Some(pos) = self.position(player) {
+                self.flags_mut().camera = pos;
+            }
+        }
+    }
+
+    pub fn update_terrain(&mut self) {
+        let center = match self.player() {
+            Some(p) => self.position(p).map_or(POINT_ZERO, |p| p),
+            None    => POINT_ZERO,
+        };
+
+        self.update_chunks(center).unwrap();
+    }
+
     pub fn on_load(&mut self) {
+        self.update_terrain();
         self.recalc_entity_fovs();
+        self.update_camera();
     }
 }

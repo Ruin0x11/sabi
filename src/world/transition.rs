@@ -3,7 +3,7 @@ use infinigen::*;
 use ecs::Loadout;
 use point::Point;
 use world::serial;
-use world::EcsWorld;
+use world::{EcsWorld, MapId};
 use world::traits::*;
 use world::flags::GlobalFlags;
 
@@ -14,11 +14,11 @@ struct TransitionData {
 }
 
 impl Transition<TransitionData> for EcsWorld {
-    fn map_id(&self) -> u32 {
+    fn map_id(&self) -> MapId {
         self.flags.map_id
     }
 
-    fn set_map_id(&mut self, id: u32) {
+    fn set_map_id(&mut self, id: MapId) {
         self.flags.map_id = id;
         self.terrain_mut().set_id(id);
     }
@@ -51,10 +51,6 @@ impl Transition<TransitionData> for EcsWorld {
 }
 
 impl EcsWorld {
-    pub fn get_map(&self, id: u32) -> Option<EcsWorld> {
-        serial::load_world(id).ok()
-    }
-
     pub fn move_to_map(&mut self, other: EcsWorld, dest: Point) -> TransitionResult<()> {
         let data = self.get_transition_data()?;
 

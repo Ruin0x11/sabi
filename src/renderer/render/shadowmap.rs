@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use glium;
 use glium::backend::Facade;
 
+use graphics::Mark;
 use point::RectangleIter;
 use renderer::render::{self, Renderable, Vertex, Viewport};
 
@@ -133,11 +134,42 @@ fn make_shadows(world: &EcsWorld, viewport: &Viewport) -> Vec<Shadow> {
     shadows
 }
 
+fn make_marks(world: &EcsWorld, viewport: &Viewport) -> Vec<Shadow> {
+    let camera = world.flags().camera;
+    let start_corner = viewport.min_tile_pos(camera);
+    let mut marks = Vec::new();
+
+    {
+        let mut add = |mark: &Mark| {
+            let pos: Point = mark.pos - start_corner;
+            if pos >= (0, 0) {
+                let shadow = Shadow {
+                    pos: pos.into(),
+                    color: (mark.color.r, mark.color.g, mark.color.b, 64),
+                };
+                marks.push(shadow);
+            }
+        };
+
+        for mark in world.marks.iter() {
+            add(mark);
+        }
+
+        for mark in world.debug_overlay.iter() {
+            add(mark);
+        }
+    }
+
+    marks
+}
+
 fn make_map(world: &EcsWorld, viewport: &Viewport) -> Vec<Shadow> {
     let mut map = Vec::new();
     let shadows = make_shadows(world, viewport);
+    let marks = make_marks(world, viewport);
 
     map.extend(shadows);
+    map.extend(marks);
 
     map
 }
