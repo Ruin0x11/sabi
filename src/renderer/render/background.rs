@@ -29,7 +29,7 @@ impl Background {
         }
     }
 
-    pub fn refresh_shaders<F: Facade>(&mut self, display: &F) {
+    pub fn reload_shaders<F: Facade>(&mut self, display: &F) {
         match render::load_program(display, "bg.vert", "bg.frag") {
             Ok(program) => self.program = program,
             Err(e)      => println!("Shader error: {:?}", e),

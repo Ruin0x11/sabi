@@ -4,8 +4,9 @@ use chunk::ChunkIndex;
 use data::Walkability;
 use graphics::cell::Cell;
 use graphics::cell::{CellFeature, StairDest, StairDir};
+use prefab::PrefabMarker;
 use terrain::traits::*;
-use world::EcsWorld;
+use world::World;
 use world::MapId;
 use world::WorldPosition;
 use world::traits::*;
@@ -32,7 +33,7 @@ pub trait WorldQuery {
 }
 
 
-impl WorldQuery for EcsWorld {
+impl WorldQuery for World {
     fn can_walk(&self, pos: Point, walkability: Walkability) -> bool {
         let cell_walkable = self.terrain.cell(&pos).map_or(false, |c| c.can_pass_through());
         // TODO: Should be anything blocking, like blocking terrain features
@@ -72,7 +73,7 @@ pub trait WorldMutate {
     fn cell(&mut self, pos: &Point) -> Option<&Cell>;
 }
 
-impl EcsWorld {
+impl World {
     fn autoload_chunk(&mut self, pos: &Point) {
         let idx = ChunkIndex::from(*pos);
         debug!(self.logger, "Chunk loaded at {}: {}", idx, self.terrain().chunk_loaded(&idx));
@@ -84,7 +85,7 @@ impl EcsWorld {
     }
 }
 
-impl WorldMutate for EcsWorld {
+impl WorldMutate for World {
     fn cell_mut(&mut self, pos: &Point) -> Option<&mut Cell> {
         if !self.terrain().in_bounds(pos) {
             debug!(self.logger, "invalid: {}", pos);
@@ -108,16 +109,29 @@ impl WorldMutate for EcsWorld {
     }
 }
 
-impl EcsWorld {
-    pub fn find_stairs_in(&mut self) -> Option<WorldPosition> {
-        let stairs_in = self.terrain.stairs_in.clone();
-        debug!(self.logger, "{:?}", stairs_in);
-        for pos in stairs_in.iter() {
-            if self.cell(pos).is_some() {
-                return Some(*pos)
+impl World {
+    pub fn find_marker(&mut self, kind: PrefabMarker) -> Option<WorldPosition> {
+        let markers = self.terrain.markers.clone();
+
+        for (pos, marker) in markers.iter() {
+            if *marker == kind {
+                if self.cell(pos).is_some() {
+                    return Some(*pos)
+                }
             }
         }
+
         None
+    }
+
+    pub fn find_stairs_in(&mut self) -> Option<WorldPosition> {
+        self.find_marker(PrefabMarker::StairsIn)
+    }
+
+    pub fn add_marker_overlays(&mut self) {
+        for (pos, marker) in self.terrain.markers.iter() {
+            self.debug_overlay.add(*pos, marker.to_mark());
+        }
     }
 
     pub fn place_stairs(&mut self, dir: StairDir,

@@ -8,17 +8,17 @@ use calx_ecs::Entity;
 
 use point::{Point, LineIter};
 use world::traits::*;
-use world::EcsWorld;
+use world::World;
 
 pub trait EntityQuery {
-    fn has_los(&self, target_pos: Point, world: &EcsWorld) -> bool;
-    fn name(&self, world: &EcsWorld) -> String;
-    fn is_dead(&self, world: &EcsWorld) -> bool;
-    fn can_see_other(&self, target: Entity, world: &EcsWorld) -> bool;
+    fn has_los(&self, target_pos: Point, world: &World) -> bool;
+    fn name(&self, world: &World) -> String;
+    fn is_dead(&self, world: &World) -> bool;
+    fn can_see_other(&self, target: Entity, world: &World) -> bool;
 }
 
 impl EntityQuery for Entity {
-    fn has_los(&self, target_pos: Point, world: &EcsWorld) -> bool {
+    fn has_los(&self, target_pos: Point, world: &World) -> bool {
         let my_pos = match world.position(*self) {
             Some(p) => p,
             None => return false,
@@ -33,17 +33,17 @@ impl EntityQuery for Entity {
         true
     }
 
-    fn name(&self, world: &EcsWorld) -> String {
+    fn name(&self, world: &World) -> String {
         world.ecs().names.get(*self)
             .map_or("(unnamed)".to_string(), |n| n.name.clone())
     }
 
-    fn is_dead(&self, world: &EcsWorld) -> bool {
+    fn is_dead(&self, world: &World) -> bool {
         world.ecs().healths.get(*self)
             .map_or(true, |h| h.is_dead())
     }
 
-    fn can_see_other(&self, target: Entity, world: &EcsWorld) -> bool {
+    fn can_see_other(&self, target: Entity, world: &World) -> bool {
         if let Some(target_pos) = world.position(target) {
             if !world.is_player(*self) {
                 return self.has_los(target_pos, world);

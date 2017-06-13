@@ -3,13 +3,14 @@ use std::fmt::Display;
 use GameContext;
 use data::Walkability;
 use engine::keys::{Key, KeyCode};
-use graphics::cell::{Cell, CellFeature, StairDest, StairDir};
+use graphics::cell::{CellFeature, StairDest, StairDir};
 use logic::Action;
 use logic::entity::EntityQuery;
-use point::{Direction, Point, POINT_ZERO};
-use prefab::{self, PrefabMarker};
+use point::{Direction, Point};
 use world::traits::*;
-use world::{self, EcsWorld, MapId};
+use world::{self, World};
+
+use super::debug_command::*;
 
 pub type CommandResult<T> = Result<T, CommandError>;
 
@@ -108,50 +109,6 @@ fn cmd_teleport(context: &mut GameContext) -> CommandResult<()> {
     }
 }
 
-fn cmd_debug_menu(context: &mut GameContext) -> CommandResult<()> {
-    menu!(context,
-          "debug prefab" => debug_prefab(context)
-    )
-}
-
-fn debug_prefab(context: &mut GameContext) -> CommandResult<()> {
-    let prefabs = prefab::get_prefab_names();
-    let selected = menu_choice_indexed(context, prefabs)?;
-
-    // Whip up a new testing world and port us there
-    debug_regen_prefab(context, &selected);
-    Ok(())
-}
-
-fn debug_regen_prefab(context: &mut GameContext, prefab_name: &str) {
-    let world = &mut context.state.world;
-    const TEST_WORLD_ID: u32 = 10000000;
-
-    world::serial::delete_world_if_exists(TEST_WORLD_ID);
-
-    let prefab = match prefab::create(prefab_name) {
-        Ok(p)  => p,
-        Err(e) => {
-            mes!(world, "Lua error! {}", a=e);
-            return;
-        }
-    };
-
-    // If the map maker provided us with a start position, move there.
-    let start_pos = match prefab.find_marker(PrefabMarker::StairsIn) {
-        Some(pos) => pos,
-        None      => POINT_ZERO,
-    };
-
-    let mut debug_world = EcsWorld::from_prefab(prefab.clone(), world.flags_mut().rng().next_u32(), TEST_WORLD_ID);
-
-    for (pos, marker) in prefab.markers() {
-        debug_world.debug_overlay.add(*pos, marker.to_mark());
-    }
-
-    world.move_to_map(debug_world, start_pos).unwrap();
-}
-
 fn cmd_use_stairs(context: &mut GameContext, dir: StairDir) -> CommandResult<()> {
     let world = &mut context.state.world;
     let player = world.player().ok_or(CommandError::Bug("No player in the world!"))?;
@@ -165,7 +122,7 @@ fn cmd_use_stairs(context: &mut GameContext, dir: StairDir) -> CommandResult<()>
     Ok(())
 }
 
-fn find_stair_dest(world: &EcsWorld, pos: Point, dir: StairDir) -> CommandResult<StairDest> {
+fn find_stair_dest(world: &World, pos: Point, dir: StairDir) -> CommandResult<StairDest> {
     let cell = world.cell_const(&pos).ok_or(CommandError::Bug("World was not loaded at pos!"))?;
 
     match cell.feature {
@@ -182,7 +139,7 @@ fn find_stair_dest(world: &EcsWorld, pos: Point, dir: StairDir) -> CommandResult
     }
 }
 
-fn load_stair_dest(world: &mut EcsWorld, stair_pos: Point, next: StairDest) -> CommandResult<(EcsWorld, Point)> {
+fn load_stair_dest(world: &mut World, stair_pos: Point, next: StairDest) -> CommandResult<(World, Point)> {
     match next {
         StairDest::Generated(map_id, dest) => {
             debug!(world.logger, "Found stair leading to: {:?}", map_id);
@@ -192,20 +149,13 @@ fn load_stair_dest(world: &mut EcsWorld, stair_pos: Point, next: StairDest) -> C
         },
         StairDest::Ungenerated => {
             debug!(world.logger, "Failed to load map, generating...");
-            let prev_id = world.map_id();
-            let prev_seed = world.flags_mut().rng().next_u32();
 
-            world.flags_mut().globals.max_map_id += 1;
-            let next_id = world.flags().globals.max_map_id;
+            // TODO: fix
+            // world.flags_mut().globals.max_map_id += 1;
+            // let next_id = world.flags().globals.max_map_id;
 
             let res = {
-                let mut stairs_mut = world.cell_mut(&stair_pos).unwrap();
-
-                generate_stair_dest(prev_id,
-                                    next_id,
-                                    prev_seed,
-                                    stair_pos,
-                                    stairs_mut)
+                generate_stair_dest(world, stair_pos)
             };
             debug!(world.logger, "new stairs: {:?}", world.cell_const(&stair_pos));
             res
@@ -213,23 +163,27 @@ fn load_stair_dest(world: &mut EcsWorld, stair_pos: Point, next: StairDest) -> C
     }
 }
 
-fn generate_stair_dest(prev_id: MapId,
-                       next_id: MapId,
-                       seed: u32,
-                       old_pos: Point,
-                       stairs: &mut Cell)
-                       -> CommandResult<(EcsWorld, Point)> {
-    let mut new_world = EcsWorld::from_prefab(prefab::create("prefab").unwrap(), seed, next_id);
+fn generate_stair_dest(world: &mut World, stair_pos: Point) -> CommandResult<(World, Point)> {
+    let mut new_world = World::new()
+        .from_other_world(world)
+        .with_prefab("rogue")
+        .with_prefab_args(prefab_args!{ width: 100, height: 50, })
+        .build();
 
-    if let Some(CellFeature::Stairs(stair_dir, ref mut dest@StairDest::Ungenerated)) = stairs.feature {
+    let prev_id = world.flags().map_id;
+    let dest_id = new_world.flags().map_id;
+
+    let mut stairs_mut = world.cell_mut(&stair_pos).unwrap();
+
+    if let Some(CellFeature::Stairs(stair_dir, ref mut dest@StairDest::Ungenerated)) = stairs_mut.feature {
         let new_stair_pos = new_world.find_stairs_in().ok_or(CommandError::Bug("Generated world has no stairs!"))?;
 
-        *dest = StairDest::Generated(next_id, new_stair_pos);
+        *dest = StairDest::Generated(dest_id, new_stair_pos);
 
         new_world.place_stairs(stair_dir.reverse(),
                                new_stair_pos,
                                prev_id,
-                               old_pos);
+                               stair_pos);
 
         Ok((new_world, new_stair_pos))
     } else {
@@ -243,7 +197,7 @@ use graphics::Color;
 use point::LineIter;
 use renderer;
 
-fn maybe_examine_tile(pos: Point, world: &mut EcsWorld)  {
+fn maybe_examine_tile(pos: Point, world: &mut World)  {
     if let Some(mob) = world.mob_at(pos) {
         if let Some(player) = world.player() {
             if player.can_see_other(mob, world) {
@@ -253,7 +207,7 @@ fn maybe_examine_tile(pos: Point, world: &mut EcsWorld)  {
     }
 }
 
-fn draw_targeting_line(player_pos: Option<Point>, world: &mut EcsWorld) {
+fn draw_targeting_line(player_pos: Option<Point>, world: &mut World) {
     let camera = world.flags().camera;
 
     if let Some(player_pos) = player_pos {
@@ -261,7 +215,7 @@ fn draw_targeting_line(player_pos: Option<Point>, world: &mut EcsWorld) {
     }
 }
 
-fn draw_line(start: Point, end: Point, world: &mut EcsWorld) {
+fn draw_line(start: Point, end: Point, world: &mut World) {
     world.marks.clear();
     for pos in LineIter::new(start, end) {
         world.marks.add(pos, Color::new(255, 255, 255));
@@ -271,7 +225,7 @@ fn draw_line(start: Point, end: Point, world: &mut EcsWorld) {
 
 /// Allow the player to choose a tile.
 fn select_tile<F>(context: &mut GameContext, callback: F) -> Option<Point>
-    where F: Fn(Point, &mut EcsWorld) {
+    where F: Fn(Point, &mut World) {
     let mut selected = false;
     let mut result = context.state.world.flags().camera;
     let player_pos = context.state.world.player().map(|p| context.state.world.position(p)).unwrap_or(None);
@@ -386,7 +340,7 @@ impl UiQuery for ChoiceLayer {
     }
 }
 
-fn menu_choice(context: &mut GameContext, choices: Vec<String>) -> Option<usize> {
+pub fn menu_choice(context: &mut GameContext, choices: Vec<String>) -> Option<usize> {
     let mut selected = false;
     let mut idx = None;
 
@@ -404,7 +358,7 @@ fn menu_choice(context: &mut GameContext, choices: Vec<String>) -> Option<usize>
     }
 }
 
-fn menu_choice_indexed<T: Display + Clone>(context: &mut GameContext, mut choices: Vec<T>) -> CommandResult<T> {
+pub fn menu_choice_indexed<T: Display + Clone>(context: &mut GameContext, mut choices: Vec<T>) -> CommandResult<T> {
     let strings = choices.iter().cloned().map(|t| t.to_string()).collect();
     let idx = menu_choice(context, strings).ok_or(CommandError::Cancel)?;
     Ok(choices.remove(idx))

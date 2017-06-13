@@ -18,3 +18,13 @@ pub fn mob(name: &str, health: i32, sprite: &str) -> Prefab {
             .c(Log::new("mob"))
     }
 }
+
+pub fn item(name: &str, sprite: &str) -> Prefab {
+    Prefab {
+        loadout: Loadout::new()
+            .c(Name::new(name))
+            .c(Item::new())
+            .c(Appearance::new(sprite))
+            .c(Log::new("item"))
+    }
+}

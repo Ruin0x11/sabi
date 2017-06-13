@@ -15,6 +15,10 @@ pub use self::instance::*;
 
 const SCRIPT_DIRECTORY: &str = "lua";
 
+pub fn log(mes: String) {
+    self::log::lua_log_debug(mes);
+}
+
 pub fn run_script<'a, 'lua>(lua: &'a mut Lua<'lua>, filename: &str) -> Result<(), hlua::LuaError>
            {
     let mut script = String::new();

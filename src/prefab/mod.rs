@@ -40,15 +40,17 @@ impl From<hlua::LuaError>for PrefabError {
 }
 
 pub type PrefabResult<T> = Result<T, PrefabError>;
+pub type Markers = HashMap<Point, PrefabMarker>;
+pub type PrefabArgs = HashMap<String, String>;
 
 #[derive(Debug, Clone)]
 pub struct Prefab {
     cells: Vec<Cell>,
     size: Point,
-    pub markers: HashMap<Point, PrefabMarker>,
+    pub markers: Markers,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub enum PrefabMarker {
     Mob(String),
     Door,
@@ -90,7 +92,7 @@ impl Prefab {
         Prefab {
             size: Point::new(x, y),
             cells: cells,
-            markers: HashMap::new(),
+            markers: Markers::new(),
         }
     }
 

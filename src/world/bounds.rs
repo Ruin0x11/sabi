@@ -4,7 +4,7 @@ use chunk::*;
 use point::{Point, POINT_ZERO};
 
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Bounds {
     Unbounded,
     Bounded(i32, i32),

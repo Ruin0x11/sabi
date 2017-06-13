@@ -13,18 +13,21 @@ use logic::{self, Action};
 use stats;
 use world::serial::SaveManifest;
 use world::traits::*;
-use world::{self, Bounds, EcsWorld, WorldPosition};
+use world::{self, Bounds, World, WorldPosition};
 
 pub struct GameState {
-    pub world: EcsWorld,
+    pub world: World,
     action_queue: VecDeque<Action>,
 }
 
 impl GameState {
     pub fn new() -> Self {
-        let seed = rand::thread_rng().next_u32();
         GameState {
-            world: EcsWorld::new(Bounds::Unbounded, ChunkType::Perlin, seed, 0),
+            world: World::new()
+                .with_bounds(Bounds::Unbounded)
+                .with_chunk_type(ChunkType::Perlin)
+                .with_randomized_seed()
+                .build(),
             action_queue: VecDeque::new(),
         }
     }
@@ -45,13 +48,13 @@ impl GameState {
 }
 
 #[cfg(never)]
-fn draw_overlays(world: &mut EcsWorld) {
+fn draw_overlays(world: &mut World) {
     world.draw_calls.draw_all();
     world.draw_calls.clear();
 }
 
 #[cfg(never)]
-fn show_messages(world: &mut EcsWorld) {
+fn show_messages(world: &mut World) {
 }
 
 fn run_action_queue(context: &mut GameContext) {
@@ -60,7 +63,7 @@ fn run_action_queue(context: &mut GameContext) {
     }
 }
 
-fn process_action(world: &mut EcsWorld, entity: Entity, action: Action) {
+fn process_action(world: &mut World, entity: Entity, action: Action) {
     logic::run_action(world, entity, action);
 
     if world.is_alive(entity) {
@@ -69,7 +72,7 @@ fn process_action(world: &mut EcsWorld, entity: Entity, action: Action) {
     }
 }
 
-fn process_actors(world: &mut EcsWorld) {
+fn process_actors(world: &mut World) {
     while let Some(entity) = world.next_entity() {
         if !world.is_alive(entity) {
             panic!("Killed actor remained in turn order!");
@@ -95,7 +98,7 @@ fn process_actors(world: &mut EcsWorld) {
     world.purge_dead();
 }
 
-fn check_player_dead(world: &EcsWorld) -> bool {
+fn check_player_dead(world: &World) -> bool {
     let res = world.player().is_none();
     if res {
         info!(world.logger, "Player has died.");
@@ -105,7 +108,7 @@ fn check_player_dead(world: &EcsWorld) -> bool {
     res
 }
 
-fn process_events(_world: &mut EcsWorld) {
+fn process_events(_world: &mut World) {
     // let mut responses = event::check_all(world);
     // while responses.len() != 0 {
     //     world.events.clear();
@@ -167,6 +170,11 @@ pub fn load_context() -> GameContext {
 
     init(&mut context);
     context
+}
+
+pub fn restart_game(context: &mut GameContext) {
+    world::serial::wipe_save();
+    *context = load_context();
 }
 
 pub fn init(context: &mut GameContext) {

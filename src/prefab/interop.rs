@@ -18,21 +18,42 @@ pub fn get_prefab_names() -> Vec<String> {
     names
 }
 
-pub fn create(name: &str) -> PrefabResult<Prefab> {
-    lua::with_mut(|l| map_from_prefab(l, name))
+pub fn create(name: &str, args: &Option<PrefabArgs>) -> PrefabResult<Prefab> {
+    lua::log(format!("Starting creation of prefab \"{}\"", name));
+
+    let res = lua::with_mut(|l| map_from_prefab(l, name, args));
+
+    lua::log(format!("Finished creating prefab \"{}\"", name));
+
+    res
 }
 
-pub fn map_from_prefab<'a>(lua: &'a mut Lua, name: &str) -> PrefabResult<Prefab> {
+pub fn build_prefab_args(args: &PrefabArgs) -> String {
+    let mut res = String::new();
+    for (k, v) in args.iter() {
+        res.push_str(&format!("{} = {}", k, v));
+    }
+    res
+}
+
+pub fn map_from_prefab<'a>(lua: &'a mut Lua, name: &str, args: &Option<PrefabArgs>) -> PrefabResult<Prefab> {
     let map_filename = &format!("maps/{}", name);
 
     lua.execute::<()>("prefab = Prefab.new(1, 1, \"Floor\")")?;
+    lua.execute::<()>("function init(); error(\"prefab init() not declared!\"); end")?;
+    lua.execute::<()>("function generate(); error(\"prefab generate() not declared!\"); end")?;
 
-    match lua::run_script_and_return::<Prefab>(lua, map_filename, PREFAB_VARIABLE)? {
-        Some(prefab) => {
-            Ok(prefab)
-        },
-        None         => Err(PrefabError::PrefabVarNotDeclared),
+    lua::run_script(lua, map_filename)?;
+    lua.execute::<()>("init()")?;
+
+    if let Some(ref args) = *args {
+        let args_script = build_prefab_args(&args);
+        lua.execute::<()>(&args_script)?;
     }
+
+    lua.execute::<()>("prefab = generate()")?;
+
+    lua.get("prefab").ok_or_else(|| PrefabError::PrefabVarNotDeclared)
 }
 
 pub fn lua_new(x: i32, y: i32, fill: String) -> PrefabResult<Prefab> {
@@ -139,3 +160,21 @@ implement_lua_push!(Prefab, |mut metatable| {
 
 // this macro implements the require traits so that we can *read* the object back
 implement_lua_read!(Prefab);
+
+#[cfg(test)]
+mod tests {
+    use prefab;
+
+    #[test]
+    fn test_prefab_args() {
+        let args = prefab_args! {
+            width: 80,
+            height: 40,
+        };
+
+        let created = prefab::create("blank", &Some(args)).unwrap();
+
+        assert_eq!(created.width(), 80);
+        assert_eq!(created.height(), 40);
+    }
+}

@@ -1,14 +1,11 @@
 use calx_ecs::Entity;
 use data::Walkability;
 use ecs::traits::*;
-use logic::command::CommandResult;
 use logic::entity::EntityQuery;
-use lua;
 use point::{Direction, Point};
-use prefab;
 use stats;
 use world::traits::*;
-use world::{EcsWorld, WorldPosition};
+use world::{World, WorldPosition};
 
 pub type ActionResult = Result<(), ()>;
 
@@ -26,7 +23,7 @@ pub enum Action {
     TeleportUnchecked(Point),
 }
 
-pub fn run_entity_action(world: &mut EcsWorld, entity: Entity, action: Action) -> ActionResult {
+pub fn run_entity_action(world: &mut World, entity: Entity, action: Action) -> ActionResult {
     match action {
         Action::MoveOrAttack(dir)      => action_move_or_attack(world, entity, dir),
         Action::Move(dir)              => action_move_entity(world, entity, dir),
@@ -38,7 +35,7 @@ pub fn run_entity_action(world: &mut EcsWorld, entity: Entity, action: Action) -
     }
 }
 
-fn action_teleport_unchecked(world: &mut EcsWorld, entity: Entity, pos: Point) -> ActionResult {
+fn action_teleport_unchecked(world: &mut World, entity: Entity, pos: Point) -> ActionResult {
     world.set_entity_location(entity, pos);
     Ok(())
 }
@@ -47,7 +44,7 @@ fn action_test_script() -> ActionResult {
     Ok(())
 }
 
-fn action_move_or_attack(world: &mut EcsWorld, entity: Entity, dir: Direction) -> ActionResult {
+fn action_move_or_attack(world: &mut World, entity: Entity, dir: Direction) -> ActionResult {
     let new_pos = world.position(entity).expect("No entity position") + dir;
     if let Some(id) = world.mob_at(new_pos) {
         action_swing_at(world, entity, id)
@@ -56,11 +53,11 @@ fn action_move_or_attack(world: &mut EcsWorld, entity: Entity, dir: Direction) -
     }
 }
 
-fn action_move_entity(world: &mut EcsWorld, entity: Entity, dir: Direction) -> ActionResult {
+fn action_move_entity(world: &mut World, entity: Entity, dir: Direction) -> ActionResult {
     world.move_entity(entity, dir).map_err(|_| ())
 }
 
-fn action_swing_at(world: &mut EcsWorld, attacker: Entity, other: Entity) -> ActionResult {
+fn action_swing_at(world: &mut World, attacker: Entity, other: Entity) -> ActionResult {
     let damage;
     {
         if !world.position(attacker).unwrap().is_next_to(world.position(other).unwrap()) {
@@ -86,7 +83,7 @@ fn action_swing_at(world: &mut EcsWorld, attacker: Entity, other: Entity) -> Act
     Ok(())
 }
 
-fn action_try_teleport(world: &mut EcsWorld, entity: Entity, pos: WorldPosition) -> ActionResult {
+fn action_try_teleport(world: &mut World, entity: Entity, pos: WorldPosition) -> ActionResult {
     if world.can_walk(pos, Walkability::MonstersBlocking) {
         mes!(world, "Suddenly, the {} disappears.", a=entity.name(world));
         world.set_entity_location(entity, pos);

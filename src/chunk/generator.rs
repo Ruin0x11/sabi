@@ -1,17 +1,14 @@
 use noise::{NoiseModule, Perlin, Seedable};
 
 use graphics::cell::{self, Cell};
-use chunk::{CHUNK_WIDTH, Chunk, ChunkIndex, ChunkPosition};
+use chunk::{CHUNK_WIDTH, Chunk, ChunkIndex};
 use world::WorldPosition;
-use prefab;
-use lua;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum ChunkType {
     Blank,
     Fill(Cell),
     Perlin,
-    Lua
 }
 
 use self::ChunkType::*;
@@ -22,7 +19,6 @@ impl ChunkType {
             Blank => generate_blank(cell::FLOOR),
             Fill(cell) => generate_blank(cell),
             Perlin => generate_perlin(index, seed),
-            Lua => generate_from_prefab(),
         }
     }
 }
@@ -77,20 +73,3 @@ fn generate_perlin(index: &ChunkIndex, seed: u32) -> Chunk {
         cells: cells
     }
 }
-
-fn generate_from_prefab() -> Chunk {
-    match lua::with_mut(|l| prefab::map_from_prefab(l, "prefab")) {
-        Ok(prefab) => {
-            let mut chunk = generate_blank(cell::FLOOR);
-            for (point, cell) in prefab.iter() {
-                *chunk.cell_mut(ChunkPosition::from(point)) = *cell;
-            }
-            chunk
-        },
-        Err(e) => {
-            println!("{:?}", e);
-            generate_blank(cell::FLOOR)
-        }
-    }
-}
-

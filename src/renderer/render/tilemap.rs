@@ -262,10 +262,10 @@ impl<'a> Renderable for TileMap {
 use GameContext;
 use graphics::cell::CellType;
 use renderer::interop::RenderUpdate;
-use world::EcsWorld;
+use world::World;
 use world::traits::{Query, WorldQuery};
 
-fn get_neighboring_edges(world: &EcsWorld, pos: Point, cell_type: CellType) -> u8 {
+fn get_neighboring_edges(world: &World, pos: Point, cell_type: CellType) -> u8 {
     let mut res: u8 = 0;
     for dir in Direction::iter8() {
         let new_pos = pos + *dir;
@@ -277,7 +277,7 @@ fn get_neighboring_edges(world: &EcsWorld, pos: Point, cell_type: CellType) -> u
     res
 }
 
-fn make_map(world: &EcsWorld, viewport: &Viewport) -> Vec<(DrawTile, Point)> {
+fn make_map(world: &World, viewport: &Viewport) -> Vec<(DrawTile, Point)> {
     let mut res = Vec::new();
     let camera = world.flags().camera;
     let start_corner = viewport.min_tile_pos(camera).into();

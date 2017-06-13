@@ -42,6 +42,7 @@ mod data;
 mod ecs;
 mod engine;
 mod graphics;
+mod item;
 mod log;
 mod logic;
 mod lua;
@@ -50,8 +51,8 @@ mod prefab;
 mod renderer;
 mod state;
 mod stats;
-mod testbed;
 mod terrain;
+mod testbed;
 mod util;
 mod world;
 

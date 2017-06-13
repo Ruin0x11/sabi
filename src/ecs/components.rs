@@ -6,6 +6,7 @@ use serde::ser::{Serialize, Serializer};
 
 use slog::Logger;
 
+use item::ItemEffect;
 use log;
 use point::Point;
 use stats::properties::Properties;
@@ -91,8 +92,17 @@ impl Turn {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Item {
-    pub can_equip: bool,
     pub count: u32,
+    pub effect: ItemEffect,
+}
+
+impl Item {
+    pub fn new() -> Self {
+        Item {
+            count: 1,
+            effect: ItemEffect::Heal,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

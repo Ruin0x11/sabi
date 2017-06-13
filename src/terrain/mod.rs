@@ -4,6 +4,7 @@ use world::Bounds;
 
 use chunk::*;
 use chunk::serial::SerialChunk;
+use prefab::Markers;
 use world::WorldPosition;
 
 use infinigen::*;
@@ -36,7 +37,7 @@ pub struct Terrain {
     chunks: HashMap<ChunkIndex, Chunk>,
     bounds: Bounds,
 
-    pub stairs_in: HashSet<WorldPosition>,
+    pub markers: Markers,
     pub id: u32,
 }
 
@@ -46,7 +47,7 @@ impl Terrain {
             regions: Regions::new(id),
             chunks: HashMap::new(),
             bounds: bounds,
-            stairs_in: HashSet::new(),
+            markers: Markers::new(),
             id: id,
         }
     }

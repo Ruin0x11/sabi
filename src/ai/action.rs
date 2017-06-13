@@ -7,23 +7,23 @@ use logic::entity::EntityQuery;
 use data::Walkability;
 use point::Path;
 use world::traits::*;
-use world::EcsWorld;
+use world::World;
 
 // TODO: Allow variable arguments, since we have no need to follow a consistent
 // API?
 
-pub fn wander(_entity: Entity, _world: &EcsWorld) -> Action {
+pub fn wander(_entity: Entity, _world: &World) -> Action {
     Action::Move(Direction::choose8())
 }
 
-pub fn swing_at(entity: Entity, world: &EcsWorld) -> Action {
+pub fn swing_at(entity: Entity, world: &World) -> Action {
     let ais = &world.ecs().ais;
     let ai = ais.get_or_err(entity);
 
     Action::SwingAt(ai.target.borrow().unwrap())
 }
 
-pub fn move_closer(entity: Entity, world: &EcsWorld) -> Action {
+pub fn move_closer(entity: Entity, world: &World) -> Action {
     let ais = &world.ecs().ais;
     let ai = ais.get_or_err(entity);
 
@@ -61,6 +61,6 @@ pub fn move_closer(entity: Entity, world: &EcsWorld) -> Action {
     }
 }
 
-pub fn run_away(_entity: Entity, _world: &EcsWorld) -> Action {
+pub fn run_away(_entity: Entity, _world: &World) -> Action {
     Action::Move(Direction::choose8())
 }

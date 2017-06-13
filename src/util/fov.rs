@@ -4,9 +4,9 @@ use point::{CircleIter, LineIter, Point};
 use infinigen::ChunkedWorld;
 use terrain::traits::*;
 use world::traits::*;
-use world::EcsWorld;
+use world::World;
 
-pub fn bresenham_fast(world: &EcsWorld, center: Point, radius: i32) -> HashSet<Point> {
+pub fn bresenham_fast(world: &World, center: Point, radius: i32) -> HashSet<Point> {
     let in_bounds = |pos| world.terrain().in_bounds(&pos);
     let light_passes = |pos| world.cell_const(&pos).map_or(false, |c| c.can_see_through());
 

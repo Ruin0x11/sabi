@@ -141,11 +141,11 @@ impl Iterator for TurnOrder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use testing::get_ecs;
+    use ecs::Ecs;
 
     #[test]
     fn test_single_id() {
-        let mut ecs = get_ecs();
+        let mut ecs = Ecs::new();
         let mut turn_order = TurnOrder::new();
         let entity = ecs.make();
         turn_order.insert(entity, 0).unwrap();
@@ -159,7 +159,7 @@ mod tests {
 
     #[test]
     fn test_two_ids() {
-        let mut ecs = get_ecs();
+        let mut ecs = Ecs::new();
         let mut turn_order = TurnOrder::new();
 
         let first_entity = ecs.make();
@@ -181,7 +181,7 @@ mod tests {
 
     #[test]
     fn test_pause_resume() {
-        let mut ecs = get_ecs();
+        let mut ecs = Ecs::new();
         let mut turn_order = TurnOrder::new();
 
         let fast = ecs.make();
@@ -204,7 +204,7 @@ mod tests {
 
     #[test]
     fn test_insert() {
-        let mut ecs = get_ecs();
+        let mut ecs = Ecs::new();
         let mut turn_order = TurnOrder::new();
 
         let entity = ecs.make();
@@ -218,7 +218,7 @@ mod tests {
 
     #[test]
     fn test_remove() {
-        let mut ecs = get_ecs();
+        let mut ecs = Ecs::new();
         let mut turn_order = TurnOrder::new();
 
         let entity = ecs.make();
@@ -235,7 +235,7 @@ mod tests {
 
     #[test]
     fn test_pause_resume_twice() {
-        let mut ecs = get_ecs();
+        let mut ecs = Ecs::new();
         let mut turn_order = TurnOrder::new();
 
         let fast = ecs.make();

@@ -91,13 +91,13 @@ impl Renderable for ShadowMap {
     }
 }
 
-use world::EcsWorld;
+use world::World;
 use world::traits::Query;
 use GameContext;
 use point::{CircleIter, Point};
 use renderer::interop::RenderUpdate;
 
-fn make_shadows(world: &EcsWorld, viewport: &Viewport) -> Vec<Shadow> {
+fn make_shadows(world: &World, viewport: &Viewport) -> Vec<Shadow> {
     let camera = world.flags().camera;
     let start_corner = viewport.min_tile_pos(camera);
     println!("start: {:?}", start_corner);
@@ -134,7 +134,7 @@ fn make_shadows(world: &EcsWorld, viewport: &Viewport) -> Vec<Shadow> {
     shadows
 }
 
-fn make_marks(world: &EcsWorld, viewport: &Viewport) -> Vec<Shadow> {
+fn make_marks(world: &World, viewport: &Viewport) -> Vec<Shadow> {
     let camera = world.flags().camera;
     let start_corner = viewport.min_tile_pos(camera);
     let mut marks = Vec::new();
@@ -163,7 +163,7 @@ fn make_marks(world: &EcsWorld, viewport: &Viewport) -> Vec<Shadow> {
     marks
 }
 
-fn make_map(world: &EcsWorld, viewport: &Viewport) -> Vec<Shadow> {
+fn make_map(world: &World, viewport: &Viewport) -> Vec<Shadow> {
     let mut map = Vec::new();
     let shadows = make_shadows(world, viewport);
     let marks = make_marks(world, viewport);

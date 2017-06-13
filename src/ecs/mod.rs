@@ -11,6 +11,7 @@ Ecs! {
     appearances: components::Appearance,
     turns: components::Turn,
     props: components::Props,
+    items: components::Item,
     ais: ai::Ai,
     fovs: components::Fov,
     logs: components::Log,

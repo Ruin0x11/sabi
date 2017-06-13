@@ -10,7 +10,7 @@ use logic::entity::EntityQuery;
 use ai::sensors::{Sensor};
 use ecs::traits::ComponentQuery;
 use world::traits::Query;
-use world::EcsWorld;
+use world::World;
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum Disposition {
@@ -102,7 +102,7 @@ thread_local! {
     static SENSORS: HashMap<AiProp, Sensor> = sensors::make_sensors();
 }
 
-pub fn run(entity: Entity, world: &EcsWorld) -> Option<Action> {
+pub fn run(entity: Entity, world: &World) -> Option<Action> {
     assert!(!world.is_player(entity), "Tried running AI on current player!");
 
     if !world.ecs().ais.has(entity) {
@@ -118,7 +118,7 @@ pub fn run(entity: Entity, world: &EcsWorld) -> Option<Action> {
     Some(action)
 }
 
-fn check_target(entity: Entity, world: &EcsWorld) {
+fn check_target(entity: Entity, world: &World) {
     // The entity reference could go stale, so make sure it isn't.
     // TODO: Should this have to happen every time an entity reference is held
     // by something?
@@ -132,7 +132,7 @@ fn check_target(entity: Entity, world: &EcsWorld) {
     }
 }
 
-fn update_goal(entity: Entity, world: &EcsWorld) {
+fn update_goal(entity: Entity, world: &World) {
     let ai = world.ecs().ais.get_or_err(entity);
 
     if ai.goal_finished() {
@@ -148,7 +148,7 @@ fn update_goal(entity: Entity, world: &EcsWorld) {
     }
 }
 
-fn update_memory(entity: Entity, world: &EcsWorld) {
+fn update_memory(entity: Entity, world: &World) {
     let ai = world.ecs().ais.get_or_err(entity);
     let wants_to_know = vec![AiProp::HasTarget,
                              AiProp::TargetVisible,
@@ -184,7 +184,7 @@ fn update_memory(entity: Entity, world: &EcsWorld) {
     }
 }
 
-fn choose_action(entity: Entity, world: &EcsWorld) -> Action {
+fn choose_action(entity: Entity, world: &World) -> Action {
     // TEMP: Just save the whole plan and only update when something interesting
     // happens
     let ai = world.ecs().ais.get_or_err(entity);

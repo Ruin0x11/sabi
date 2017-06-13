@@ -5,7 +5,7 @@ use std::f32;
 use data::Walkability;
 use world::traits::{Query, WorldQuery};
 use point::Point;
-use world::EcsWorld;
+use world::World;
 
 const CALCULATION_LIMIT: u32 = 50;
 
@@ -16,7 +16,7 @@ pub struct Path {
 
 impl Path {
     fn neighbors(current: Point,
-                 world: &EcsWorld,
+                 world: &World,
                  walkability: Walkability) -> Vec<Point> {
         assert!(world.pos_loaded(&current));
         let nearby_points: [Point; 9] = [
@@ -76,7 +76,7 @@ impl Path {
         }
     }
 
-    pub fn find(from: Point, to: Point, world: &EcsWorld, walkability: Walkability) -> Self {
+    pub fn find(from: Point, to: Point, world: &World, walkability: Walkability) -> Self {
         if from == to {
             return Path { path: vec![] };
         }
@@ -196,7 +196,7 @@ impl PartialOrd for State {
 #[cfg(test)]
 mod test {
     use super::Path;
-    use ecs::EcsWorld;
+    use ecs::World;
     use world::traits::*;
     use point::{Point, POINT_ZERO};
     use data::Walkability;
@@ -207,7 +207,7 @@ mod test {
     struct Board {
         start: Point,
         destination: Point,
-        level: EcsWorld,
+        level: World,
     }
 
     fn make_board(text: &str) -> Board {
@@ -221,7 +221,7 @@ mod test {
         assert!(width > 0);
         assert!(lines.iter().all(|line| line.chars().count() == width));
 
-        let level = EcsWorld::generate(EcsWorldType::Instanced(Point::new(width as i32, height as i32)), 128, tile::WALL);
+        let level = World::generate(WorldType::Instanced(Point::new(width as i32, height as i32)), 128, tile::WALL);
 
         Board {
             start: start,
@@ -254,7 +254,7 @@ mod test {
                 });
         };
         let make = |dim: Point| {
-            let world = EcsWorld::generate(EcsWorldType::Instanced(Point::new(dim.x,
+            let world = World::generate(WorldType::Instanced(Point::new(dim.x,
                     dim.y)), 128, tile::WALL);
             Board {
                 start: POINT_ZERO,

@@ -19,6 +19,7 @@ fn many_entities() -> GameContext {
 }
 
 #[bench]
+#[ignore]
 fn bench_many_entities(b: &mut Bencher) {
     let mut context = many_entities();
 

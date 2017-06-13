@@ -136,10 +136,12 @@ impl<'a> Renderable for SpriteMap {
     }
 }
 
-use world::EcsWorld;
-use world::traits::Query;
 use GameContext;
+use ecs::components::Appearance;
+use ecs::traits::ComponentQuery;
 use renderer::interop::RenderUpdate;
+use world::World;
+use world::traits::Query;
 
 fn tile_in_viewport(viewport: &Viewport, camera: Point, tile: Point) -> bool {
     let min: Point = viewport.min_tile_pos(camera).into();
@@ -148,7 +150,7 @@ fn tile_in_viewport(viewport: &Viewport, camera: Point, tile: Point) -> bool {
     min <= tile && max > tile
 }
 
-fn make_sprites(world: &EcsWorld, viewport: &Viewport) -> Vec<(DrawSprite, (u32, u32))> {
+fn make_sprites(world: &World, viewport: &Viewport) -> Vec<(DrawSprite, (u32, u32))> {
     let mut res = Vec::new();
     let camera = world.flags().camera;
     let start_corner: Point = viewport.min_tile_pos(camera).into();
@@ -161,26 +163,47 @@ fn make_sprites(world: &EcsWorld, viewport: &Viewport) -> Vec<(DrawSprite, (u32,
     let mut seen = vec![player];
     seen.extend(world.seen_entities(player));
 
-    for entity in seen.iter() {
-        if let Some(pos) = world.position(*entity) {
-            if !tile_in_viewport(viewport, camera, pos) {
+    {
+        let mut push_sprite = |pos: Point, appearance: &Appearance| {
+            let sprite = DrawSprite {
+                kind: appearance.kind.clone()
+            };
+
+            // Translate from world tilespace to screen tilespace (where
+            // (0, 0) is the upper-left corner)
+            let new_pos = pos - start_corner;
+            assert!(new_pos >= (0, 0), "{}", new_pos);
+
+            res.push((sprite, (new_pos.x as u32, new_pos.y as u32)));
+        };
+
+        // First pass: Non-mobs are rendered below mobs.
+        for entity in seen.iter() {
+            if world.is_mob(*entity) {
                 continue;
             }
 
-            if let Some(appearance) = world.ecs().appearances.get(*entity) {
-                let sprite = DrawSprite {
-                    kind: appearance.kind.clone()
-                };
+            if let Some(pos) = world.position(*entity) {
+                if !tile_in_viewport(viewport, camera, pos) {
+                    continue;
+                }
 
-                // Translate from world tilespace to screen tilespace (where
-                // (0, 0) is the upper-left corner)
-                let new_pos = pos - start_corner;
-                assert!(new_pos >= (0, 0), "{}", new_pos);
+                if let Some(appearance) = world.ecs().appearances.get(*entity) {
+                    push_sprite(pos, appearance);
+                }
+            }
+        }
 
-                res.push((sprite, (new_pos.x as u32, new_pos.y as u32)));
+        // Second pass: Draw mobs on top of non-mobs.
+        for entity in seen.iter() {
+            if world.is_mob(*entity) {
+                let pos = world.position(*entity).unwrap();
+                let appearance = world.ecs().appearances.get_or_err(*entity);
+                push_sprite(pos, appearance);
             }
         }
     }
+
     res
 }
 

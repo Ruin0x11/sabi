@@ -9,12 +9,9 @@ use chunk::ChunkIndex;
 use data::TurnOrder;
 use ecs::*;
 use ecs::traits::*;
-use terrain::traits::*;
-use world::WorldPosition;
 use world::flags::Flags;
 
 use point::Point;
-use chunk::*;
 
 pub trait Query {
     fn position(&self, e: Entity) -> Option<Point>;
@@ -53,6 +50,12 @@ pub trait Query {
             && ecs.turns.has(e)
             && ecs.healths.has(e)
             && ecs.names.has(e)
+    }
+
+    fn tangible_entities_at(&self, loc: Point) -> Vec<Entity> {
+        self.entities_at(loc).into_iter().filter(|&e| self.position(e).is_some()
+                                                 && self.ecs().appearances.get(e).is_some())
+            .collect()
     }
 
     /// Return mob (if any) at given position.

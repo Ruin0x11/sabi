@@ -14,6 +14,7 @@ use std::slice;
 
 use calx_ecs::Entity;
 use infinigen::*;
+use rand::{Rng, thread_rng};
 use slog::Logger;
 
 use chunk::*;
@@ -23,16 +24,15 @@ use data::spatial::{Spatial, Place};
 use data::{TurnOrder, Walkability, MessageLog};
 use ecs::*;
 use ecs::traits::*;
+use graphics::Marks;
 use graphics::cell::{CellFeature, StairDir, StairDest};
-use graphics::{Color, Marks};
 use log;
 use logic::entity::EntityQuery;
-use lua;
 use point::{Direction, Point, POINT_ZERO};
-use prefab::{Prefab, PrefabMarker};
+use prefab::{self, Prefab, PrefabArgs};
 use terrain::Terrain;
-use terrain::traits::*;
 use terrain::regions::Regions;
+use terrain::traits::*;
 use util::fov;
 
 pub type MapId = u32;
@@ -52,9 +52,131 @@ fn get_world_log() -> Logger {
     WORLD_LOG.new(o!())
 }
 
+pub struct WorldBuilder {
+    bounds: Bounds,
+    chunk_type: ChunkType,
+    prefab_name: Option<String>,
+    prefab_args: Option<PrefabArgs>,
+    id: u32,
+    max_id: Option<u32>,
+    seed: u32,
+}
+
+impl World {
+    pub fn new() -> WorldBuilder {
+        WorldBuilder {
+            bounds: Bounds::Unbounded,
+            chunk_type: ChunkType::Blank,
+            prefab_name: None,
+            prefab_args: None,
+            id: 0,
+            max_id: None,
+            seed: 1,
+        }
+    }
+
+    fn apply_prefab(&mut self, prefab: &Prefab) {
+        debug!(self.logger, "About to apply prefab over map {}...", self.flags().map_id);
+
+        for (pos, cell) in prefab.iter() {
+            if let Some(cell_mut) = self.cell_mut(&pos) {
+                *cell_mut = *cell;
+            }
+            {
+                let cellb = self.cell_const(&pos);
+                debug!(self.logger, "{}: {:?}, {:?}", pos, cell.type_, cellb);
+            }
+        }
+
+        self.terrain.markers = prefab.markers.clone();
+
+        debug!(self.logger, "Finished loading prefab");
+    }
+}
+
+impl WorldBuilder {
+    pub fn build(&mut self) -> World {
+        self::serial::delete_world_if_exists(self.id);
+
+        let mut prefab_opt = None;
+
+        if let Some(ref prefab_name) = self.prefab_name {
+            let prefab = prefab::create(prefab_name, &self.prefab_args).expect(&format!("Unknown prefab {}", prefab_name));
+            self.bounds = Bounds::Bounded(prefab.width(), prefab.height());
+            prefab_opt = Some(prefab);
+        }
+
+        let mut world = World {
+            ecs_: Ecs::new(),
+            terrain: Terrain::new(self.bounds.clone(), self.id),
+            spatial: Spatial::new(),
+            turn_order: TurnOrder::new(),
+            flags: Flags::new(self.seed, self.id),
+            chunk_type: self.chunk_type.clone(),
+
+            logger: get_world_log(),
+            messages: MessageLog::new(),
+            marks: Marks::new(),
+            debug_overlay: Marks::new(),
+        };
+
+        if let Some(max_id) = self.max_id {
+            world.flags_mut().globals.max_map_id = max_id;
+        }
+
+        if let Some(prefab) = prefab_opt {
+            world.apply_prefab(&prefab);
+        }
+
+        world
+    }
+
+    pub fn from_other_world<'a>(&'a mut self, other: &World) -> &'a mut Self {
+        let next_id = other.flags().get_globals().max_map_id + 1;
+        self.id = next_id;
+        self.max_id = Some(next_id);
+        self.seed = other.flags().seed();
+        self
+    }
+
+    pub fn with_id<'a>(&'a mut self, id: u32) -> &'a mut Self {
+        self.id = id;
+        self
+    }
+
+    pub fn with_randomized_seed<'a>(&'a mut self) -> &'a mut Self {
+        self.seed = thread_rng().next_u32();
+        self
+    }
+
+    pub fn with_seed<'a>(&'a mut self, seed: u32) -> &'a mut Self {
+        self.seed = seed;
+        self
+    }
+
+    pub fn with_chunk_type<'a>(&'a mut self, chunk_type: ChunkType) -> &'a mut Self {
+        self.chunk_type = chunk_type;
+        self
+    }
+
+    pub fn with_bounds<'a>(&'a mut self, bounds: Bounds) -> &'a mut Self {
+        self.bounds = bounds;
+        self
+    }
+
+    pub fn with_prefab<'a>(&'a mut self, prefab_name: &str) -> &'a mut Self {
+        self.prefab_name = Some(prefab_name.to_string());
+        self
+    }
+
+    pub fn with_prefab_args<'a>(&'a mut self, prefab_args: PrefabArgs) -> &'a mut Self {
+        self.prefab_args = Some(prefab_args);
+        self
+    }
+}
 
 #[derive(Serialize, Deserialize)]
-pub struct EcsWorld {
+pub struct World {
     ecs_: Ecs,
     terrain: Terrain,
     spatial: Spatial,
@@ -84,49 +206,7 @@ pub struct EcsWorld {
     pub debug_overlay: Marks,
 }
 
-impl EcsWorld {
-    pub fn new(bounds: Bounds, chunk_type: ChunkType, seed: u32, id: u32) -> EcsWorld {
-        EcsWorld {
-            ecs_: Ecs::new(),
-            terrain: Terrain::new(bounds, id),
-            spatial: Spatial::new(),
-            turn_order: TurnOrder::new(),
-            flags: Flags::new(seed, id),
-            chunk_type: chunk_type,
-
-            logger: get_world_log(),
-            messages: MessageLog::new(),
-            marks: Marks::new(),
-            debug_overlay: Marks::new(),
-        }
-    }
-
-    pub fn from_prefab(prefab: Prefab, seed: u32, id: u32) -> EcsWorld {
-        let mut world = EcsWorld::new(Bounds::Bounded(prefab.width(), prefab.height()), ChunkType::Blank, seed, id);
-
-        debug!(world.logger, "About to load prefab over map {}...", world.flags().map_id);
-
-        for (pos, cell) in prefab.iter() {
-            if let Some(cell_mut) = world.cell_mut(&pos) {
-                *cell_mut = *cell;
-            }
-            {
-                let cellb = world.cell_const(&pos);
-                debug!(world.logger, "{}: {:?}, {:?}", pos, cell.type_, cellb);
-            }
-        }
-
-        for (pos, marker) in prefab.markers.iter() {
-            if *marker == PrefabMarker::StairsIn {
-                world.terrain.stairs_in.insert(*pos);
-            }
-        }
-
-        debug!(world.logger, "Finished loading prefab");
-
-        world
-    }
-
+impl World {
     pub fn get_messages(&self, count: usize) -> Vec<String> {
         self.messages.get_lines(count)
     }
@@ -140,7 +220,7 @@ impl EcsWorld {
     }
 }
 
-impl Query for EcsWorld {
+impl Query for World {
     fn position(&self, e: Entity) -> Option<WorldPosition> {
         match self.spatial.get(e) {
             Some(Place::At(loc)) => Some(loc),
@@ -222,28 +302,32 @@ impl Query for EcsWorld {
     fn turn_order(&self) -> &TurnOrder { &self.turn_order }
 }
 
-impl Mutate for EcsWorld {
+impl Mutate for World {
     fn set_entity_location(&mut self, e: Entity, loc: WorldPosition) { self.spatial.insert_at(e, loc); }
 
     fn set_player(&mut self, player: Option<Entity>) { self.flags.globals.player = player; }
 
     fn kill_entity(&mut self, e: Entity) {
-        debug_ecs!(self, e, "Removing {:?} from turn order", e);
+        debug!(self.logger, "Marking entity {:?} as killed.", e);
         self.spatial.remove(e);
         let result = self.turn_order.remove(e);
         if let Err(err) = result {
-            warn_ecs!(self, e, "{:?} wasn't in turn order! {:?}", e, err);
+            warn!(self.logger, "{:?} wasn't in world turn order! {:?}", e, err);
         }
     }
 
     fn unload_entity(&mut self, e: Entity) -> Loadout {
+        debug!(self.logger, "Unloading entity {:?}", e);
         let loadout = Loadout::get(self.ecs(), e);
         self.kill_entity(e);
         self.remove_entity(e);
         loadout
     }
 
-    fn remove_entity(&mut self, e: Entity) { self.ecs_.remove(e); }
+    fn remove_entity(&mut self, e: Entity) {
+        debug!(self.logger, "Removing {:?} from world.", e);
+        self.ecs_.remove(e);
+    }
 
     fn ecs_mut(&mut self) -> &mut Ecs { &mut self.ecs_ }
 
@@ -288,7 +372,13 @@ impl Mutate for EcsWorld {
     fn spawn(&mut self, loadout: &Loadout, pos: WorldPosition) -> Entity {
         let entity = loadout.make(&mut self.ecs_);
         self.place_entity(entity, pos);
-        self.turn_order.insert(entity, 0).unwrap();
+
+        if self.ecs().turns.has(entity) {
+            self.turn_order.insert(entity, 0).unwrap();
+        }
+
+        debug_ecs!(self, entity, "Spawned entity at {}", pos);
+
         entity
     }
 
@@ -302,7 +392,9 @@ impl Mutate for EcsWorld {
             .filter(|&&e| self.is_active(e) && self.ecs().turns.get(e).is_some())
             .cloned().collect();
         for id in ids {
-            self.turn_order.advance_time_for(id, ticks).unwrap();
+            if self.ecs().turns.has(id) {
+                self.turn_order.advance_time_for(id, ticks).unwrap();
+            }
         }
     }
 
@@ -312,11 +404,11 @@ impl Mutate for EcsWorld {
 }
 const UPDATE_RADIUS: i32 = 3;
 
-fn is_persistent(world: &EcsWorld, entity: Entity) -> bool {
+fn is_persistent(world: &World, entity: Entity) -> bool {
     world.player().map_or(false, |p| entity == p)
 }
 
-impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorld {
+impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for World {
     fn terrain(&self) -> &Terrain { &self.terrain }
     fn terrain_mut(&mut self) -> &mut Terrain { &mut self.terrain }
 
@@ -337,7 +429,7 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
     }
 
     fn unload_chunk_internal(&mut self, index: &ChunkIndex) -> Result<SerialChunk, SerialError> {
-        debug!(self.logger, "UNLOAD CHUNK: {}", index);
+        debug!(self.logger, "UNLOAD CHUNK: {} MapId: {}", index, self.flags().map_id);
         let chunk = self.terrain.remove_chunk(index)
             .expect(&format!("Expected chunk at {}!", index));
 
@@ -355,7 +447,7 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
 
         }
 
-        debug!(self.logger, "Id: {}", self.flags().map_id);
+        debug!(self.logger, "Chunk ready for serializing, MapId: {}", self.flags().map_id);
 
         let serial = SerialChunk {
             chunk: chunk,
@@ -369,12 +461,8 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
 
         let chunk_pos = ChunkPosition::from(Point::new(0, 0));
         let cell_pos = Chunk::world_position_at(index, &chunk_pos);
-        if self.can_walk(cell_pos, Walkability::MonstersBlocking) {
-            self.create(::ecs::prefab::mob("putit", 10, "putit"),
-                        cell_pos);
-        }
-
         let stair_pos = cell_pos + (0, 1);
+
         if self.can_walk(stair_pos, Walkability::MonstersWalkable) {
             self.terrain.cell_mut(&stair_pos).unwrap().feature =
                 Some(CellFeature::Stairs(StairDir::Descending,
@@ -395,7 +483,7 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for EcsWorl
     }
 }
 
-impl EcsWorld {
+impl World {
     pub fn update_chunks(&mut self, center: Point) -> Result<(), SerialError>{
         let mut relevant: HashSet<ChunkIndex> = HashSet::new();
 

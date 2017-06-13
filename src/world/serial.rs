@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 use bincode::{self, Infinite};
 
 use infinigen::*;
-use world::{EcsWorld, MapId};
-use world::traits::Transition;
+use world::{World, MapId};
+use world::traits::*;
 use world::flags::GlobalFlags;
 
 pub const SAVE_DIRECTORY: &'static str = "save";
@@ -35,11 +35,11 @@ fn get_manifest_file() -> PathBuf {
 }
 
 // TODO: Allow quicksaving, as in not unloading the entire world first
-pub fn save_world(world: &mut EcsWorld) -> SerialResult<()> {
+pub fn save_world(world: &mut World) -> SerialResult<()> {
     // Unloads and saves the terrain.
     world.save()?;
 
-    // The following saves entities and world data besides terrain.
+    debug!(world.logger, "Saving entities and world data, MapId: {}", world.flags().map_id);
     let data = bincode::serialize(&world, Infinite)?;
     let id = world.map_id();
 
@@ -52,7 +52,7 @@ pub fn save_world(world: &mut EcsWorld) -> SerialResult<()> {
 }
 
 // TODO: load_world, or load_map? map_id?
-pub fn load_world(id: u32) -> SerialResult<EcsWorld> {
+pub fn load_world(id: u32) -> SerialResult<World> {
     fs::create_dir_all(get_world_save_dir(id)).map_err(SerialError::from)?;
 
     let save_path = get_world_savefile(id);
@@ -60,7 +60,7 @@ pub fn load_world(id: u32) -> SerialResult<EcsWorld> {
     let mut data: Vec<u8> = Vec::new();
     let mut savefile = File::open(save_path)?;
     savefile.read_to_end(&mut data)?;
-    let mut world: EcsWorld = bincode::deserialize(&data)?;
+    let mut world: World = bincode::deserialize(&data)?;
 
     // TODO: shouldn't have to set manually.
     world.set_map_id(id);
@@ -68,17 +68,7 @@ pub fn load_world(id: u32) -> SerialResult<EcsWorld> {
     Ok(world)
 }
 
-pub fn delete_world_if_exists(id: u32) -> SerialResult<()> {
-    let savedir_buf = get_world_save_dir(id);
-
-    if Path::exists(savedir_buf.as_path()) {
-        fs::remove_dir_all(savedir_buf).map_err(SerialError::from)?;
-    }
-
-    Ok(())
-}
-
-pub fn save_manifest(world: &EcsWorld) -> SerialResult<()> {
+pub fn save_manifest(world: &World) -> SerialResult<()> {
     let manifest = SaveManifest {
         globals: world.flags.get_globals(),
         map_id: world.map_id(),
@@ -106,6 +96,27 @@ pub fn load_manifest() -> SerialResult<SaveManifest> {
 
 pub fn init_paths() -> SerialResult<()> {
     fs::create_dir_all(get_save_directory()).map_err(SerialError::from)
+}
+
+
+pub fn delete_world_if_exists(id: u32) -> SerialResult<()> {
+    let savedir_buf = get_world_save_dir(id);
+
+    if Path::exists(savedir_buf.as_path()) {
+        fs::remove_dir_all(savedir_buf).map_err(SerialError::from)?;
+    }
+
+    Ok(())
+}
+
+pub fn wipe_save() -> SerialResult<()> {
+    let savedir_buf = PathBuf::from(get_save_directory());
+
+    if Path::exists(savedir_buf.as_path()) {
+        fs::remove_dir_all(savedir_buf).map_err(SerialError::from)?;
+    }
+
+    Ok(())
 }
 
 /// Global save data not tied to any specific map.

@@ -2,7 +2,6 @@ pub use infinigen::*;
 
 use calx_ecs::Entity;
 
-use logic::CommandResult;
 use ecs::*;
 use ecs::prefab::*;
 use ecs::traits::*;
@@ -60,6 +59,7 @@ pub trait Mutate: Query + Sized {
     fn update_killed(&mut self) {
         let kill_list: Vec<Entity> =
             self.entities().filter(|&&e| {
+                self.is_mob(e) &&
                 self.ecs().healths.map_or(false, |h| h.is_dead(), e)
             }).cloned().collect();
 
@@ -69,9 +69,14 @@ pub trait Mutate: Query + Sized {
     }
 
     /// Remove destroyed entities from the system.
+    /// The entities have to fulfill a specific set of criteria to be counted as "dead", since
+    /// items and other entities without health do not count. For now, it is if the entity is a
+    /// "mob".
     fn purge_dead(&mut self) {
         let kill_list: Vec<Entity> =
-            self.entities().filter(|&&e| !self.is_alive(e)).cloned().collect();
+            self.entities().filter(|&&e|
+                                    self.is_mob(e) &&
+                                   !self.is_alive(e)).cloned().collect();
 
         for e in kill_list.into_iter() {
             self.remove_entity(e);

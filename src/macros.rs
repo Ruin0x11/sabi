@@ -20,7 +20,7 @@ macro_rules! mes {
             let $x = $y;
         )*
 
-        $w.message(&format!($e, $($x),+));
+            $w.message(&format!($e, $($x),+));
     };
 }
 
@@ -58,6 +58,30 @@ macro_rules! menu {
                     None => Err(CommandError::Cancel)
                 }
 
+        }
+    }
+}
+
+/// A macro to pass variable assignments to Lua maps, to be run after the init() portion of the
+/// generation.
+///
+/// ```no_run
+/// map_args! { width: 80, height: 40 }
+/// ```
+macro_rules! prefab_args {
+    {
+        $($var:ident: $value:expr,)+
+    } => {
+        {
+
+            use std::collections::HashMap;
+            let mut res = HashMap::new();
+
+            $(
+                res.insert(stringify!($var).to_string(), stringify!($value).to_string());
+            )*
+
+            res
         }
     }
 }

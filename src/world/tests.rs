@@ -123,10 +123,13 @@ fn test_load_twice() {
 
 #[test]
 fn test_load_modify_terrain() {
-    let mut world = EcsWorld::new(Bounds::Bounded(64, 64), ChunkType::Blank, 1, 0);
+    let mut world = World::new().with_bounds(Bounds::Bounded(64, 64))
+        .with_seed(1)
+        .build();
     let change_pos = Point::new(0, 0);
 
     let cell_mut = world.cell_mut(&change_pos);
     assert!(cell_mut.is_some(), "World terrain wasn't loaded in before mutate");
     cell_mut.unwrap().type_ = CellType::Wall;
 }
+

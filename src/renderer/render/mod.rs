@@ -138,8 +138,8 @@ impl RenderContext {
     //     self.tilemap.update(board);
     // }
 
-    pub fn refresh_shaders(&mut self) {
-        self.background.refresh_shaders(&self.backend);
+    pub fn reload_shaders(&mut self) {
+        self.background.reload_shaders(&self.backend);
     }
 
     pub fn update(&mut self, context: &GameContext) {
