@@ -47,13 +47,20 @@ pub struct UiText {
     text_lines: Vec<String>,
 }
 
+fn split(text: &str) -> Vec<String> {
+    text.split('\n').map(|s| s.to_string()).collect()
+}
+
 impl UiText {
     pub fn new(pos: (i32, i32), text: &str) -> Self {
-        let split = text.split('\n').map(|s| s.to_string()).collect::<Vec<String>>();
         UiText {
             pos: pos,
-            text_lines: split,
+            text_lines: split(text),
         }
+    }
+
+    pub fn set(&mut self, text: &str) {
+        self.text_lines = split(text);
     }
 
     pub fn text(&self) -> String {

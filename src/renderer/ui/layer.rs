@@ -52,5 +52,6 @@ impl From<Box<Fn(&mut Ui)>> for Callback {
 pub enum EventResult {
     Ignored,
     Consumed(Option<Callback>),
-    Done
+    Done,
+    Canceled,
 }

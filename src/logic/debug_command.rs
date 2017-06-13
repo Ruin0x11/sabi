@@ -17,7 +17,7 @@ pub(super) fn cmd_debug_menu(context: &mut GameContext) -> CommandResult<()> {
     menu!(context,
           "Item test" => debug_item_test(context),
           "List entities" => debug_list_entities(context),
-          "Goto 0" => debug_goto_zero(context),
+          "Goto world" => debug_goto_world(context),
           "Debug prefab" => debug_prefab(context),
           "Reload shaders" => debug_reload_shaders(),
           "Restart game" => debug_restart_game(context)
@@ -62,8 +62,16 @@ fn debug_regen_prefab(context: &mut GameContext, prefab_name: &str) {
     goto_new_world(context, get_debug_world(prefab_name));
 }
 
-fn debug_goto_zero(context: &mut GameContext) -> CommandResult<()> {
-    goto_new_world(context, world::serial::load_world(0).unwrap());
+fn debug_goto_world(context: &mut GameContext) -> CommandResult<()> {
+    let input = player_input(context, "Which id?").ok_or(CommandError::Cancel)?;
+
+    let id = input.parse::<u32>()
+        .map_err(|_| CommandError::Invalid("That's not a valid id."))?;
+
+    let new_world = world::serial::load_world(id)
+        .map_err(|_| CommandError::Invalid("That world doesn't exist."))?;
+
+    goto_new_world(context, new_world);
     Ok(())
 }
 

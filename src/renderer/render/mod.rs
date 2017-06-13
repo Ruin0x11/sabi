@@ -203,6 +203,10 @@ impl RenderContext {
                         self.ui.render_all();
                         return layer.result();
                     },
+                    EventResult::Canceled => {
+                        self.ui.render_all();
+                        return None;
+                    },
                     _ => {
                         self.ui.render_all();
                         self.ui.draw_layer(layer);

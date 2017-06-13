@@ -6,6 +6,7 @@ use renderer::render::{Renderable, Viewport};
 
 pub mod elements;
 mod layer;
+pub mod layers;
 mod renderer;
 
 pub use self::elements::{UiElement};
@@ -93,7 +94,8 @@ impl Ui {
                     Some(cb) => cb(self)
                 }
             }
-            EventResult::Done => self.pop_layer(),
+            EventResult::Done |
+            EventResult::Canceled => self.pop_layer(),
         }
     }
 

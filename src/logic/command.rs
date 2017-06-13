@@ -288,78 +288,28 @@ fn select_tile<F>(context: &mut GameContext, callback: F) -> Option<Point>
     }
 }
 
-use renderer::ui::*;
-use renderer::ui::elements::*;
-
-struct ChoiceLayer {
-    list: UiList,
-}
-
-impl ChoiceLayer {
-    pub fn new(choices: Vec<String>) -> Self {
-        ChoiceLayer {
-            list: UiList::new((120, 120), choices),
-        }
-    }
-}
-
-impl UiElement for ChoiceLayer {
-    fn draw(&self, renderer: &mut UiRenderer) {
-        self.list.draw(renderer);
-    }
-}
-
-impl UiLayer for ChoiceLayer {
-    fn on_event(&mut self, event: glutin::Event) -> EventResult {
-        match event {
-            glutin::Event::KeyboardInput(ElementState::Pressed, _, Some(code)) => {
-                match code {
-                    VirtualKeyCode::Escape => EventResult::Done,
-                    VirtualKeyCode::Return => EventResult::Done,
-                    VirtualKeyCode::Up => {
-                        self.list.select_prev();
-                        EventResult::Consumed(None)
-                    },
-                    VirtualKeyCode::Down => {
-                        self.list.select_next();
-                        EventResult::Consumed(None)
-                    },
-                    _ => EventResult::Ignored,
-                }
-            },
-            _ => EventResult::Ignored,
-        }
-    }
-}
-
-impl UiQuery for ChoiceLayer {
-    type QueryResult = usize;
-
-    fn result(&self) -> Option<usize> {
-        self.list.get_selected_idx()
-    }
-}
+use renderer::ui::layers::ChoiceLayer;
 
 pub fn menu_choice(context: &mut GameContext, choices: Vec<String>) -> Option<usize> {
-    let mut selected = false;
-    let mut idx = None;
-
     renderer::with_mut(|rc| {
         rc.update(context);
 
-        idx = rc.query(&mut ChoiceLayer::new(choices));
-        selected = true;
-    });
-
-    if selected {
-        idx
-    } else {
-        None
-    }
+        rc.query(&mut ChoiceLayer::new(choices))
+    })
 }
 
 pub fn menu_choice_indexed<T: Display + Clone>(context: &mut GameContext, mut choices: Vec<T>) -> CommandResult<T> {
     let strings = choices.iter().cloned().map(|t| t.to_string()).collect();
     let idx = menu_choice(context, strings).ok_or(CommandError::Cancel)?;
     Ok(choices.remove(idx))
+}
+
+use renderer::ui::layers::InputLayer;
+
+pub fn player_input(context: &mut GameContext, prompt: &str) -> Option<String> {
+    renderer::with_mut(|rc| {
+        rc.update(context);
+
+        rc.query(&mut InputLayer::new(prompt))
+    })
 }

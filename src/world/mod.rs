@@ -96,8 +96,6 @@ impl World {
 
 impl WorldBuilder {
     pub fn build(&mut self) -> World {
-        self::serial::delete_world_if_exists(self.id);
-
         let mut prefab_opt = None;
 
         if let Some(ref prefab_name) = self.prefab_name {

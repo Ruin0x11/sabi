@@ -62,7 +62,6 @@ mod testing;
 use glium::glutin;
 use glium::glutin::{VirtualKeyCode, ElementState};
 use state::GameState;
-use renderer::Action;
 use engine::keys::{Key, KeyCode};
 
 pub struct GameContext {
