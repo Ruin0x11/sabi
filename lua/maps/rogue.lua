@@ -395,11 +395,18 @@ function generate()
 
    function put_stairs()
       local point
+      local i = 0
       repeat
+         i = i + 1
+         if i > 100 then
+            error("die")
+         end
+
          point = prefab:random_point(function(pt)
                return prefab:get(pt) == "Floor"
          end)
       until point ~= world.point(-1, -1)
+
       prefab:place_stairs_in(point)
       log.info("stairs at " .. tostring(point))
    end

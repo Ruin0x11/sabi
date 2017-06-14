@@ -3,6 +3,7 @@ use std::fmt::Display;
 use GameContext;
 use data::Walkability;
 use engine::keys::{Key, KeyCode};
+use ecs::traits::*;
 use graphics::cell::{CellFeature, StairDest, StairDir};
 use logic::Action;
 use logic::entity::EntityQuery;
@@ -25,11 +26,13 @@ pub enum Command {
     Move(Direction),
     UseStairs(StairDir),
     Look,
+    Pickup,
+    Drop,
+    Inventory,
     Wait,
     Quit,
 
     DebugMenu,
-    TestScript,
     Teleport,
 }
 
@@ -62,8 +65,10 @@ impl From<Key> for Command {
             Key { code: KeyCode::Comma,       .. } => Command::UseStairs(StairDir::Descending),
 
             Key { code: KeyCode::M,           .. } => Command::Look,
+            Key { code: KeyCode::G,           .. } => Command::Pickup,
+            Key { code: KeyCode::D,           .. } => Command::Drop,
+            Key { code: KeyCode::I,           .. } => Command::Inventory,
 
-            Key { code: KeyCode::T,           .. } => Command::TestScript,
             Key { code: KeyCode::E,           .. } => Command::Teleport,
             Key { code: KeyCode::F1,          .. } => Command::DebugMenu,
 
@@ -79,13 +84,15 @@ pub fn process_player_command(context: &mut GameContext, command: Command) -> Co
 
         Command::Look           => cmd_look(context),
         Command::UseStairs(dir) => cmd_use_stairs(context, dir),
+        Command::Pickup         => cmd_pickup(context),
+        Command::Drop           => cmd_drop(context),
+        Command::Inventory      => cmd_inventory(context),
 
         Command::Move(dir)      => cmd_add_action(context, Action::MoveOrAttack(dir)),
         Command::Wait           => cmd_add_action(context, Action::Wait),
 
         Command::DebugMenu      => cmd_debug_menu(context),
         Command::Teleport       => cmd_teleport(context),
-        Command::TestScript     => cmd_add_action(context, Action::TestScript),
     }
 }
 
@@ -109,21 +116,39 @@ fn cmd_teleport(context: &mut GameContext) -> CommandResult<()> {
     }
 }
 
-fn cmd_use_stairs(context: &mut GameContext, dir: StairDir) -> CommandResult<()> {
-    let world = &mut context.state.world;
-    let player = world.player().ok_or(CommandError::Bug("No player in the world!"))?;
-    let pos = world.position(player).ok_or(CommandError::Bug("Player has no position!"))?;
-    let next = find_stair_dest(world, pos, dir)?;
+fn cmd_pickup(context: &mut GameContext) -> CommandResult<()> {
+    let first_item;
+    {
+        let world = &context.state.world;
+        let pos = player_pos(context)?;
+        first_item = world.find_entity(pos, |&e| world.ecs().items.has(e))
+    }
 
-    let (true_next, dest) = load_stair_dest(world, pos, next)?;
-    world.move_to_map(true_next, dest).unwrap();
+    match first_item {
+        Some(item) => cmd_add_action(context, Action::Pickup(item)),
+        None    => Err(CommandError::Invalid("You grab at air.")),
+    }
+}
 
-    debug!(world.logger, "map id: {:?}", world.map_id());
-    Ok(())
+fn cmd_drop(context: &mut GameContext) -> CommandResult<()> {
+    let player = context.state.world.player().ok_or(CommandError::Bug("No player in the world!"))?;
+    let items = context.state.world.entities_in(player);
+    let names = items.iter().map(|i| context.state.world.ecs().names.get(*i).unwrap().name.clone()).collect();
+    let idx = menu_choice(context, names).ok_or(CommandError::Cancel)?;
+    cmd_add_action(context, Action::Drop(items[idx]))
+}
+
+fn cmd_inventory(context: &mut GameContext) -> CommandResult<()> {
+    let player = context.state.world.player().ok_or(CommandError::Bug("No player in the world!"))?;
+    let items = context.state.world.entities_in(player);
+    let names = items.into_iter().map(|i| context.state.world.ecs().names.get(i).unwrap().name.clone()).collect();
+    let choose = menu_choice_indexed(context, names)?;
+    mes!(context.state.world, "You chose: {}", a=choose);
+    Err(CommandError::Cancel)
 }
 
 fn find_stair_dest(world: &World, pos: Point, dir: StairDir) -> CommandResult<StairDest> {
-    let cell = world.cell_const(&pos).ok_or(CommandError::Bug("World was not loaded at pos!"))?;
+    let cell = world.cell_const(&pos).ok_or(CommandError::Bug("World was not loaded at stair pos!"))?;
 
     match cell.feature {
         Some(CellFeature::Stairs(stair_dir, dest)) => {
@@ -137,6 +162,25 @@ fn find_stair_dest(world: &World, pos: Point, dir: StairDir) -> CommandResult<St
         }
         _ => Err(CommandError::Cancel)
     }
+}
+
+fn player_pos(context: &GameContext) -> CommandResult<Point> {
+    let world = &context.state.world;
+    let player = world.player().ok_or(CommandError::Bug("No player in the world!"))?;
+    let pos = world.position(player).ok_or(CommandError::Bug("Player has no position!"))?;
+    Ok(pos)
+}
+
+fn cmd_use_stairs(context: &mut GameContext, dir: StairDir) -> CommandResult<()> {
+    let pos = player_pos(context)?;
+    let world = &mut context.state.world;
+    let next = find_stair_dest(world, pos, dir)?;
+
+    let (true_next, dest) = load_stair_dest(world, pos, next)?;
+    world.move_to_map(true_next, dest).unwrap();
+
+    debug!(world.logger, "map id: {:?}", world.map_id());
+    Ok(())
 }
 
 fn load_stair_dest(world: &mut World, stair_pos: Point, next: StairDest) -> CommandResult<(World, Point)> {

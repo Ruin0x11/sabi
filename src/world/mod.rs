@@ -209,6 +209,12 @@ impl World {
         self.messages.get_lines(count)
     }
 
+    #[cfg(test)]
+    pub fn message(&mut self, text: &str) {
+        println!("MESSAGE: {}", text);
+    }
+
+    #[cfg(not(test))]
     pub fn message(&mut self, text: &str) {
         self.messages.append(text);
     }
@@ -222,7 +228,7 @@ impl Query for World {
     fn position(&self, e: Entity) -> Option<WorldPosition> {
         match self.spatial.get(e) {
             Some(Place::At(loc)) => Some(loc),
-            Some(Place::In(container)) => self.position(container),
+            // Some(Place::In(container)) => self.position(container),
             _ => None,
         }
     }
@@ -293,6 +299,8 @@ impl Query for World {
 
     fn entities_at(&self, loc: WorldPosition) -> Vec<Entity> { self.spatial.entities_at(loc) }
 
+    fn entities_in(&self, entity: Entity) -> Vec<Entity> { self.spatial.entities_in(entity) }
+
     fn ecs(&self) -> &Ecs { &self.ecs_ }
 
     fn flags(&self) -> &Flags { &self.flags }
@@ -301,7 +309,13 @@ impl Query for World {
 }
 
 impl Mutate for World {
-    fn set_entity_location(&mut self, e: Entity, loc: WorldPosition) { self.spatial.insert_at(e, loc); }
+    fn set_entity_location(&mut self, e: Entity, pos: Point) {
+        self.spatial.insert_at(e, pos);
+    }
+
+    fn place_entity_in(&mut self, container: Entity, e: Entity) {
+        self.spatial.insert_in(e, container);
+    }
 
     fn set_player(&mut self, player: Option<Entity>) { self.flags.globals.player = player; }
 

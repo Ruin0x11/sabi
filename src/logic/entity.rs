@@ -56,5 +56,13 @@ impl EntityQuery for Entity {
             false
         }
     }
-
 }
+
+// fn drop_item(&mut self, target: Entity, world: &mut World) {
+//     if let Some(inv) = world.ecs_mut().invs.get_mut(*self) {
+//         if let Some(pos) = world.position(*self) {
+//             inv.container.remove(target);
+//             world.place_entity(target, pos);
+//         }
+//     }
+// }

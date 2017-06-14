@@ -42,19 +42,51 @@ impl GameState {
 
     pub fn player_action(&mut self, action: Action) {
         if let Some(player) = self.world.player() {
+            println!("State player: {:?}", player);
             process_action(&mut self.world, player, action);
         }
     }
 }
 
-#[cfg(never)]
-fn draw_overlays(world: &mut World) {
-    world.draw_calls.draw_all();
-    world.draw_calls.clear();
+pub fn game_step(context: &mut GameContext, input: Option<Key>) {
+    if let Some(key) = input {
+        let command = Command::from(key);
+        run_command(context, command);
+    }
+
+    let dead = check_player_dead(&context.state.world);
+    if dead {
+        return;
+    }
 }
 
-#[cfg(never)]
-fn show_messages(world: &mut World) {
+pub fn run_command(context: &mut GameContext, command: Command) {
+    match command::process_player_command(context, command) {
+        Err(e) => {
+            match e {
+                CommandError::Bug(reason)     => panic!("A bug occurred: {}", reason),
+                CommandError::Invalid(reason) => context.state.world.message(reason),
+                CommandError::Cancel          => (),
+            }
+            context.state.clear_actions();
+            context.state.world.update_camera();
+        },
+        Ok(..) => {
+            run_action_queue(context);
+            process(context);
+        }
+    }
+}
+
+
+fn check_player_dead(world: &World) -> bool {
+    let res = world.player().is_none();
+    if res {
+        info!(world.logger, "Player has died.");
+        // world.message("You're dead!".to_string());
+        // show_messages(world);
+    }
+    res
 }
 
 fn run_action_queue(context: &mut GameContext) {
@@ -98,16 +130,6 @@ fn process_actors(world: &mut World) {
     world.purge_dead();
 }
 
-fn check_player_dead(world: &World) -> bool {
-    let res = world.player().is_none();
-    if res {
-        info!(world.logger, "Player has died.");
-        // world.message("You're dead!".to_string());
-        // show_messages(world);
-    }
-    res
-}
-
 fn process_events(_world: &mut World) {
     // let mut responses = event::check_all(world);
     // while responses.len() != 0 {
@@ -120,23 +142,6 @@ fn process_events(_world: &mut World) {
     // }
 }
 
-pub fn run_command(context: &mut GameContext, command: Command) {
-    match command::process_player_command(context, command) {
-        Err(e) => {
-            match e {
-                CommandError::Bug(reason)     => panic!("A bug occurred: {}", reason),
-                CommandError::Invalid(reason) => context.state.world.message(reason),
-                CommandError::Cancel          => (),
-            }
-            context.state.clear_actions();
-            context.state.world.update_camera();
-        },
-        Ok(..) => {
-            run_action_queue(context);
-            process(context);
-        }
-    }
-}
 
 fn update_world(context: &mut GameContext) {
     context.state.world.update_terrain();
@@ -180,19 +185,6 @@ pub fn restart_game(context: &mut GameContext) {
 pub fn init(context: &mut GameContext) {
     init_headless(context);
 }
-
-pub fn game_step(context: &mut GameContext, input: Option<Key>) {
-    if let Some(key) = input {
-        let command = Command::from(key);
-        run_command(context, command);
-    }
-
-    let dead = check_player_dead(&context.state.world);
-    if dead {
-        return;
-    }
-}
-
 
 #[cfg(test)]
 pub fn run_action(context: &mut GameContext, action: Action) {

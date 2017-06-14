@@ -1,5 +1,4 @@
-use std::path::Path;
-
+use calx_ecs::Entity;
 use infinigen::*;
 
 use ecs::Loadout;
@@ -9,10 +8,51 @@ use world::{World, MapId};
 use world::traits::*;
 use world::flags::GlobalFlags;
 
+#[derive(Debug)]
+struct TransitionLoadout {
+    parent: Loadout,
+    children: Vec<TransitionLoadout>,
+}
+
+impl TransitionLoadout {
+    fn from_entity(entity: Entity, world: &mut World) -> Self {
+        println!("ENTITY: {:?}", entity);
+        println!("IN: {:?}", world.entities_in(entity));
+        // TODO: Does not handle recursive children
+        let children = world.entities_in(entity).into_iter()
+            .map(|e| TransitionLoadout {
+                parent: world.unload_entity(e),
+                children: Vec::new(),
+            })
+            .collect();
+        println!("CHILD: {:?}", children);
+
+        let parent = world.unload_entity(entity);
+
+        TransitionLoadout {
+            parent: parent,
+            children: children,
+        }
+    }
+
+    fn inject(self, world: &mut World) -> Entity {
+        let parent = world.spawn(&self.parent, Point::new(0, 0));
+        println!("CHILD: {:?}", self.children);
+        for child in self.children.into_iter() {
+            let child_entity = child.parent.make(world.ecs_mut());
+            world.place_entity_in(parent, child_entity);
+        }
+
+        println!("INJECTED: {:?}", world.entities().cloned().collect::<Vec<Entity>>());
+
+        parent
+    }
+}
+
 struct TransitionData {
     pub globals: GlobalFlags,
 
-    pub player_data: Loadout,
+    pub player_data: TransitionLoadout
 }
 
 impl Transition<TransitionData> for World {
@@ -27,7 +67,7 @@ impl Transition<TransitionData> for World {
 
     fn get_transition_data(&mut self) -> TransitionResult<TransitionData> {
         let player = self.player().unwrap();
-        let loadout = self.unload_entity(player);
+        let loadout = TransitionLoadout::from_entity(player, self);
         let data = TransitionData {
             globals: self.flags().get_globals(),
 
@@ -49,7 +89,7 @@ impl Transition<TransitionData> for World {
         // TODO: shouldn't have to set manually.
         self.set_map_id(map_id);
 
-        let player_id = self.spawn(&previous.player_data, Point::new(0, 0));
+        let player_id = previous.player_data.inject(self);
         self.set_player(Some(player_id));
 
         Ok(())
@@ -67,7 +107,7 @@ impl World {
         self.inject_transition_data(data)?;
 
         let player = self.player().expect("Player didn't move to new map!");
-        self.set_entity_location(player, dest);
+        self.place_entity(player, dest);
 
         self.on_load();
 
@@ -81,10 +121,12 @@ mod tests {
     use super::*;
     use ecs;
     use graphics::cell::CellType;
+    use logic::Action;
     use point::POINT_ZERO;
+    use state;
     use testing::*;
-    use world;
     use world::*;
+    use world;
 
     #[test]
     fn test_modify_before_transition() {
@@ -125,6 +167,7 @@ mod tests {
 
         assert!(context.state.world.position(e).is_some());
     }
+
     #[test]
     fn test_max_map_id() {
         let mut context = test_context_bounded(64, 64);
@@ -144,5 +187,40 @@ mod tests {
 
         context.state.world.move_to_map(prev_world, POINT_ZERO).unwrap();
         assert_eq!(context.state.world.flags().globals.max_map_id, 1);
+    }
+
+    #[test]
+    fn test_transition_loadout() {
+        let mut context = test_context_bounded(64, 64);
+
+        let item = context.state.world.create(ecs::prefab::item("cola", "cola"), POINT_ZERO);
+        state::run_action(&mut context, Action::Pickup(item));
+
+        let player = context.state.world.player().unwrap();
+        println!("Our player: {:?}", player);
+        assert_eq!(context.state.world.entities_in(player).len(), 1);
+
+        let loadout = TransitionLoadout::from_entity(player, &mut context.state.world);
+        assert_eq!(loadout.children.len(), 1);
+    }
+
+    #[test]
+    fn test_inject_inventory() {
+        let mut context = test_context_bounded(64, 64);
+        let new_world = World::new()
+            .from_other_world(&context.state.world)
+            .build();
+
+        let item = context.state.world.create(ecs::prefab::item("cola", "cola"), POINT_ZERO);
+        state::run_action(&mut context, Action::Pickup(item));
+
+        context.state.world.move_to_map(new_world, POINT_ZERO).unwrap();
+
+        let player = context.state.world.player().unwrap();
+        println!("Our player: {:?}", player);
+
+        // Note that the entity has been removed and re-injected, so it isn't possible to compare
+        // by ID.
+        assert_eq!(context.state.world.entities_in(player).len(), 1);
     }
 }

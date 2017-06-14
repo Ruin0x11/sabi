@@ -12,6 +12,7 @@ Ecs! {
     turns: components::Turn,
     props: components::Props,
     items: components::Item,
+    invs: components::Inventory,
     ais: ai::Ai,
     fovs: components::Fov,
     logs: components::Log,

@@ -6,7 +6,7 @@ use serde::ser::{Serialize, Serializer};
 
 use slog::Logger;
 
-use item::ItemEffect;
+use item::{ItemContainer, ItemEffect};
 use log;
 use point::Point;
 use stats::properties::Properties;
@@ -93,16 +93,35 @@ impl Turn {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Item {
     pub count: u32,
+    pub weight: f32,
     pub effect: ItemEffect,
+}
+
+fn same_object<T>(a: &T, b: &T) -> bool {
+    a as *const T == b as *const T
 }
 
 impl Item {
     pub fn new() -> Self {
         Item {
             count: 1,
+            weight: 0.0,
             effect: ItemEffect::Heal,
         }
     }
+
+    pub fn weight(&self) -> f32 {
+        self.count as f32 * self.weight
+    }
+
+    pub fn can_merge(&self, other: &Item) -> bool {
+        false
+    }
+
+    pub fn merge(&mut self, other: &Item) {
+        self.count += other.count;
+    }
+
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -182,8 +201,7 @@ impl Deserialize for Log {
     }
 }
 
-#[cfg(never)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Inventory {
-    pub containing: ItemContainer,
+    pub container: ItemContainer,
 }

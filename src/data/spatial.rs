@@ -1,3 +1,4 @@
+use std::collections::Bound::{Included, Unbounded};
 use std::collections::{BTreeMap, btree_map};
 use serde;
 use calx_ecs::Entity;
@@ -44,6 +45,23 @@ impl Spatial {
 
     /// Insert an entity into space.
     pub fn insert_at(&mut self, entity: Entity, loc: Point) { self.insert(entity, At(loc)); }
+
+    /// Return whether the parent entity or an entity contained in the parent
+    /// entity contains entity e.
+    pub fn contains(&self, parent: Entity, e: Entity) -> bool {
+        match self.entity_to_place.get(&e) {
+            Some(&In(p)) if p == parent => true,
+            Some(&In(p)) => self.contains(parent, p),
+            _ => false,
+        }
+    }
+
+    /// Insert an entity into container.
+    pub fn insert_in(&mut self, e: Entity, parent: Entity) {
+        assert!(!self.contains(e, parent),
+                "Trying to create circular containment");
+        self.insert(e, In(parent));
+    }
 
     /// Remove an entity from the local structures but do not pop out its
     /// items. Unless the entity is added back in or the contents are handled
@@ -125,24 +143,13 @@ impl Spatial {
 
     /// List entities in a container.
     pub fn entities_in(&self, parent: Entity) -> Vec<Entity> {
-        // XXX: Can't make the API return an iterator (more efficient than
-        // running collect) since the chain depends on a closure that captures
-        // the 'parent' parameter from the outside scope, and closures can't
-        // be typed in the return signature.
-
-        // TODO: Get range iteration for BTreeMaps working in stable Rust.
-        // self.place_to_entities.range(Included(&In(parent, None)), Unbounded)
-        //     // Consume the contingent elements for the parent container.
-        //     .take_while(|&(ref k, _)| if let &&In(ref p, _) = k { *p == parent } else { false })
-
-        // XXX: This replacement thing is quite nasty, it iterates over the
-        // whole collection for every query.
-        self.place_to_entities
-            .iter()
-            .filter(|&(k, _)| { if let &In(p) = k { p == parent } else { false } })
-            .flat_map(|(_, v)| v.iter())
-            .cloned()
-            .collect()
+        println!("ENTITIES IN: {:?}", self.place_to_entities);
+        self.place_to_entities.range((Included(&In(parent)), Unbounded))
+        // Consume the contingent elements for the parent container.
+             .take_while(|&(ref k, _)| if let &&In(ref p) = k { *p == parent } else { false })
+             .flat_map(|(_, v)| v.iter())
+             .cloned()
+             .collect()
     }
 
     /// Return the place of an entity if the entity is present in the space.
@@ -159,6 +166,17 @@ impl Spatial {
         ret
     }
 
+    /// Flattens the children of an entity.
+    fn dump_containing(&self, parent: Entity) -> Vec<Elt> {
+        let mut ret = vec![];
+
+        for child in self.entities_in(parent) {
+            ret.push(Elt(child, In(parent)));
+        }
+
+        ret
+    }
+
     /// Construct from the serialized vector.
     fn slurp(dump: Vec<Elt>) -> Spatial {
         let mut ret = Spatial::new();
@@ -171,7 +189,7 @@ impl Spatial {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-struct Elt(Entity, Place);
+pub struct Elt(Entity, Place);
 
 impl serde::Serialize for Spatial {
     fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {

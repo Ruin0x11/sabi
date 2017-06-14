@@ -6,13 +6,15 @@ use ecs::*;
 use ecs::prefab::*;
 use ecs::traits::*;
 use point::Direction;
+use data::spatial::Place;
 use world::flags::Flags;
 use world::traits::Query;
 
 use point::Point;
 
 pub trait Mutate: Query + Sized {
-    fn set_entity_location(&mut self, e: Entity, loc: Point);
+    fn set_entity_location(&mut self, e: Entity, pos: Point);
+    fn place_entity_in(&mut self, container: Entity, entity: Entity);
 
     fn set_player(&mut self, player: Option<Entity>);
 

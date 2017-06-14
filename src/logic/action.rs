@@ -1,5 +1,6 @@
 use calx_ecs::Entity;
 use data::Walkability;
+use data::spatial::Place;
 use ecs::traits::*;
 use logic::entity::EntityQuery;
 use point::{Direction, Point};
@@ -15,19 +16,21 @@ pub enum Action {
     MoveOrAttack(Direction),
     Wait,
     SwingAt(Entity),
-    Pickup,
+    Pickup(Entity),
+    Drop(Entity),
 
     TestScript,
 
-    Teleport(Point),
-    TeleportUnchecked(Point),
+    Teleport(WorldPosition),
+    TeleportUnchecked(WorldPosition),
 }
 
 pub fn run_entity_action(world: &mut World, entity: Entity, action: Action) -> ActionResult {
     match action {
         Action::MoveOrAttack(dir)      => action_move_or_attack(world, entity, dir),
         Action::Move(dir)              => action_move_entity(world, entity, dir),
-        Action::TestScript             => action_test_script(),
+        Action::Pickup(target)         => action_pickup(world, entity, target),
+        Action::Drop(target)           => action_drop(world, entity, target),
         Action::Teleport(pos)          => action_try_teleport(world, entity, pos),
         Action::TeleportUnchecked(pos) => action_teleport_unchecked(world, entity, pos),
         Action::SwingAt(target)        => action_swing_at(world, entity, target),
@@ -36,7 +39,7 @@ pub fn run_entity_action(world: &mut World, entity: Entity, action: Action) -> A
 }
 
 fn action_teleport_unchecked(world: &mut World, entity: Entity, pos: Point) -> ActionResult {
-    world.set_entity_location(entity, pos);
+    world.place_entity(entity, pos);
     Ok(())
 }
 
@@ -83,10 +86,23 @@ fn action_swing_at(world: &mut World, attacker: Entity, other: Entity) -> Action
     Ok(())
 }
 
+fn action_pickup(world: &mut World, parent: Entity, target: Entity) -> ActionResult {
+    world.place_entity_in(parent, target);
+    mes!(world, "The {} picks up the {}.", a=parent.name(world), b=target.name(world));
+    Ok(())
+}
+
+fn action_drop(world: &mut World, entity: Entity, target: Entity) -> ActionResult {
+    let pos = world.position(entity).unwrap();
+    world.place_entity(target, pos);
+    mes!(world, "The {} drops the {}.", a=entity.name(world), b=target.name(world));
+    Ok(())
+}
+
 fn action_try_teleport(world: &mut World, entity: Entity, pos: WorldPosition) -> ActionResult {
     if world.can_walk(pos, Walkability::MonstersBlocking) {
         mes!(world, "Suddenly, the {} disappears.", a=entity.name(world));
-        world.set_entity_location(entity, pos);
+        world.place_entity(entity, pos);
         Ok(())
     } else {
         Err(())

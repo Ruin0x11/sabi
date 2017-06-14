@@ -78,11 +78,13 @@ fn debug_goto_world(context: &mut GameContext) -> CommandResult<()> {
 fn debug_item_test(context: &mut GameContext) -> CommandResult<()> {
     goto_new_world(context, get_debug_world("blank"));
 
-    for pos in RectangleIter::new(Point::new(0, 0), Point::new(10, 10)) {
+    for pos in RectangleIter::new(Point::new(0, 0), Point::new(3, 3)) {
         if context.state.world.pos_loaded(&pos) {
             context.state.world.create(ecs::prefab::item("cola", "cola"), pos);
         }
     }
+
+    context.state.world.create(ecs::prefab::mob("putit", 10, "putit"), Point::new(5,5));
 
     Ok(())
 }
