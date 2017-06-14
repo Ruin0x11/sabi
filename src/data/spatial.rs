@@ -166,17 +166,6 @@ impl Spatial {
         ret
     }
 
-    /// Flattens the children of an entity.
-    fn dump_containing(&self, parent: Entity) -> Vec<Elt> {
-        let mut ret = vec![];
-
-        for child in self.entities_in(parent) {
-            ret.push(Elt(child, In(parent)));
-        }
-
-        ret
-    }
-
     /// Construct from the serialized vector.
     fn slurp(dump: Vec<Elt>) -> Spatial {
         let mut ret = Spatial::new();
@@ -197,8 +186,8 @@ impl serde::Serialize for Spatial {
     }
 }
 
-impl serde::Deserialize for Spatial {
-    fn deserialize<D: serde::Deserializer>(d: D) -> Result<Self, D::Error> {
+impl<'de> serde::Deserialize<'de> for Spatial {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         Ok(Spatial::slurp(serde::Deserialize::deserialize(d)?))
     }
 }

@@ -6,7 +6,6 @@ use ecs::*;
 use ecs::prefab::*;
 use ecs::traits::*;
 use point::Direction;
-use data::spatial::Place;
 use world::flags::Flags;
 use world::traits::Query;
 

@@ -1,6 +1,6 @@
 use noise::{NoiseModule, Perlin, Seedable};
 
-use graphics::cell::{self, Cell};
+use graphics::cell::Cell;
 use chunk::{CHUNK_WIDTH, Chunk, ChunkIndex};
 use world::WorldPosition;
 
@@ -16,7 +16,7 @@ use self::ChunkType::*;
 impl ChunkType {
     pub fn generate(&self, index: &ChunkIndex, seed: u32) -> Chunk {
         match *self {
-            Blank => generate_blank(cell::FLOOR),
+            Blank => generate_blank(Cell::new("floor")),
             Fill(cell) => generate_blank(cell),
             Perlin => generate_perlin(index, seed),
         }
@@ -58,13 +58,13 @@ fn generate_perlin(index: &ChunkIndex, seed: u32) -> Chunk {
             let res = gen.get([conv(ay, -ax), conv(ax, ay), az]);
 
             if res < 0.02 {
-                cells.push(cell::TABLE);
+                cells.push(Cell::new("table"));
             } else if res < 0.4 {
-                cells.push(cell::SAND);
+                cells.push(Cell::new("sand"));
             } else if res < 0.7 {
-                cells.push(cell::GRASS);
+                cells.push(Cell::new("grass"));
             } else {
-                cells.push(cell::FLOOR);
+                cells.push(Cell::new("floor"));
             }
         }
     }

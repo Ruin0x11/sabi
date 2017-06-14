@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use glium::glutin::{VirtualKeyCode, ElementState};
 
 use renderer::ui::*;

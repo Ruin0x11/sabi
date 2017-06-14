@@ -97,10 +97,6 @@ pub struct Item {
     pub effect: ItemEffect,
 }
 
-fn same_object<T>(a: &T, b: &T) -> bool {
-    a as *const T == b as *const T
-}
-
 impl Item {
     pub fn new() -> Self {
         Item {
@@ -172,13 +168,13 @@ impl Serialize for Log {
     }
 }
 
-impl Deserialize for Log {
+impl<'de> Deserialize<'de> for Log {
     fn deserialize<D>(deserializer: D) -> Result<Log, D::Error>
-        where D: Deserializer
+        where D: Deserializer<'de>
     {
         struct LogVisitor;
 
-        impl Visitor for LogVisitor {
+        impl<'de> Visitor<'de> for LogVisitor {
             type Value = Log;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

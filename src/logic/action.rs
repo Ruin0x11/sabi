@@ -1,6 +1,5 @@
 use calx_ecs::Entity;
 use data::Walkability;
-use data::spatial::Place;
 use ecs::traits::*;
 use logic::entity::EntityQuery;
 use point::{Direction, Point};
@@ -18,8 +17,6 @@ pub enum Action {
     SwingAt(Entity),
     Pickup(Entity),
     Drop(Entity),
-
-    TestScript,
 
     Teleport(WorldPosition),
     TeleportUnchecked(WorldPosition),
@@ -40,10 +37,6 @@ pub fn run_entity_action(world: &mut World, entity: Entity, action: Action) -> A
 
 fn action_teleport_unchecked(world: &mut World, entity: Entity, pos: Point) -> ActionResult {
     world.place_entity(entity, pos);
-    Ok(())
-}
-
-fn action_test_script() -> ActionResult {
     Ok(())
 }
 

@@ -147,11 +147,6 @@ impl WorldBuilder {
         self
     }
 
-    pub fn with_seed<'a>(&'a mut self, seed: u32) -> &'a mut Self {
-        self.seed = seed;
-        self
-    }
-
     pub fn with_chunk_type<'a>(&'a mut self, chunk_type: ChunkType) -> &'a mut Self {
         self.chunk_type = chunk_type;
         self

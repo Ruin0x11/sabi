@@ -27,15 +27,6 @@ pub fn run_script<'a, 'lua>(lua: &'a mut Lua<'lua>, filename: &str) -> Result<()
     lua.execute::<()>(&script)
 }
 
-pub fn run_script_and_return<'a, 'lua, T>(lua: &'a mut Lua<'lua>,
-                                      filename: &str,
-                                      var_name: &str) -> Result<Option<T>, hlua::LuaError>
-    where T: hlua::LuaRead<hlua::PushGuard<&'a mut hlua::Lua<'lua>>>,
-{
-    run_script(lua, filename)?;
-    Ok(lua.get(var_name))
-}
-
 fn open_libs(lua: &mut Lua) -> Result<(), hlua::LuaError> {
     lua.openlibs();
 

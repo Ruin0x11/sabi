@@ -20,6 +20,11 @@ pub fn toml_value_from_string(data: &str) -> Value {
     data.parse::<Value>().expect("Invalid TOML!")
 }
 
+pub fn toml_value_from_file(filename: &str) -> Value {
+    let toml_str = toml_string_from_file(filename);
+    toml_value_from_string(&toml_str)
+}
+
 pub fn get_value_in_table<'a>(value: &'a Value, key: &str) -> Option<&'a Value> {
     match *value {
         Value::Table(ref table) => {
@@ -34,7 +39,7 @@ pub fn get_value_in_table<'a>(value: &'a Value, key: &str) -> Option<&'a Value> 
     }
 }
 
-pub fn expect_value_in_table<'a, T: Deserialize>(value: &'a Value, key: &str) -> T {
+pub fn expect_value_in_table<'de: 'a, 'a, T: Deserialize<'de>>(value: &'a Value, key: &str) -> T {
     match get_value_in_table(value,  key) {
         Some(v) => v.clone().try_into::<T>().unwrap(),
         None    => panic!("Expected value {} couldn't be parsed in table!", key),
@@ -46,7 +51,7 @@ mod tests {
     use super::*;
 
     /// Gets the value of the key in the given TOML table.
-    pub fn get_toml_value<T: Deserialize>(value: &Value, table_name: &str, key: &str) -> Option<T> {
+    pub fn get_toml_value<'de, T: Deserialize<'de>>(value: &Value, table_name: &str, key: &str) -> Option<T> {
         match get_value_in_table(value, table_name) {
             Some(table) => match get_value_in_table(&table, key) {
                 Some(val) => val.clone().try_into::<T>().ok(),

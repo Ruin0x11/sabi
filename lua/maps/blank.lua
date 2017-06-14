@@ -4,5 +4,5 @@ function init()
 end
 
 function generate()
-   return Prefab.new(width, height, "Floor")
+   return Prefab.new(width, height, "floor")
 end

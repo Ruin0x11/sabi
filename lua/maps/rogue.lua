@@ -21,7 +21,7 @@ function generate()
    room_min = world.point(minw, minh)
    room_max = world.point(maxw, maxh)
 
-   prefab = Prefab.new(width, height, "Water")
+   prefab = Prefab.new(width, height, "water")
    log.info(tostring(prefab))
 
    cell_width = math.floor(width / cells_horiz)
@@ -248,7 +248,7 @@ function generate()
             for p in iter.rect_iterator(room_pos, room_pos + room_size) do
                room = rooms[i][j]
                room["rect"] = world.rect_from_pts(room_pos, room_size)
-               prefab:set(p, "Floor")
+               prefab:set(p, "floor")
             end
          end
       end
@@ -310,7 +310,7 @@ function generate()
          door_pos = world.point(door, pos.y)
       end
 
-      prefab:set(door_pos, "Floor")
+      prefab:set(door_pos, "floor")
       prefab:place_door(door_pos)
 
       return pos
@@ -336,7 +336,7 @@ function generate()
 
    function dig_tunnel(start_pos, end_pos, dir)
       local middle, tunnel_dir
-      local tile= "Floor"
+      local tile= "floor"
 
       log.info("diggin " .. tostring(start_pos) .. " " .. tostring(end_pos) .. " " .. dir)
 
@@ -383,10 +383,10 @@ function generate()
          local below_one = world.point(pos.x, pos.y + 1)
          local below_two = world.point(pos.x, pos.y + 2)
          if prefab:in_bounds(below_one) then
-            if prefab:get(pos) == "Floor" and prefab:get(below_one) == "Water" then
-               prefab:set(below_one, "SeaWall")
+            if prefab:get(pos) == "floor" and prefab:get(below_one) == "water" then
+               prefab:set(below_one, "seawall")
                if prefab:in_bounds(below_two) then
-                  prefab:set(below_two, "SeaWall")
+                  prefab:set(below_two, "seawall")
                end
             end
          end
@@ -403,7 +403,7 @@ function generate()
          end
 
          point = prefab:random_point(function(pt)
-               return prefab:get(pt) == "Floor"
+               return prefab:get(pt) == "floor"
          end)
       until point ~= world.point(-1, -1)
 

@@ -102,9 +102,7 @@ impl Ui {
     pub fn render_all(&mut self) {
         self.renderer.clear();
 
-        println!("Draw main");
         self.main_layer.draw(&mut self.renderer);
-        println!("Draw next");
 
         for layer in self.layers.iter() {
             layer.draw(&mut self.renderer);
@@ -120,7 +118,6 @@ impl Ui {
 
     pub fn invalidate(&mut self) {
         self.valid = false;
-        println!("invalidate ui");
     }
 }
 

@@ -2,11 +2,9 @@ use glob;
 use hlua::{self, Lua};
 
 use point::Point;
-use graphics::cell::{Cell, CellType};
+use graphics::cell::Cell;
 use prefab::*;
 use lua;
-
-const PREFAB_VARIABLE: &str = "prefab";
 
 pub fn get_prefab_names() -> Vec<String> {
     let mut names = Vec::new();
@@ -39,7 +37,7 @@ pub fn build_prefab_args(args: &PrefabArgs) -> String {
 pub fn map_from_prefab<'a>(lua: &'a mut Lua, name: &str, args: &Option<PrefabArgs>) -> PrefabResult<Prefab> {
     let map_filename = &format!("maps/{}", name);
 
-    lua.execute::<()>("prefab = Prefab.new(1, 1, \"Floor\")")?;
+    lua.execute::<()>("prefab = Prefab.new(1, 1, \"floor\")")?;
     lua.execute::<()>("function init(); error(\"prefab init() not declared!\"); end")?;
     lua.execute::<()>("function generate(); error(\"prefab generate() not declared!\"); end")?;
 
@@ -57,17 +55,7 @@ pub fn map_from_prefab<'a>(lua: &'a mut Lua, name: &str, args: &Option<PrefabArg
 }
 
 pub fn lua_new(x: i32, y: i32, fill: String) -> PrefabResult<Prefab> {
-    let cell_type = match fill.parse::<CellType>() {
-        Ok(t)     => t,
-        Err(_)    => return Err(CellTypeNotFound(fill)),
-    };
-
-    let cell = Cell {
-        type_: cell_type,
-        feature: None,
-    };
-
-    Ok(Prefab::new(x, y, cell))
+    Ok(Prefab::new(x, y, &fill))
 }
 
 fn lua_get(prefab: &Prefab, x: i32, y: i32) -> PrefabResult<String> {
@@ -75,21 +63,11 @@ fn lua_get(prefab: &Prefab, x: i32, y: i32) -> PrefabResult<String> {
     if !prefab.in_bounds(&pt) {
         return Err(OutOfBounds(x, y));
     }
-    Ok(format!("{:?}", prefab.get(&pt).type_))
+    Ok(format!("{}", prefab.get(&pt).name()))
 }
 
-fn lua_set(prefab: &mut Prefab, x: i32, y: i32, name: String) -> PrefabResult<()> {
-    let cell_type = match name.parse::<CellType>() {
-        Ok(t)     => t,
-        Err(_)    => return Err(CellTypeNotFound(name)),
-    };
-
-    let cell = Cell {
-        type_: cell_type,
-        feature: None,
-    };
-
-    prefab.set(&Point::new(x, y), cell);
+fn lua_set(prefab: &mut Prefab, x: i32, y: i32, cell_type: String) -> PrefabResult<()> {
+    prefab.set(&Point::new(x, y), Cell::new(&cell_type));
     Ok(())
 }
 

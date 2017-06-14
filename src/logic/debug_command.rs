@@ -1,5 +1,3 @@
-use calx_ecs::Entity;
-
 use GameContext;
 use ecs;
 use point::{Point, RectangleIter, POINT_ZERO};

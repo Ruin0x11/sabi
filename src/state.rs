@@ -1,13 +1,11 @@
 use std::collections::VecDeque;
 
 use calx_ecs::Entity;
-use rand::{self, Rng};
 
 use ::GameContext;
 use ai;
 use chunk::generator::ChunkType;
 use engine::keys::Key;
-use point::POINT_ZERO;
 use logic::command::{self, Command, CommandError};
 use logic::{self, Action};
 use stats;
@@ -42,7 +40,6 @@ impl GameState {
 
     pub fn player_action(&mut self, action: Action) {
         if let Some(player) = self.world.player() {
-            println!("State player: {:?}", player);
             process_action(&mut self.world, player, action);
         }
     }

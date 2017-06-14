@@ -1,18 +1,7 @@
-use std::fmt::Display;
-
 use glium::glutin::{VirtualKeyCode, ElementState};
 
-use GameContext;
-use data::Walkability;
-use engine::keys::{Key, KeyCode};
-use graphics::cell::{CellFeature, StairDest, StairDir};
-use logic::Action;
-use logic::entity::EntityQuery;
-use point::{Direction, Point};
 use renderer::ui::*;
 use renderer::ui::elements::*;
-use world::traits::*;
-use world::{self, World};
 
 pub struct ChoiceLayer {
     list: UiList,

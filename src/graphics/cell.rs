@@ -1,5 +1,78 @@
+use std::collections::HashMap;
+
+use toml::Value;
+
 use point::Point;
+use util::toml::*;
 use world::MapId;
+
+#[derive(Deserialize)]
+struct CellData {
+    name: String,
+    tile: String,
+    seethrough: bool,
+    passable: bool,
+}
+
+struct CellTable {
+    indices: HashMap<String, usize>,
+    cells: HashMap<usize, CellData>,
+}
+
+impl CellTable {
+    pub fn get(&self, idx: usize) -> &CellData {
+        self.cells.get(&idx).unwrap()
+    }
+
+    pub fn get_index(&self, type_: &str) -> usize {
+        match self.indices.get(type_) {
+            Some(idx) => *idx,
+            None      => *self.indices.get("error").unwrap()
+        }
+    }
+}
+
+fn make_cell_data_table() -> CellTable {
+    let mut cells = HashMap::new();
+    let mut indices = HashMap::new();
+    let val = toml_value_from_file("data/cells.toml");
+
+    let cell_table = match val {
+        Value::Table(ref table) => table,
+        _           => panic!("Cell table wasn't a table."),
+    };
+
+    let cell_array = match cell_table["cells"] {
+        Value::Array(ref array) => array,
+        _           => panic!("Cell array wasn't an array."),
+    };
+
+    for (idx, cell) in cell_array.iter().enumerate() {
+        let name: String = expect_value_in_table(&cell, "name");
+        let tile: String = expect_value_in_table(&cell, "tile");
+        let seethrough: bool = expect_value_in_table(&cell, "seethrough");
+        let passable: bool = expect_value_in_table(&cell, "passable");
+
+        let data = CellData {
+            name: name.clone(),
+            tile: tile,
+            seethrough: seethrough,
+            passable: passable,
+        };
+
+        indices.insert(name, idx);
+        cells.insert(idx, data);
+    }
+
+    CellTable {
+        indices: indices,
+        cells: cells,
+    }
+}
+
+lazy_static! {
+    static ref CELL_TABLE: CellTable = make_cell_data_table();
+}
 
 macro_attr! {
     #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Copy, Clone, EnumFromStr!)]
@@ -60,27 +133,29 @@ use self::CellFeature::*;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub struct Cell {
-    pub type_: CellType,
+    pub type_: usize,
 
     pub feature: Option<CellFeature>,
 }
 
+fn get_cell(type_: usize) -> &'static CellData {
+    CELL_TABLE.get(type_)
+}
+
 impl Cell {
-    pub fn can_see_through(&self) -> bool {
-        match self.type_ {
-            CellType::Wall |
-            CellType::Air  => false,
-            _              => true,
+    pub fn new(type_: &str) -> Cell {
+        Cell {
+            type_: CELL_TABLE.get_index(type_),
+            feature: None,
         }
     }
 
+    pub fn can_see_through(&self) -> bool {
+        get_cell(self.type_).seethrough
+    }
+
     pub fn can_pass_through(&self) -> bool {
-        match self.type_ {
-            CellType::Wall  |
-            CellType::Water |
-            CellType::SeaWall => false,
-            _                 => true,
-        }
+        get_cell(self.type_).passable
     }
 
     pub fn stair_dest_pos(&self) -> Option<Point> {
@@ -90,52 +165,11 @@ impl Cell {
         }
     }
 
-    pub fn glyph(&self) -> &'static str {
-        self.get_appearance()
+    pub fn name(&self) -> &'static str {
+        &get_cell(self.type_).name
     }
 
-    fn get_appearance(&self) -> &'static str {
-        match self.type_ {
-            CellType::Wall    => "stonewall",
-            CellType::Water   => "water",
-            CellType::SeaWall => "sea_wall",
-            CellType::Grass   => "grass",
-            CellType::Sand    => "sand",
-            CellType::Floor   => "stone_road",
-            CellType::Table   => "table",
-            CellType::Tile    => "check_tile",
-            _                 => "stone_road",
-        }
+    pub fn glyph(&self) -> &'static str {
+        &get_cell(self.type_).tile
     }
 }
-
-// TEMP: A tile ID is all that should be needed, not type and glyph
-pub const TILE: Cell = Cell {
-    type_: CellType::Tile,
-    feature: None,
-};
-
-pub const GRASS: Cell = Cell {
-    type_: CellType::Grass,
-    feature: None,
-};
-
-pub const SAND: Cell = Cell {
-    type_: CellType::Sand,
-    feature: None,
-};
-
-pub const TABLE: Cell = Cell {
-    type_: CellType::Table,
-    feature: None,
-};
-
-pub const FLOOR: Cell = Cell {
-    type_: CellType::Floor,
-    feature: None,
-};
-
-pub const NOTHING: Cell = Cell {
-    type_: CellType::Air,
-    feature: None,
-};

@@ -28,15 +28,15 @@ env_logger = "0.3"
 chrono = "0.3.0" # REMOVE?
 
 # Game data serialization
-bincode = "0.7.0"
-toml = "0.3.2"
-serde = "0.9.11"
-serde_derive = "0.9.11"
+bincode = "0.8.0"
+toml = "0.4.1"
+serde = "1.0"
+serde_derive = "1.0"
 enum_derive = "0.1.7"
 macro-attr = "0.2.0"
 
-calx-ecs = "0.5.0"
-calx-alg = { git = "https://github.com/Ruin0x11/calx" }
+calx-ecs = "0.6.0"
+calx-alg = { git = "https://github.com/rsaarelm/calx" }
 
 goap = { git = "https://github.com/Ruin0x11/goap-rs" }
 infinigen = { git = "https://github.com/Ruin0x11/infinigen-rs" }

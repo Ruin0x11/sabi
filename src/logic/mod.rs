@@ -7,14 +7,8 @@ pub use self::action::Action;
 pub use self::command::{Command, CommandResult};
 
 use calx_ecs::Entity;
-use data::Walkability;
-use ecs::traits::*;
-use lua;
-use point::Direction;
-use prefab;
-use stats;
 use world::traits::*;
-use world::{World, WorldPosition};
+use world::World;
 
 fn pre_tick(_world: &mut World) {
 

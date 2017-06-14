@@ -33,7 +33,6 @@ impl UiElement for UiMessageLog {
     fn draw(&self, renderer: &mut UiRenderer) {
         let (x, y) = self.pos;
         let (w, h) = self.size;
-        println!("asd!");
 
         renderer.with_color((128, 128, 128, 255), |r| {
             r.repeat_tex("textwin", TexDir::Area,

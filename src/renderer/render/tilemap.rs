@@ -260,12 +260,11 @@ impl<'a> Renderable for TileMap {
 }
 
 use GameContext;
-use graphics::cell::CellType;
 use renderer::interop::RenderUpdate;
 use world::World;
 use world::traits::{Query, WorldQuery};
 
-fn get_neighboring_edges(world: &World, pos: Point, cell_type: CellType) -> u8 {
+fn get_neighboring_edges(world: &World, pos: Point, cell_type: usize) -> u8 {
     let mut res: u8 = 0;
     for dir in Direction::iter8() {
         let new_pos = pos + *dir;

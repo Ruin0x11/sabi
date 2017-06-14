@@ -6,7 +6,7 @@ use std::collections::HashSet;
 
 use calx_ecs::Entity;
 
-use world::{World, WorldPosition};
+use world::World;
 use world::traits::*;
 
 fn same_object<T>(a: &T, b: &T) -> bool {

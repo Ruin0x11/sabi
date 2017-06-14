@@ -1,7 +1,7 @@
 width = rand.between(15, 18)
 height = rand.between(15, 18)
 
-prefab = Prefab.new(width, height, "Floor")
+prefab = Prefab.new(width, height, "floor")
 
 room_width = rand.between(width - 8, width - 4)
 room_height = rand.between(height - 8, height - 4)

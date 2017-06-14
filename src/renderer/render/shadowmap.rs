@@ -94,7 +94,7 @@ impl Renderable for ShadowMap {
 use world::World;
 use world::traits::Query;
 use GameContext;
-use point::{CircleIter, Point};
+use point::Point;
 use renderer::interop::RenderUpdate;
 
 fn make_shadows(world: &World, viewport: &Viewport) -> Vec<Shadow> {

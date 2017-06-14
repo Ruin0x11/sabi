@@ -15,7 +15,13 @@ name="wall.png"
 tile_size=[48, 48]
 
 [[tiles]]
-name="stone_road"
+name="unknown"
+atlas="tile.png"
+offset=[0, 1]
+is_autotile=false
+
+[[tiles]]
+name="stonefloor"
 atlas="map.png"
 offset=[6, 0]
 is_autotile=true
@@ -29,7 +35,7 @@ anim_frames=3
 anim_delay=400
 
 [[tiles]]
-name="sea_wall"
+name="seawall"
 atlas="map2.png"
 offset=[0, 3]
 is_autotile=true

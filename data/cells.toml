@@ -1,35 +1,59 @@
 [[cells]]
-name="Wall"
+name="error"
+tile="unknown"
+seethrough=true
+passable=true
+
+[[cells]]
+name="nothing"
 tile="stonewall"
 seethrough=false
 passable=false
 
 [[cells]]
-name="Grass"
+name="wall"
+tile="stonewall"
+seethrough=false
+passable=false
+
+[[cells]]
+name="grass"
 tile="grass"
 seethrough=true
 passable=true
 
 [[cells]]
-name="Floor"
+name="floor"
 tile="stonefloor"
 seethrough=true
 passable=true
 
 [[cells]]
-name="Table"
+name="table"
 tile="table"
 seethrough=true
 passable=true
 
 [[cells]]
-name="Water"
+name="water"
 tile="water"
 seethrough=true
 passable=false
 
 [[cells]]
-name="Tile"
+name="tile"
 tile="tile"
 seethrough=true
 passable=true
+
+[[cells]]
+name="sand"
+tile="sand"
+seethrough=true
+passable=true
+
+[[cells]]
+name="seawall"
+tile="seawall"
+seethrough=true
+passable=false

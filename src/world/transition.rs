@@ -16,8 +16,6 @@ struct TransitionLoadout {
 
 impl TransitionLoadout {
     fn from_entity(entity: Entity, world: &mut World) -> Self {
-        println!("ENTITY: {:?}", entity);
-        println!("IN: {:?}", world.entities_in(entity));
         // TODO: Does not handle recursive children
         let children = world.entities_in(entity).into_iter()
             .map(|e| TransitionLoadout {
@@ -25,8 +23,6 @@ impl TransitionLoadout {
                 children: Vec::new(),
             })
             .collect();
-        println!("CHILD: {:?}", children);
-
         let parent = world.unload_entity(entity);
 
         TransitionLoadout {
@@ -37,13 +33,10 @@ impl TransitionLoadout {
 
     fn inject(self, world: &mut World) -> Entity {
         let parent = world.spawn(&self.parent, Point::new(0, 0));
-        println!("CHILD: {:?}", self.children);
         for child in self.children.into_iter() {
             let child_entity = child.parent.make(world.ecs_mut());
             world.place_entity_in(parent, child_entity);
         }
-
-        println!("INJECTED: {:?}", world.entities().cloned().collect::<Vec<Entity>>());
 
         parent
     }
@@ -111,7 +104,6 @@ impl World {
 
         self.on_load();
 
-        println!("id: {}", self.flags.map_id);
         Ok(())
     }
 }
@@ -197,7 +189,6 @@ mod tests {
         state::run_action(&mut context, Action::Pickup(item));
 
         let player = context.state.world.player().unwrap();
-        println!("Our player: {:?}", player);
         assert_eq!(context.state.world.entities_in(player).len(), 1);
 
         let loadout = TransitionLoadout::from_entity(player, &mut context.state.world);
@@ -217,7 +208,6 @@ mod tests {
         context.state.world.move_to_map(new_world, POINT_ZERO).unwrap();
 
         let player = context.state.world.player().unwrap();
-        println!("Our player: {:?}", player);
 
         // Note that the entity has been removed and re-injected, so it isn't possible to compare
         // by ID.

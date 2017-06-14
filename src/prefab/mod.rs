@@ -7,13 +7,12 @@ use std::fmt;
 
 use hlua;
 
-use graphics::cell::{self, Cell};
+use graphics::cell::Cell;
 use graphics::Color;
 use point::{Point};
 
 #[derive(Debug)]
 pub enum PrefabError {
-    CellTypeNotFound(String),
     OutOfBounds(i32, i32),
     BadRange(i32, i32),
     LuaException(hlua::LuaError),
@@ -82,11 +81,11 @@ impl<'lua, L> hlua::LuaRead<L> for Prefab
 }
 
 impl Prefab {
-    pub fn new(x: i32, y: i32, fill: Cell) -> Self {
+    pub fn new(x: i32, y: i32, fill: &str) -> Self {
         let mut cells = Vec::new();
         for _ in 0..x {
             for _ in 0..y {
-                cells.push(fill);
+                cells.push(Cell::new(fill));
             }
         }
         Prefab {
@@ -117,7 +116,7 @@ impl Prefab {
             let idx = self.index(pt);
             self.cells[idx]
         } else {
-            cell::NOTHING
+            Cell::new("nothing")
         }
     }
 
