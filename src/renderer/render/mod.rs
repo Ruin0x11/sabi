@@ -28,7 +28,7 @@ use self::tilemap::TileMap;
 
 pub use self::viewport::Viewport;
 
-pub const SCREEN_WIDTH: u32 = 1024;
+pub const SCREEN_WIDTH: u32 = 1366;
 pub const SCREEN_HEIGHT: u32 = 768;
 
 pub const QUAD_INDICES: [u16; 6] = [0, 1, 2, 1, 3, 2];

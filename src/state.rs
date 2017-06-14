@@ -25,7 +25,8 @@ impl GameState {
                 .with_bounds(Bounds::Unbounded)
                 .with_chunk_type(ChunkType::Perlin)
                 .with_randomized_seed()
-                .build(),
+                .build()
+                .unwrap(),
             action_queue: VecDeque::new(),
         }
     }
@@ -62,6 +63,7 @@ pub fn run_command(context: &mut GameContext, command: Command) {
         Err(e) => {
             match e {
                 CommandError::Bug(reason)     => panic!("A bug occurred: {}", reason),
+                CommandError::Debug(mes)      => context.state.world.message(&mes),
                 CommandError::Invalid(reason) => context.state.world.message(reason),
                 CommandError::Cancel          => (),
             }

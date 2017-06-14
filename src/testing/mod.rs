@@ -14,6 +14,7 @@ pub fn blank_world(w: i32, h: i32) -> World {
     World::new()
         .with_bounds(Bounds::Bounded(w, h))
         .build()
+        .unwrap()
 }
 
 pub fn get_world_bounded(w: i32, h: i32) -> World {

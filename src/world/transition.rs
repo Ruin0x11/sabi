@@ -126,7 +126,8 @@ mod tests {
         let mut new_world = World::new()
             .from_other_world(&context.state.world)
             .with_bounds(Bounds::Bounded(64, 64))
-            .build();
+            .build()
+            .unwrap();
 
         let change_pos = POINT_ZERO;
         {
@@ -148,7 +149,8 @@ mod tests {
         let new_world = World::new()
             .from_other_world(&context.state.world)
             .with_bounds(Bounds::Bounded(64, 64))
-            .build();
+            .build()
+            .unwrap();
 
         let change_pos = POINT_ZERO;
 
@@ -164,7 +166,8 @@ mod tests {
         let mut context = test_context_bounded(64, 64);
         let new_world = World::new()
             .from_other_world(&context.state.world)
-            .build();
+            .build()
+            .unwrap();
         assert_eq!(new_world.flags().globals.max_map_id, 1);
 
         assert_eq!(context.state.world.flags().globals.max_map_id, 0);
@@ -199,7 +202,8 @@ mod tests {
         let mut context = test_context_bounded(64, 64);
         let new_world = World::new()
             .from_other_world(&context.state.world)
-            .build();
+            .build()
+            .unwrap();
 
         let item = context.state.world.create(ecs::prefab::item("cola", "cola"), POINT_ZERO);
         state::run_action(&mut context, Action::Pickup(item));

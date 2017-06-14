@@ -27,8 +27,7 @@ fn debug_prefab(context: &mut GameContext) -> CommandResult<()> {
     let selected = menu_choice_indexed(context, prefabs)?;
 
     // Whip up a new testing world and port us there
-    debug_regen_prefab(context, &selected);
-    Ok(())
+    debug_regen_prefab(context, &selected)
 }
 
 fn debug_list_entities(context: &mut GameContext) -> CommandResult<()> {
@@ -48,7 +47,7 @@ fn debug_list_entities(context: &mut GameContext) -> CommandResult<()> {
     Ok(())
 }
 
-fn get_debug_world(prefab: &str) -> World {
+fn get_debug_world(prefab: &str) -> Result<World, String> {
     World::new()
         .with_prefab(prefab)
         .with_randomized_seed()
@@ -56,8 +55,10 @@ fn get_debug_world(prefab: &str) -> World {
         .build()
 }
 
-fn debug_regen_prefab(context: &mut GameContext, prefab_name: &str) {
-    goto_new_world(context, get_debug_world(prefab_name));
+fn debug_regen_prefab(context: &mut GameContext, prefab_name: &str) -> CommandResult<()> {
+    let world = get_debug_world(prefab_name).map_err(|e| CommandError::Debug(format!("Failed to make world: {}", e)))?;
+    goto_new_world(context, world);
+    Ok(())
 }
 
 fn debug_goto_world(context: &mut GameContext) -> CommandResult<()> {
@@ -74,7 +75,7 @@ fn debug_goto_world(context: &mut GameContext) -> CommandResult<()> {
 }
 
 fn debug_item_test(context: &mut GameContext) -> CommandResult<()> {
-    goto_new_world(context, get_debug_world("blank"));
+    goto_new_world(context, get_debug_world("blank").unwrap());
 
     for pos in RectangleIter::new(Point::new(0, 0), Point::new(3, 3)) {
         if context.state.world.pos_loaded(&pos) {

@@ -18,6 +18,7 @@ pub type CommandResult<T> = Result<T, CommandError>;
 pub enum CommandError {
     Bug(&'static str),
     Invalid(&'static str),
+    Debug(String),
     Cancel,
 }
 
@@ -212,7 +213,8 @@ fn generate_stair_dest(world: &mut World, stair_pos: Point) -> CommandResult<(Wo
         .from_other_world(world)
         .with_prefab("rogue")
         .with_prefab_args(prefab_args!{ width: 100, height: 50, })
-        .build();
+        .build()
+        .map_err(|e| CommandError::Bug("Failed to generate stair!"))?;
 
     let prev_id = world.flags().map_id;
     let dest_id = new_world.flags().map_id;

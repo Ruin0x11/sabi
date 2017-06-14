@@ -95,11 +95,11 @@ impl World {
 }
 
 impl WorldBuilder {
-    pub fn build(&mut self) -> World {
+    pub fn build(&mut self) -> Result<World, String> {
         let mut prefab_opt = None;
 
         if let Some(ref prefab_name) = self.prefab_name {
-            let prefab = prefab::create(prefab_name, &self.prefab_args).expect(&format!("Unknown prefab {}", prefab_name));
+            let prefab = prefab::create(prefab_name, &self.prefab_args).map_err(|e| e.to_string())?;
             self.bounds = Bounds::Bounded(prefab.width(), prefab.height());
             prefab_opt = Some(prefab);
         }
@@ -126,7 +126,7 @@ impl WorldBuilder {
             world.apply_prefab(&prefab);
         }
 
-        world
+        Ok(world)
     }
 
     pub fn from_other_world<'a>(&'a mut self, other: &World) -> &'a mut Self {
