@@ -75,22 +75,23 @@ impl World {
         }
     }
 
-    fn apply_prefab(&mut self, prefab: &Prefab) {
-        debug!(self.logger, "About to apply prefab over map {}...", self.flags().map_id);
+    pub fn deploy_prefab(&mut self, prefab: &Prefab, offset: Point) {
+        debug!(self.logger, "About to deploy prefab on map {}...", self.flags().map_id);
 
         for (pos, cell) in prefab.iter() {
-            if let Some(cell_mut) = self.cell_mut(&pos) {
+            let offset_pos = pos + offset;
+            if let Some(cell_mut) = self.cell_mut(&offset_pos) {
                 *cell_mut = *cell;
             }
             {
-                let cellb = self.cell_const(&pos);
-                debug!(self.logger, "{}: {:?}, {:?}", pos, cell.type_, cellb);
+                let cellb = self.cell_const(&offset_pos);
+                debug!(self.logger, "{}: {:?}, {:?}", offset_pos, cell.type_, cellb);
             }
         }
 
         self.terrain.markers = prefab.markers.clone();
 
-        debug!(self.logger, "Finished loading prefab");
+        debug!(self.logger, "Finished deploying prefab");
     }
 }
 
@@ -123,7 +124,7 @@ impl WorldBuilder {
         }
 
         if let Some(prefab) = prefab_opt {
-            world.apply_prefab(&prefab);
+            world.deploy_prefab(&prefab, POINT_ZERO);
         }
 
         Ok(world)

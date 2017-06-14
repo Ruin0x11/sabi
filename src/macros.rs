@@ -16,11 +16,12 @@ macro_rules! mes {
         $w.message($e);
     };
     ($w:expr, $e:expr, $( $x:ident=$y:expr ),+) => {
+        use util::grammar;
         $(
             let $x = $y;
         )*
 
-            $w.message(&format!($e, $($x),+));
+            $w.message(&grammar::capitalize(&format!($e, $($x),+)));
     };
 }
 

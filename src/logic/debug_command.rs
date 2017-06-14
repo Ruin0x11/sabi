@@ -13,21 +13,40 @@ const TEST_WORLD_ID: u32 = 10000000;
 
 pub(super) fn cmd_debug_menu(context: &mut GameContext) -> CommandResult<()> {
     menu!(context,
-          "Item test" => debug_item_test(context),
-          "List entities" => debug_list_entities(context),
-          "Goto world" => debug_goto_world(context),
-          "Debug prefab" => debug_prefab(context),
+          "Item test"      => debug_item_test(context),
+          "List entities"  => debug_list_entities(context),
+          "Goto world"     => debug_goto_world(context),
+          "Debug prefab"   => debug_prefab(context),
+          "Deploy prefab"  => debug_deploy_prefab(context),
           "Reload shaders" => debug_reload_shaders(),
-          "Restart game" => debug_restart_game(context)
+          "Restart game"   => debug_restart_game(context)
     )
 }
 
 fn debug_prefab(context: &mut GameContext) -> CommandResult<()> {
-    let prefabs = prefab::get_prefab_names();
-    let selected = menu_choice_indexed(context, prefabs)?;
+    let selected = choose_prefab(context)?;
 
     // Whip up a new testing world and port us there
     debug_regen_prefab(context, &selected)
+}
+
+fn choose_prefab(context: &mut GameContext) -> CommandResult<String> {
+    let prefabs = prefab::get_prefab_names();
+    menu_choice_indexed(context, prefabs)
+}
+
+fn debug_deploy_prefab(context: &mut GameContext) -> CommandResult<()> {
+    mes!(context.state.world, "Which one to deploy?");
+    let selected_name = choose_prefab(context)?;
+
+    let prefab = prefab::create(&selected_name, &None)
+        .map_err(|e| CommandError::Debug(format!("Failed to make prefab: {}", e)))?;
+
+    mes!(context.state.world, "Where to deploy?");
+    let pos = select_tile(context, |_, _| ())?;
+
+    context.state.world.deploy_prefab(&prefab, pos);
+    Ok(())
 }
 
 fn debug_list_entities(context: &mut GameContext) -> CommandResult<()> {
@@ -56,7 +75,8 @@ fn get_debug_world(prefab: &str) -> Result<World, String> {
 }
 
 fn debug_regen_prefab(context: &mut GameContext, prefab_name: &str) -> CommandResult<()> {
-    let world = get_debug_world(prefab_name).map_err(|e| CommandError::Debug(format!("Failed to make world: {}", e)))?;
+    let world = get_debug_world(prefab_name)
+        .map_err(|e| CommandError::Debug(format!("Failed to make world: {}", e)))?;
     goto_new_world(context, world);
     Ok(())
 }

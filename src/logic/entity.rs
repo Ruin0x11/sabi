@@ -7,12 +7,14 @@
 use calx_ecs::Entity;
 
 use point::{Point, LineIter};
+use util::grammar::VerbPerson;
 use world::traits::*;
 use world::World;
 
 pub trait EntityQuery {
     fn has_los(&self, target_pos: Point, world: &World) -> bool;
     fn name(&self, world: &World) -> String;
+    fn verb_person(&self, world: &World) -> VerbPerson;
     fn is_dead(&self, world: &World) -> bool;
     fn can_see_other(&self, target: Entity, world: &World) -> bool;
 }
@@ -34,8 +36,22 @@ impl EntityQuery for Entity {
     }
 
     fn name(&self, world: &World) -> String {
-        world.ecs().names.get(*self)
-            .map_or("(unnamed)".to_string(), |n| n.name.clone())
+        let basename = world.ecs().names.get(*self)
+            .map_or("something".to_string(), |n| n.name.clone());
+
+        if world.is_player(*self) {
+            return "you".to_string();
+        }
+
+        format!("the {}", basename)
+    }
+
+    fn verb_person(&self, world: &World) -> VerbPerson {
+        if world.is_player(*self) {
+            VerbPerson::You
+        } else {
+            VerbPerson::It
+        }
     }
 
     fn is_dead(&self, world: &World) -> bool {
@@ -57,12 +73,3 @@ impl EntityQuery for Entity {
         }
     }
 }
-
-// fn drop_item(&mut self, target: Entity, world: &mut World) {
-//     if let Some(inv) = world.ecs_mut().invs.get_mut(*self) {
-//         if let Some(pos) = world.position(*self) {
-//             inv.container.remove(target);
-//             world.place_entity(target, pos);
-//         }
-//     }
-// }

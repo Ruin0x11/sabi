@@ -70,10 +70,10 @@ fn action_swing_at(world: &mut World, attacker: Entity, other: Entity) -> Action
     }
     world.ecs_mut().healths.map_mut(|h| h.hurt(damage), other);
 
-    mes!(world, "The {} hits the {}! ({})", a=attacker.name(world), b=other.name(world), c=damage);
+    mes!(world, "{} hits {}! ({})", a=attacker.name(world), b=other.name(world), c=damage);
 
     if other.is_dead(world) {
-        mes!(world, "The {} kills the {}!", a=attacker.name(world), b=other.name(world));
+        mes!(world, "{} kills {}!", a=attacker.name(world), b=other.name(world));
     }
 
     Ok(())
@@ -81,20 +81,20 @@ fn action_swing_at(world: &mut World, attacker: Entity, other: Entity) -> Action
 
 fn action_pickup(world: &mut World, parent: Entity, target: Entity) -> ActionResult {
     world.place_entity_in(parent, target);
-    mes!(world, "The {} picks up the {}.", a=parent.name(world), b=target.name(world));
+    mes!(world, "{} picks up {}.", a=parent.name(world), b=target.name(world));
     Ok(())
 }
 
 fn action_drop(world: &mut World, entity: Entity, target: Entity) -> ActionResult {
     let pos = world.position(entity).unwrap();
     world.place_entity(target, pos);
-    mes!(world, "The {} drops the {}.", a=entity.name(world), b=target.name(world));
+    mes!(world, "{} drops {}.", a=entity.name(world), b=target.name(world));
     Ok(())
 }
 
 fn action_try_teleport(world: &mut World, entity: Entity, pos: WorldPosition) -> ActionResult {
     if world.can_walk(pos, Walkability::MonstersBlocking) {
-        mes!(world, "Suddenly, the {} disappears.", a=entity.name(world));
+        mes!(world, "Suddenly, {} disappears.", a=entity.name(world));
         world.place_entity(entity, pos);
         Ok(())
     } else {

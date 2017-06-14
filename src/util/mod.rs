@@ -4,8 +4,9 @@ mod grid_from_str;
 #[cfg(test)]
 pub use self::grid_from_str::make_grid_from_str;
 
-pub mod toml;
 pub mod fov;
+pub mod grammar;
+pub mod toml;
 
 use std::time::Duration;
 

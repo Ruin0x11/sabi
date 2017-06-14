@@ -73,7 +73,7 @@ offset=[0, 6]
 is_autotile=true
 
 [[tiles]]
-name="check_tile"
+name="tile"
 atlas="tile.png"
 offset=[1, 0]
 is_autotile=false

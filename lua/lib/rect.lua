@@ -206,4 +206,8 @@ function rect:iter()
    return iter.rect_iterator(self:upper_left(), self:lower_right())
 end
 
+function rect:iter_border()
+   return iter.border_iterator(self:upper_left(), self:lower_right())
+end
+
 return rect

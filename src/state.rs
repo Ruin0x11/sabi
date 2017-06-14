@@ -52,7 +52,7 @@ pub fn game_step(context: &mut GameContext, input: Option<Key>) {
         run_command(context, command);
     }
 
-    let dead = check_player_dead(&context.state.world);
+    let dead = check_player_dead(&mut context.state.world);
     if dead {
         return;
     }
@@ -78,12 +78,11 @@ pub fn run_command(context: &mut GameContext, command: Command) {
 }
 
 
-fn check_player_dead(world: &World) -> bool {
+fn check_player_dead(world: &mut World) -> bool {
     let res = world.player().is_none();
     if res {
         info!(world.logger, "Player has died.");
-        // world.message("You're dead!".to_string());
-        // show_messages(world);
+        mes!(world, "You're dead!");
     }
     res
 }

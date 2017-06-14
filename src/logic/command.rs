@@ -103,13 +103,13 @@ fn cmd_add_action(context: &mut GameContext, action: Action) -> CommandResult<()
 }
 
 fn cmd_look(context: &mut GameContext) -> CommandResult<()> {
-    select_tile(context, maybe_examine_tile);
-    Ok(())
+    select_tile(context, maybe_examine_tile).map(|_| ())
 }
 
 fn cmd_teleport(context: &mut GameContext) -> CommandResult<()> {
     mes!(context.state.world, "Teleport where?");
-    let pos = select_tile(context, |_, _| return).ok_or(CommandError::Cancel)?;
+    let pos = select_tile(context, |_, _| ())?;
+
     if context.state.world.can_walk(pos, Walkability::MonstersBlocking) {
         cmd_add_action(context, Action::Teleport(pos))
     } else {
@@ -270,7 +270,7 @@ fn draw_line(start: Point, end: Point, world: &mut World) {
 }
 
 /// Allow the player to choose a tile.
-fn select_tile<F>(context: &mut GameContext, callback: F) -> Option<Point>
+pub fn select_tile<F>(context: &mut GameContext, callback: F) -> CommandResult<Point>
     where F: Fn(Point, &mut World) {
     let mut selected = false;
     let mut result = context.state.world.flags().camera;
@@ -328,9 +328,9 @@ fn select_tile<F>(context: &mut GameContext, callback: F) -> Option<Point>
     context.state.world.marks.clear();
 
     if selected {
-        Some(result)
+        Ok(result)
     } else {
-        None
+        Err(CommandError::Cancel)
     }
 }
 

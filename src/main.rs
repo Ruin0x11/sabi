@@ -22,6 +22,7 @@ extern crate image;
 extern crate infinigen;
 extern crate noise;
 extern crate rand;
+extern crate regex;
 extern crate rusttype;
 extern crate serde;
 extern crate slog_stream;

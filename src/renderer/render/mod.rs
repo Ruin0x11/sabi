@@ -200,11 +200,11 @@ impl RenderContext {
             for event in self.backend.poll_events() {
                 match layer.on_event(event) {
                     EventResult::Done => {
-                        self.ui.render_all();
+                        // self.ui.render_all();
                         return layer.result();
                     },
                     EventResult::Canceled => {
-                        self.ui.render_all();
+                        // self.ui.render_all();
                         return None;
                     },
                     _ => {
