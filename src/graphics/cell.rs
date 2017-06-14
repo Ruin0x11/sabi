@@ -74,22 +74,6 @@ lazy_static! {
     static ref CELL_TABLE: CellTable = make_cell_data_table();
 }
 
-macro_attr! {
-    #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Copy, Clone, EnumFromStr!)]
-    pub enum CellType {
-        Wall,
-        Water,
-        SeaWall,
-        Floor,
-        Grass,
-        Sand,
-        Table,
-        Tile,
-        Air,
-        Important,
-    }
-}
-
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum StairDir {
     Ascending,
@@ -148,6 +132,10 @@ impl Cell {
             type_: CELL_TABLE.get_index(type_),
             feature: None,
         }
+    }
+
+    pub fn set(&mut self, type_: &str) {
+        self.type_ = CELL_TABLE.get_index(type_);
     }
 
     pub fn can_see_through(&self) -> bool {

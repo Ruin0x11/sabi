@@ -112,7 +112,6 @@ impl World {
 mod tests {
     use super::*;
     use ecs;
-    use graphics::cell::CellType;
     use logic::Action;
     use point::POINT_ZERO;
     use state;
@@ -132,14 +131,14 @@ mod tests {
         let change_pos = POINT_ZERO;
         {
             let cell_mut = new_world.cell_mut(&change_pos);
-            cell_mut.unwrap().type_ = CellType::Wall;
+            cell_mut.unwrap().set("wall");
         }
 
         context.state.world.move_to_map(new_world, change_pos).unwrap();
 
         let cell = context.state.world.terrain().cell(&change_pos);
         assert!(cell.is_some(), "World terrain wasn't loaded in after transition");
-        assert_eq!(cell.unwrap().type_, CellType::Wall);
+        assert_eq!(cell.unwrap().name(), "wall");
     }
 
     #[test]
