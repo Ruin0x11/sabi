@@ -2,13 +2,8 @@ use ai::Ai;
 use ecs::Loadout;
 use ecs::components::*;
 
-pub struct Prefab {
-    pub loadout: Loadout,
-}
-
-pub fn mob(name: &str, health: i32, sprite: &str) -> Prefab {
-    Prefab {
-        loadout: Loadout::new()
+pub fn mob(name: &str, health: i32, sprite: &str) -> Loadout {
+        Loadout::new()
             .c(Name::new(name))
             .c(Health::new(health))
             .c(Appearance::new(sprite))
@@ -16,15 +11,12 @@ pub fn mob(name: &str, health: i32, sprite: &str) -> Prefab {
             .c(Ai::new())
             .c(Fov::new())
             .c(Log::new("mob"))
-    }
 }
 
-pub fn item(name: &str, sprite: &str) -> Prefab {
-    Prefab {
-        loadout: Loadout::new()
+pub fn item(name: &str, sprite: &str) -> Loadout {
+        Loadout::new()
             .c(Name::new(name))
             .c(Item::new())
             .c(Appearance::new(sprite))
             .c(Log::new("item"))
-    }
 }

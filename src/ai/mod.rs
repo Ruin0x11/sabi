@@ -36,6 +36,7 @@ pub struct Ai {
 pub fn state_kill(target: Entity, state: &Ai) {
     let mut goal_c =  BTreeMap::new();
     goal_c.insert(AiProp::TargetDead, true);
+   
 
     let goal = GoapState { facts: goal_c };
     *state.goal.borrow_mut() = goal;

@@ -38,6 +38,10 @@ function prefab_metatable:place_stairs_out(point)
    return self:place_stairs_out_raw(point.x, point.y)
 end
 
+function prefab_metatable:place_npc(point)
+   return self:place_npc_raw(point.x, point.y)
+end
+
 function prefab_metatable:iter()
    return iter.rect_iterator(world.point(0, 0), self:size())
 end

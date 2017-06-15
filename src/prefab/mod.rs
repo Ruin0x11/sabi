@@ -52,6 +52,7 @@ pub struct Prefab {
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub enum PrefabMarker {
     Mob(String),
+    Npc,
     Door,
     StairsIn,
     StairsOut,
@@ -66,6 +67,7 @@ impl PrefabMarker {
             PrefabMarker::StairsIn => Color::new(0, 255, 0),
             PrefabMarker::StairsOut => Color::new(255, 255, 0),
             PrefabMarker::Connection => Color::new(255, 0, 0),
+            _ => Color::new(0, 0, 0),
         }
     }
 }

@@ -22,14 +22,16 @@ use chunk::generator::ChunkType;
 use chunk::serial::SerialChunk;
 use data::spatial::{Spatial, Place};
 use data::{TurnOrder, Walkability, MessageLog};
+use ecs;
 use ecs::*;
+use ecs::components;
 use ecs::traits::*;
 use graphics::Marks;
 use graphics::cell::{CellFeature, StairDir, StairDest};
 use log;
 use logic::entity::EntityQuery;
 use point::{Direction, Point, POINT_ZERO};
-use prefab::{self, Prefab, PrefabArgs};
+use prefab::{self, Prefab, PrefabArgs, PrefabMarker};
 use terrain::Terrain;
 use terrain::regions::Regions;
 use terrain::traits::*;
@@ -86,6 +88,13 @@ impl World {
             {
                 let cellb = self.cell_const(&offset_pos);
                 debug!(self.logger, "{}: {:?}, {:?}", offset_pos, cell.type_, cellb);
+            }
+        }
+
+        for (pos, marker) in prefab.markers.iter() {
+            if *marker == PrefabMarker::Npc {
+                self.create(ecs::prefab::mob("guy", 1000, "npc")
+                            .c(components::Npc::new()), *pos);
             }
         }
 

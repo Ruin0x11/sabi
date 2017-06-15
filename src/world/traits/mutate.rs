@@ -3,7 +3,6 @@ pub use infinigen::*;
 use calx_ecs::Entity;
 
 use ecs::*;
-use ecs::prefab::*;
 use ecs::traits::*;
 use point::Direction;
 use world::flags::Flags;
@@ -49,8 +48,8 @@ pub trait Mutate: Query + Sized {
     fn flags_mut(&mut self) -> &mut Flags;
 
     fn spawn(&mut self, loadout: &Loadout, pos: Point) -> Entity;
-    fn create(&mut self, prefab: Prefab, pos: Point) -> Entity {
-        self.spawn(&prefab.loadout, pos)
+    fn create(&mut self, loadout: Loadout, pos: Point) -> Entity {
+        self.spawn(&loadout, pos)
     }
 
     fn kill(&mut self, entity: Entity);

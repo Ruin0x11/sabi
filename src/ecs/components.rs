@@ -11,6 +11,11 @@ use log;
 use point::Point;
 use stats::properties::Properties;
 
+// For persistence between worlds, because the entity ID may change.
+pub struct Uuid {
+
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Name {
     pub name: String,
@@ -200,4 +205,15 @@ impl<'de> Deserialize<'de> for Log {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Inventory {
     pub container: ItemContainer,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Npc {
+
+}
+
+impl Npc {
+    pub fn new() -> Self {
+        Npc { }
+    }
 }

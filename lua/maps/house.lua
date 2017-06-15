@@ -17,10 +17,14 @@ function generate()
         for pos in rect:iter_border() do
             prefab:set(pos, "wall")
         end
-        
+
         opening = rect:right() - rect:width()/2
 
         prefab:set(world.point(opening, rect:height()), "tile")
+
+        center = world.point(opening, rect:bottom() - rect:height() - 2)
+
+        prefab:place_npc(center)
     end
 
     main_room = world.rect(0, 0, room_width, room_height)

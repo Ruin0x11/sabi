@@ -111,6 +111,11 @@ fn lua_place_stairs_out(prefab: &mut Prefab, x: i32, y: i32) {
     prefab.set_marker(&pt, PrefabMarker::StairsOut);
 }
 
+fn lua_place_npc(prefab: &mut Prefab, x: i32, y: i32) {
+    let pt = Point::new(x, y);
+    prefab.set_marker(&pt, PrefabMarker::Npc);
+}
+
 pub fn add_lua_interop(lua: &mut Lua) {
     let mut prefab_namespace = lua.empty_array("Prefab");
 
@@ -129,6 +134,7 @@ implement_lua_push!(Prefab, |mut metatable| {
     index.set("place_door_raw", hlua::function3(lua_place_door));
     index.set("place_stairs_in_raw", hlua::function3(lua_place_stairs_in));
     index.set("place_stairs_out_raw", hlua::function3(lua_place_stairs_out));
+    index.set("place_npc_raw", hlua::function3(lua_place_npc));
 
     index.set("width", hlua::function1(lua_width));
     index.set("height", hlua::function1(lua_height));

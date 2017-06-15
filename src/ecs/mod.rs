@@ -15,5 +15,6 @@ Ecs! {
     invs: components::Inventory,
     ais: ai::Ai,
     fovs: components::Fov,
+    npcs: components::Npc,
     logs: components::Log,
 }
