@@ -49,7 +49,7 @@ impl ShadowMap {
         }
     }
 
-    fn make_instances<F: Facade>(&mut self, display: &F)  {
+    fn make_instances<F: Facade>(&mut self, display: &F) {
         let mut instances = Vec::new();
         for shadow in self.shadows.iter() {
             let (x, y) = shadow.pos;
@@ -63,16 +63,19 @@ impl ShadowMap {
         }
         self.instances = glium::VertexBuffer::immutable(display, &instances).unwrap();
     }
-
 }
 
 impl Renderable for ShadowMap {
     fn render<F, S>(&self, _display: &F, target: &mut S, viewport: &Viewport)
-        where F: glium::backend::Facade, S: glium::Surface {
+    where
+        F: glium::backend::Facade,
+        S: glium::Surface,
+    {
 
         let (proj, scissor) = viewport.main_window();
 
-        let uniforms = uniform! {
+        let uniforms =
+            uniform! {
             matrix: proj,
             tile_size: [48u32; 2],
         };
@@ -80,14 +83,17 @@ impl Renderable for ShadowMap {
         let params = glium::DrawParameters {
             blend: glium::Blend::alpha_blending(),
             scissor: Some(scissor),
-            .. Default::default()
+            ..Default::default()
         };
 
-        target.draw((&self.vertices, self.instances.per_instance().unwrap()),
-                    &self.indices,
-                    &self.program,
-                    &uniforms,
-                    &params).unwrap();
+        target.draw(
+            (&self.vertices, self.instances.per_instance().unwrap()),
+            &self.indices,
+            &self.program,
+            &uniforms,
+            &params,
+        )
+              .unwrap();
     }
 }
 
@@ -100,7 +106,6 @@ use renderer::interop::RenderUpdate;
 fn make_shadows(world: &World, viewport: &Viewport) -> Vec<Shadow> {
     let camera = world.flags().camera;
     let start_corner = viewport.min_tile_pos(camera);
-    println!("start: {:?}", start_corner);
     let area = RectangleIter::new(start_corner, Viewport::renderable_area().into());
 
     let mut visible = HashSet::new();
@@ -125,7 +130,7 @@ fn make_shadows(world: &World, viewport: &Viewport) -> Vec<Shadow> {
         if !visible.contains(&point) {
             let shadow = Shadow {
                 pos: (point - start_corner).into(),
-                color: (0, 0, 0, 128)
+                color: (0, 0, 0, 128),
             };
             shadows.push(shadow);
         }

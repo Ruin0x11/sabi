@@ -29,8 +29,8 @@ seethrough=true
 passable=true
 
 [[cells]]
-name="table"
-tile="table"
+name="cobble"
+tile="cobble"
 seethrough=true
 passable=true
 

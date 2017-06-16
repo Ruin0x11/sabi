@@ -12,9 +12,7 @@ use point::Point;
 use stats::properties::Properties;
 
 // For persistence between worlds, because the entity ID may change.
-pub struct Uuid {
-
-}
+pub struct Uuid {}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Name {
@@ -23,9 +21,7 @@ pub struct Name {
 
 impl Name {
     pub fn new(name: &str) -> Self {
-        Name {
-            name: name.to_string()
-        }
+        Name { name: name.to_string() }
     }
 }
 
@@ -51,6 +47,10 @@ impl Health {
         }
     }
 
+    pub fn percent(&self) -> f32 {
+        self.hit_points as f32 / self.max_hit_points as f32
+    }
+
     pub fn hurt(&mut self, amount: u32) {
         self.hit_points -= amount as i32;
     }
@@ -66,14 +66,12 @@ impl Health {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Appearance {
-    pub kind: String
+    pub kind: String,
 }
 
 impl Appearance {
     pub fn new(kind: &str) -> Self {
-        Appearance {
-            kind: kind.to_string()
-        }
+        Appearance { kind: kind.to_string() }
     }
 }
 
@@ -84,14 +82,12 @@ pub struct Props {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Turn {
-    pub speed: u32
+    pub speed: u32,
 }
 
 impl Turn {
     pub fn new(speed: u32) -> Self {
-        Turn {
-            speed: speed,
-        }
+        Turn { speed: speed }
     }
 }
 
@@ -122,19 +118,16 @@ impl Item {
     pub fn merge(&mut self, other: &Item) {
         self.count += other.count;
     }
-
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Fov {
-    pub visible: HashSet<Point>
+    pub visible: HashSet<Point>,
 }
 
 impl Fov {
     pub fn new() -> Self {
-        Fov {
-            visible: HashSet::new(),
-        }
+        Fov { visible: HashSet::new() }
     }
 
     pub fn is_visible(&self, pos: &Point) -> bool {
@@ -208,12 +201,10 @@ pub struct Inventory {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Npc {
-
-}
+pub struct Npc {}
 
 impl Npc {
     pub fn new() -> Self {
-        Npc { }
+        Npc {}
     }
 }

@@ -33,22 +33,30 @@ pub const SCREEN_HEIGHT: u32 = 768;
 
 pub const QUAD_INDICES: [u16; 6] = [0, 1, 2, 1, 3, 2];
 pub const QUAD: [Vertex; 4] = [
-    Vertex { position: [0, 1], },
-    Vertex { position: [1, 1], },
-    Vertex { position: [0, 0], },
-    Vertex { position: [1, 0], },
+    Vertex { position: [0, 1] },
+    Vertex { position: [1, 1] },
+    Vertex { position: [0, 0] },
+    Vertex { position: [1, 0] },
 ];
 
-pub fn load_program<F: Facade>(display: &F, vert: &str, frag: &str) -> Result<glium::Program, glium::ProgramCreationError> {
+pub fn load_program<F: Facade>(
+    display: &F,
+    vert: &str,
+    frag: &str,
+) -> Result<glium::Program, glium::ProgramCreationError> {
     let vertex_shader = util::read_string(&format!("data/shaders/{}", vert));
     let fragment_shader = util::read_string(&format!("data/shaders/{}", frag));
 
     glium::Program::from_source(display, &vertex_shader, &fragment_shader, None)
 }
 
-pub fn make_quad_buffers<F: Facade>(display: &F) -> (glium::VertexBuffer<Vertex>, glium::IndexBuffer<u16>) {
+pub fn make_quad_buffers<F: Facade>(
+    display: &F,
+) -> (glium::VertexBuffer<Vertex>, glium::IndexBuffer<u16>) {
     let vertices = glium::VertexBuffer::immutable(display, &QUAD).unwrap();
-    let indices = glium::IndexBuffer::immutable(display, PrimitiveType::TrianglesList, &QUAD_INDICES).unwrap();
+    let indices =
+        glium::IndexBuffer::immutable(display, PrimitiveType::TrianglesList, &QUAD_INDICES)
+            .unwrap();
     (vertices, indices)
 }
 
@@ -102,7 +110,7 @@ impl RenderContext {
             position: (0, 0),
             size: (SCREEN_WIDTH, SCREEN_HEIGHT),
             scale: scale,
-            camera: (0, 0)
+            camera: (0, 0),
         };
 
         RenderContext {
@@ -117,11 +125,29 @@ impl RenderContext {
         }
     }
 
-    pub fn start_loop<F>(&mut self, mut callback: F) where F: FnMut(&mut RenderContext) -> Action {
+    pub fn start_loop<F>(&mut self, mut callback: F)
+    where
+        F: FnMut(&mut RenderContext, glutin::Event) -> Option<Action>,
+    {
+        let mut closure = |renderer: &mut RenderContext| {
+            let events = renderer.poll_events();
+            if !events.is_empty() {
+                for event in events {
+                    if let Some(a) = callback(renderer, event) {
+                        return a;
+                    }
+                    renderer.render();
+                }
+            } else {
+                renderer.render();
+            }
+            Action::Continue
+        };
+
         loop {
-            match callback(self) {
+            match closure(self) {
                 Action::Stop => break,
-                Action::Continue => ()
+                Action::Continue => (),
             };
 
             self.step_frame();
@@ -155,16 +181,32 @@ impl RenderContext {
 
         let millis = self.accumulator.millis_since_start();
 
-        self.background.render(&self.backend, &mut target, &self.viewport);
+        self.background.render(
+            &self.backend,
+            &mut target,
+            &self.viewport,
+        );
 
         self.tilemap.redraw(&self.backend, millis);
-        self.tilemap.render(&self.backend, &mut target, &self.viewport);
+        self.tilemap.render(
+            &self.backend,
+            &mut target,
+            &self.viewport,
+        );
 
         self.spritemap.redraw(&self.backend, millis);
-        self.spritemap.render(&self.backend, &mut target, &self.viewport);
+        self.spritemap.render(
+            &self.backend,
+            &mut target,
+            &self.viewport,
+        );
 
         self.shadowmap.redraw(&self.backend, millis);
-        self.shadowmap.render(&self.backend, &mut target, &self.viewport);
+        self.shadowmap.render(
+            &self.backend,
+            &mut target,
+            &self.viewport,
+        );
 
         self.ui.render(&self.backend, &mut target, &self.viewport);
 
@@ -195,7 +237,7 @@ impl RenderContext {
     //     }
     // }
 
-    pub fn query<R, T: 'static + UiQuery<QueryResult=R>>(&mut self, layer: &mut T) -> Option<R> {
+    pub fn query<R, T: 'static + UiQuery<QueryResult = R>>(&mut self, layer: &mut T) -> Option<R> {
         loop {
             for event in self.backend.poll_events() {
                 match layer.on_event(event) {
@@ -210,7 +252,7 @@ impl RenderContext {
                     _ => {
                         self.ui.render_all();
                         self.ui.draw_layer(layer);
-                    }
+                    },
                 }
             }
 
@@ -224,7 +266,9 @@ impl RenderContext {
 
 pub trait Renderable {
     fn render<F, S>(&self, display: &F, target: &mut S, viewport: &Viewport)
-        where F: glium::backend::Facade, S: glium::Surface;
+    where
+        F: glium::backend::Facade,
+        S: glium::Surface;
 }
 
 pub enum Action {

@@ -32,9 +32,7 @@ fn generate_blank(cell: Cell) -> Chunk {
         }
     }
 
-    Chunk {
-        cells: cells
-    }
+    Chunk { cells: cells }
 }
 
 fn generate_perlin(index: &ChunkIndex, seed: u32) -> Chunk {
@@ -58,9 +56,9 @@ fn generate_perlin(index: &ChunkIndex, seed: u32) -> Chunk {
             let res = gen.get([conv(ay, -ax), conv(ax, ay), az]);
 
             if res < 0.02 {
-                cells.push(Cell::new("table"));
-            } else if res < 0.4 {
                 cells.push(Cell::new("sand"));
+            } else if res < 0.4 {
+                cells.push(Cell::new("cobble"));
             } else if res < 0.7 {
                 cells.push(Cell::new("grass"));
             } else {
@@ -69,7 +67,5 @@ fn generate_perlin(index: &ChunkIndex, seed: u32) -> Chunk {
         }
     }
 
-    Chunk {
-        cells: cells
-    }
+    Chunk { cells: cells }
 }

@@ -48,18 +48,18 @@ impl Display for Dice {
     }
 }
 
-pub fn calculate_delay(world: &World, actor: &Entity, action_cost: u32) -> i32 {
-    let speed = world.ecs().turns.get_or_err(*actor).speed;
-    (100*action_cost / speed) as i32
+pub fn calculate_delay(world: &World, entity: Entity, action_cost: u32) -> i32 {
+    let speed = world.ecs().turns.get_or_err(entity).speed;
+    (100 * action_cost / speed) as i32
 }
 
-pub fn check_evasion(_world: &World, _attacker: &Entity, _defender: &Entity) -> bool {
+pub fn check_evasion(_world: &World, _attacker: Entity, _defender: Entity) -> bool {
     false
 }
 
-pub fn calculate_damage(_world: &World, _attacker: &Entity, _defender: &Entity) -> u32 {
+pub fn calculate_damage(world: &World, attacker: Entity, defender: Entity) -> u32 {
     let dice = Dice::new(2, 4, 4);
-    // debug!(attacker.logger, "{}: attacking {} with {}", attacker, defender, dice);
+    debug_ecs!(world, attacker, "attacking {:?} with {}", defender, dice);
 
     dice.roll()
 }

@@ -1,13 +1,16 @@
 mod action;
+mod goal;
 mod sensors;
+
+use self::goal::*;
+pub use self::goal::AiKind;
 
 use std::cell::RefCell;
 
 use calx_ecs::Entity;
 
 use logic::Action;
-use logic::entity::EntityQuery;
-use ai::sensors::{Sensor};
+use ai::sensors::Sensor;
 use ecs::traits::ComponentQuery;
 use world::traits::Query;
 use world::World;
@@ -22,55 +25,55 @@ pub enum Disposition {
 pub struct Ai {
     #[serde(skip_serializing)]
     #[serde(skip_deserializing)]
-    #[serde(default="make_planner")]
+    #[serde(default = "make_planner")]
     planner: AiPlanner,
+
+    kind: AiKind,
 
     target: RefCell<Option<Entity>>,
     memory: RefCell<AiMemory>,
-    goal:   RefCell<AiMemory>,
+    goal: RefCell<AiMemory>,
     next_action: RefCell<Option<AiAction>>,
 
     pub disposition: Disposition,
 }
 
-pub fn state_kill(target: Entity, state: &Ai) {
-    let mut goal_c =  BTreeMap::new();
-    goal_c.insert(AiProp::TargetDead, true);
-   
+pub type AiMemory = GoapState<AiProp, bool>;
+pub type AiFacts = GoapFacts<AiProp, bool>;
 
-    let goal = GoapState { facts: goal_c };
-    *state.goal.borrow_mut() = goal;
-    *state.target.borrow_mut() = Some(target);
+fn default_ai_facts() -> AiFacts {
+    let mut facts = AiFacts::new();
+    facts.insert(AiProp::Exists, true);
+    facts.insert(AiProp::Moving, false);
+    facts.insert(AiProp::HealthLow, false);
+    facts.insert(AiProp::HasTarget, false);
+    facts.insert(AiProp::TargetVisible, false);
+    facts.insert(AiProp::TargetDead, false);
+    facts.insert(AiProp::NextToTarget, false);
+    facts
 }
 
-type AiMemory = GoapState<AiProp, bool>;
-
 impl Ai {
-    pub fn new() -> Self {
+    pub fn new(kind: AiKind) -> Self {
         //TEMP: Figure out how to work with defaults.
-        let mut facts = GoapFacts::new();
-        facts.insert(AiProp::HealthLow, false);
-        facts.insert(AiProp::HasTarget, false);
-        facts.insert(AiProp::TargetVisible, false);
-        facts.insert(AiProp::TargetDead, false);
-        facts.insert(AiProp::NextToTarget, false);
+        let facts = default_ai_facts();
         Ai {
             planner: make_planner(),
             target: RefCell::new(None),
-            goal: RefCell::new(AiMemory {
-                facts: facts.clone(),
-            }),
-            memory: RefCell::new(AiMemory {
-                facts: facts,
-            }),
+            goal: RefCell::new(AiMemory { facts: facts.clone() }),
+            memory: RefCell::new(AiMemory { facts: facts }),
             disposition: Disposition::Friendly,
+            kind: kind,
 
             next_action: RefCell::new(None),
         }
     }
 
     pub fn get_plan(&self) -> Vec<AiAction> {
-        self.planner.get_plan(&self.memory.borrow(), &self.goal.borrow())
+        self.planner.get_plan(
+            &self.memory.borrow(),
+            &self.goal.borrow(),
+        )
     }
 
     pub fn get_next_action(&self) -> Option<AiAction> {
@@ -89,6 +92,8 @@ pub enum AiProp {
     TargetVisible,
     TargetDead,
     NextToTarget,
+    Exists,
+    Moving,
 }
 
 #[derive(Serialize, Deserialize, Hash, Ord, PartialOrd, Eq, PartialEq, Debug, Clone)]
@@ -104,10 +109,16 @@ thread_local! {
 }
 
 pub fn run(entity: Entity, world: &World) -> Option<Action> {
-    assert!(!world.is_player(entity), "Tried running AI on current player!");
+    assert!(
+        !world.is_player(entity),
+        "Tried running AI on current player!"
+    );
 
     if !world.ecs().ais.has(entity) {
-        assert!(!world.turn_order().contains(entity), "Entity without ai in turn order!");
+        assert!(
+            !world.turn_order().contains(entity),
+            "Entity without ai in turn order!"
+        );
         return None;
     }
 
@@ -137,34 +148,32 @@ fn update_goal(entity: Entity, world: &World) {
     let ai = world.ecs().ais.get_or_err(entity);
 
     if ai.goal_finished() {
-        // TODO: Determine a new plan.
-        // if let Some(target) = rand::thread_rng().choose(&world.seen_entities(entity)) {
-        //     state_kill(*target, ai);
-        // }
-        world.player().map(|p| {
-            if entity.can_see_other(p, world) {
-                state_kill(p, ai);
-            }
-        });
+        let (desired, target) = make_new_plan(entity, world);
+
+        let goal = GoapState { facts: desired };
+        *ai.goal.borrow_mut() = goal;
+        *ai.target.borrow_mut() = target;
     }
 }
 
 fn update_memory(entity: Entity, world: &World) {
     let ai = world.ecs().ais.get_or_err(entity);
-    let wants_to_know = vec![AiProp::HasTarget,
-                             AiProp::TargetVisible,
-                             AiProp::TargetDead,
-                             AiProp::NextToTarget,
-                             AiProp::HealthLow];
+    let wants_to_know = vec![
+        AiProp::HasTarget,
+        AiProp::TargetVisible,
+        AiProp::TargetDead,
+        AiProp::NextToTarget,
+        AiProp::HealthLow,
+        AiProp::Exists,
+        AiProp::Moving,
+    ];
 
-    let mut new_memory = AiMemory {
-        facts: GoapFacts::new(),
-    };
+    let mut new_memory = AiMemory { facts: GoapFacts::new() };
 
     for fact in wants_to_know.iter() {
         SENSORS.with(|s| {
             let sensor = s.get(fact).unwrap();
-            let result = (sensor.callback)(world, &entity, ai);
+            let result = (sensor.callback)(world, entity, ai);
             // debug_ecs!(world, entity, "{:?}, {}", fact, result);
             new_memory.facts.insert(fact.clone(), result);
         });
@@ -174,9 +183,9 @@ fn update_memory(entity: Entity, world: &World) {
         let memory = ai.memory.borrow();
         *memory != new_memory
     };
-    debug_ecs!(world, entity, "Facts: {:?}", new_memory);
 
     if stale {
+        debug_ecs!(world, entity, "Regenerating AI cache!");
         // make sure the memory is fresh before picking an action
         *ai.memory.borrow_mut() = new_memory;
 
@@ -191,20 +200,22 @@ fn choose_action(entity: Entity, world: &World) -> Action {
     let ai = world.ecs().ais.get_or_err(entity);
 
     match *ai.next_action.borrow() {
-        Some(ref action) => match *action {
-            AiAction::Wander => action::wander(entity, world),
-            AiAction::MoveCloser => action::move_closer(entity, world),
-            AiAction::SwingAt => action::swing_at(entity, world),
-            AiAction::Run => action::run_away(entity, world),
+        Some(ref action) => {
+            match *action {
+                AiAction::Wander => action::ai_wander(entity, world),
+                AiAction::MoveCloser => action::ai_move_closer(entity, world),
+                AiAction::SwingAt => action::ai_swing_at(entity, world),
+                AiAction::Run => action::ai_run_away(entity, world),
+            }
         },
         None => {
             warn_ecs!(world, entity, "I can't figure out what to do!");
-            action::wander(entity, world)
-        }
+            Action::Wait
+        },
     }
 }
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use goap::*;
 
 type AiPlanner = GoapPlanner<AiProp, bool, AiAction>;
@@ -213,7 +224,9 @@ type AiPlanner = GoapPlanner<AiProp, bool, AiAction>;
 pub fn make_planner() -> AiPlanner {
     let mut actions = HashMap::new();
     let mut effects = GoapEffects::new(100);
+    effects.set_precondition(AiProp::Moving, false);
     effects.set_precondition(AiProp::TargetVisible, false);
+    effects.set_postcondition(AiProp::Moving, true);
     actions.insert(AiAction::Wander, effects);
 
     let mut effects = GoapEffects::new(10);
@@ -236,7 +249,6 @@ pub fn make_planner() -> AiPlanner {
     effects.set_precondition(AiProp::HealthLow, true);
     effects.set_postcondition(AiProp::HealthLow, false);
     actions.insert(AiAction::Run, effects);
-    GoapPlanner {
-        actions: actions,
-    }
+
+    GoapPlanner { actions: actions }
 }

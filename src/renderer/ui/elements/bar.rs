@@ -5,8 +5,7 @@ use renderer::ui::renderer::UiRenderer;
 fn clamp(input: i32, min: i32, max: i32) -> i32 {
     if input > max {
         max
-    }
-    else if input < min {
+    } else if input < min {
         min
     } else {
         input
@@ -17,7 +16,7 @@ pub struct UiBar {
     pos: (i32, i32),
     max: i32,
     current: i32,
-    color: (u8, u8, u8, u8)
+    color: (u8, u8, u8, u8),
 }
 
 impl UiBar {
@@ -47,7 +46,6 @@ impl UiBar {
 
 impl UiElement for UiBar {
     fn draw(&self, renderer: &mut UiRenderer) {
-        println!("c: {} m: {}", self.current, self.max);
         let bar_portion = (258 as f32 * self.percent()) as u32;
         renderer.add_tex("bar", self.pos, None, (0, 30), (258, 30));
 
@@ -58,8 +56,10 @@ impl UiElement for UiBar {
         let text = format!("{} / {}", self.current, self.max);
         let text_width = renderer.font().text_width_px(&text) as i32;
 
-        let text_pos = (self.pos.0 + (258 / 2) - (text_width / 2),
-                        self.pos.1 + 30 - (renderer.font().get_font_size() as i32));
+        let text_pos = (
+            self.pos.0 + (258 / 2) - (text_width / 2),
+            self.pos.1 + 30 - (renderer.font().get_font_size() as i32),
+        );
 
         renderer.add_string_shadow(text_pos, None, &text);
     }

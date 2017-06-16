@@ -39,7 +39,9 @@ pub fn save_world(world: &mut World) -> SerialResult<()> {
     // Unloads and saves the terrain.
     world.save()?;
 
-    debug!(world.logger, "Saving entities and world data, MapId: {}", world.flags().map_id);
+    debug!(world.logger,
+           "Saving entities and world data, MapId: {}",
+           world.flags().map_id);
     let data = bincode::serialize(&world, Infinite)?;
     let id = world.map_id();
 
@@ -139,7 +141,6 @@ impl SaveManifest {
 mod tests {
     use super::*;
     use testing::*;
-    use world::traits::*;
 
     #[test]
     fn test_manifest() {
@@ -159,4 +160,3 @@ mod tests {
         assert_eq!(manifest.map_id, map_id);
     }
 }
-

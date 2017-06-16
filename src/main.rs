@@ -2,13 +2,20 @@
 #![feature(conservative_impl_trait)]
 #![feature(test)]
 
-#[macro_use] extern crate calx_ecs;
-#[macro_use] extern crate enum_derive;
-#[macro_use] extern crate hlua;
-#[macro_use] extern crate lazy_static;
-#[macro_use] extern crate macro_attr;
-#[macro_use] extern crate serde_derive;
-#[macro_use] extern crate slog;
+#[macro_use]
+extern crate calx_ecs;
+#[macro_use]
+extern crate enum_derive;
+#[macro_use]
+extern crate hlua;
+#[macro_use]
+extern crate lazy_static;
+#[macro_use]
+extern crate macro_attr;
+#[macro_use]
+extern crate serde_derive;
+#[macro_use]
+extern crate slog;
 
 extern crate backtrace;
 extern crate bincode;
@@ -32,10 +39,12 @@ pub extern crate tcod;
 
 extern crate test;
 
-#[macro_use] extern crate glium;
+#[macro_use]
+extern crate glium;
 
 // Macros must be used before all other modules
-#[macro_use] mod macros;
+#[macro_use]
+mod macros;
 
 mod ai;
 mod chunk;
@@ -71,9 +80,7 @@ pub struct GameContext {
 
 impl GameContext {
     pub fn new() -> Self {
-        GameContext {
-            state: GameState::new(),
-        }
+        GameContext { state: GameState::new() }
     }
 }
 
@@ -97,7 +104,7 @@ fn game_loop() {
     world::serial::init_paths().unwrap();
 
     let mut context = state::load_context();
-    renderer::with_mut(|rc| rc.update(&context) );
+    renderer::with_mut(|rc| rc.update(&context));
 
     'outer: loop {
         let events = renderer::with(|rc| rc.poll_events());
@@ -114,24 +121,21 @@ fn game_loop() {
 
                 match event {
                     glutin::Event::KeyboardInput(ElementState::Pressed, _, Some(code)) => {
-                        println!("Key: {:?}", code);
-                        {
-                            match code {
-                                VirtualKeyCode::Escape => break 'outer,
-                                _ => {
-                                    let key = Key::from(KeyCode::from(code));
-                                    state::game_step(&mut context, Some(key));
-                                    renderer::with_mut(|renderer| renderer.update(&context) );
-                                },
-                            }
+                        match code {
+                            VirtualKeyCode::Escape => break 'outer,
+                            _ => {
+                                let key = Key::from(KeyCode::from(code));
+                                state::game_step(&mut context, Some(key));
+                                renderer::with_mut(|renderer| renderer.update(&context));
+                            },
                         }
                     },
                     _ => (),
                 }
-                renderer::with_mut(|renderer| renderer.render() );
+                renderer::with_mut(|renderer| renderer.render());
             }
         } else {
-            renderer::with_mut(|renderer| renderer.render() );
+            renderer::with_mut(|renderer| renderer.render());
         }
 
         renderer::with_mut(|renderer| renderer.step_frame());

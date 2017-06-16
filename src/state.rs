@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use calx_ecs::Entity;
 
-use ::GameContext;
+use GameContext;
 use ai;
 use chunk::generator::ChunkType;
 use engine::keys::Key;
@@ -47,14 +47,14 @@ impl GameState {
 }
 
 pub fn game_step(context: &mut GameContext, input: Option<Key>) {
-    if let Some(key) = input {
-        let command = Command::from(key);
-        run_command(context, command);
-    }
-
     let dead = check_player_dead(&mut context.state.world);
     if dead {
         return;
+    }
+
+    if let Some(key) = input {
+        let command = Command::from(key);
+        run_command(context, command);
     }
 }
 
@@ -62,10 +62,10 @@ pub fn run_command(context: &mut GameContext, command: Command) {
     match command::process_player_command(context, command) {
         Err(e) => {
             match e {
-                CommandError::Bug(reason)     => panic!("A bug occurred: {}", reason),
-                CommandError::Debug(mes)      => context.state.world.message(&mes),
+                CommandError::Bug(reason) => panic!("A bug occurred: {}", reason),
+                CommandError::Debug(mes) => context.state.world.message(&mes),
                 CommandError::Invalid(reason) => context.state.world.message(reason),
-                CommandError::Cancel          => (),
+                CommandError::Cancel => (),
             }
             context.state.clear_actions();
             context.state.world.update_camera();
@@ -73,7 +73,7 @@ pub fn run_command(context: &mut GameContext, command: Command) {
         Ok(..) => {
             run_action_queue(context);
             process(context);
-        }
+        },
     }
 }
 
@@ -97,7 +97,7 @@ fn process_action(world: &mut World, entity: Entity, action: Action) {
     logic::run_action(world, entity, action);
 
     if world.is_alive(entity) {
-        let delay = stats::formulas::calculate_delay(world, &entity, 100);
+        let delay = stats::formulas::calculate_delay(world, entity, 100);
         world.add_delay_for(entity, delay);
     }
 }
@@ -116,12 +116,16 @@ fn process_actors(world: &mut World) {
         if world.is_player(entity) {
             world.next_message();
 
-            break
+            break;
         }
 
         if let Some(action) = ai::run(entity, world) {
             process_action(world, entity, action);
             process_events(world);
+        }
+
+        if check_player_dead(world) {
+            break;
         }
     }
 
@@ -167,7 +171,10 @@ pub fn load_context() -> GameContext {
     if let Ok(world) = world::serial::load_world(manifest.map_id) {
         context.state.world = world;
     } else {
-        let e = context.state.world.create(::ecs::prefab::mob("player", 10000, "player"), WorldPosition::new(1,1));
+        let e = context.state.world.create(
+            ::ecs::prefab::mob("player", 10000, "player"),
+            WorldPosition::new(1, 1),
+        );
         context.state.world.set_player(Some(e));
     }
 

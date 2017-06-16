@@ -18,12 +18,13 @@ function generate()
             prefab:set(pos, "wall")
         end
 
-        opening = rect:right() - rect:width()/2
+        opening = rect:width()/2
 
         prefab:set(world.point(opening, rect:height()), "tile")
 
-        center = world.point(opening, rect:bottom() - rect:height() - 2)
+        center = world.point(opening, (rect:height() / 2))
 
+        log.debug(tostring(center))
         prefab:place_npc(center)
     end
 

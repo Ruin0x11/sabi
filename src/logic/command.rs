@@ -40,40 +40,40 @@ pub enum Command {
 impl From<Key> for Command {
     fn from(key: Key) -> Command {
         match key {
-            Key { code: KeyCode::Escape,      .. } => Command::Quit,
-            Key { code: KeyCode::Left,        .. } |
-            Key { code: KeyCode::H,           .. } |
-            Key { code: KeyCode::NumPad4,     .. } => Command::Move(Direction::W),
-            Key { code: KeyCode::Right,       .. } |
-            Key { code: KeyCode::L,           .. } |
-            Key { code: KeyCode::NumPad6,     .. } => Command::Move(Direction::E),
-            Key { code: KeyCode::Up,          .. } |
-            Key { code: KeyCode::K,           .. } |
-            Key { code: KeyCode::NumPad8,     .. } => Command::Move(Direction::N),
-            Key { code: KeyCode::Down,        .. } |
-            Key { code: KeyCode::J,           .. } |
-            Key { code: KeyCode::NumPad2,     .. } => Command::Move(Direction::S),
-            Key { code: KeyCode::B,           .. } |
-            Key { code: KeyCode::NumPad1,     .. } => Command::Move(Direction::SW),
-            Key { code: KeyCode::N,           .. } |
-            Key { code: KeyCode::NumPad3,     .. } => Command::Move(Direction::SE),
-            Key { code: KeyCode::Y,           .. } |
-            Key { code: KeyCode::NumPad7,     .. } => Command::Move(Direction::NW),
-            Key { code: KeyCode::U,           .. } |
-            Key { code: KeyCode::NumPad9,     .. } => Command::Move(Direction::NE),
+            Key { code: KeyCode::Escape, .. } => Command::Quit,
+            Key { code: KeyCode::Left, .. } |
+            Key { code: KeyCode::H, .. } |
+            Key { code: KeyCode::NumPad4, .. } => Command::Move(Direction::W),
+            Key { code: KeyCode::Right, .. } |
+            Key { code: KeyCode::L, .. } |
+            Key { code: KeyCode::NumPad6, .. } => Command::Move(Direction::E),
+            Key { code: KeyCode::Up, .. } |
+            Key { code: KeyCode::K, .. } |
+            Key { code: KeyCode::NumPad8, .. } => Command::Move(Direction::N),
+            Key { code: KeyCode::Down, .. } |
+            Key { code: KeyCode::J, .. } |
+            Key { code: KeyCode::NumPad2, .. } => Command::Move(Direction::S),
+            Key { code: KeyCode::B, .. } |
+            Key { code: KeyCode::NumPad1, .. } => Command::Move(Direction::SW),
+            Key { code: KeyCode::N, .. } |
+            Key { code: KeyCode::NumPad3, .. } => Command::Move(Direction::SE),
+            Key { code: KeyCode::Y, .. } |
+            Key { code: KeyCode::NumPad7, .. } => Command::Move(Direction::NW),
+            Key { code: KeyCode::U, .. } |
+            Key { code: KeyCode::NumPad9, .. } => Command::Move(Direction::NE),
 
-            Key { code: KeyCode::Period,      .. } => Command::UseStairs(StairDir::Ascending),
-            Key { code: KeyCode::Comma,       .. } => Command::UseStairs(StairDir::Descending),
+            Key { code: KeyCode::Period, .. } => Command::UseStairs(StairDir::Ascending),
+            Key { code: KeyCode::Comma, .. } => Command::UseStairs(StairDir::Descending),
 
-            Key { code: KeyCode::M,           .. } => Command::Look,
-            Key { code: KeyCode::G,           .. } => Command::Pickup,
-            Key { code: KeyCode::D,           .. } => Command::Drop,
-            Key { code: KeyCode::I,           .. } => Command::Inventory,
+            Key { code: KeyCode::M, .. } => Command::Look,
+            Key { code: KeyCode::G, .. } => Command::Pickup,
+            Key { code: KeyCode::D, .. } => Command::Drop,
+            Key { code: KeyCode::I, .. } => Command::Inventory,
 
-            Key { code: KeyCode::E,           .. } => Command::Teleport,
-            Key { code: KeyCode::F1,          .. } => Command::DebugMenu,
+            Key { code: KeyCode::E, .. } => Command::Teleport,
+            Key { code: KeyCode::F1, .. } => Command::DebugMenu,
 
-            _                                      => Command::Wait
+            _ => Command::Wait,
         }
     }
 }
@@ -81,20 +81,40 @@ impl From<Key> for Command {
 pub fn process_player_command(context: &mut GameContext, command: Command) -> CommandResult<()> {
     match command {
         // TEMP: Commands can still be run even if there is no player?
-        Command::Quit           => Err(CommandError::Invalid("Can't quit.")),
+        Command::Quit => Err(CommandError::Invalid("Can't quit.")),
 
-        Command::Look           => cmd_look(context),
+        Command::Look => cmd_look(context),
         Command::UseStairs(dir) => cmd_use_stairs(context, dir),
-        Command::Pickup         => cmd_pickup(context),
-        Command::Drop           => cmd_drop(context),
-        Command::Inventory      => cmd_inventory(context),
+        Command::Pickup => cmd_pickup(context),
+        Command::Drop => cmd_drop(context),
+        Command::Inventory => cmd_inventory(context),
 
-        Command::Move(dir)      => cmd_add_action(context, Action::MoveOrAttack(dir)),
-        Command::Wait           => cmd_add_action(context, Action::Wait),
+        Command::Move(dir) => cmd_player_move(context, dir),
+        Command::Wait => cmd_add_action(context, Action::Wait),
 
-        Command::DebugMenu      => cmd_debug_menu(context),
-        Command::Teleport       => cmd_teleport(context),
+        Command::DebugMenu => cmd_debug_menu(context),
+        Command::Teleport => cmd_teleport(context),
     }
+}
+
+fn cmd_player_move(context: &mut GameContext, dir: Direction) -> CommandResult<()> {
+    // Check if we're bumping into something interactive, and if so don't consume a turn.
+    let position = player_pos(context)?;
+    let new_pos = position + dir;
+    let npc_opt = context.state.world.find_entity(
+        new_pos,
+        |e| context.state.world.is_npc(*e),
+    );
+    if let Some(npc) = npc_opt {
+        mes!(
+            context.state.world,
+            "{}: Hello!",
+            a = npc.name(&context.state.world)
+        );
+        return Ok(());
+    }
+
+    cmd_add_action(context, Action::MoveOrAttack(dir))
 }
 
 fn cmd_add_action(context: &mut GameContext, action: Action) -> CommandResult<()> {
@@ -110,7 +130,11 @@ fn cmd_teleport(context: &mut GameContext) -> CommandResult<()> {
     mes!(context.state.world, "Teleport where?");
     let pos = select_tile(context, |_, _| ())?;
 
-    if context.state.world.can_walk(pos, Walkability::MonstersBlocking) {
+    if context.state.world.can_walk(
+        pos,
+        Walkability::MonstersBlocking,
+    )
+    {
         cmd_add_action(context, Action::Teleport(pos))
     } else {
         Err(CommandError::Invalid("The way is blocked."))
@@ -127,29 +151,39 @@ fn cmd_pickup(context: &mut GameContext) -> CommandResult<()> {
 
     match first_item {
         Some(item) => cmd_add_action(context, Action::Pickup(item)),
-        None    => Err(CommandError::Invalid("You grab at air.")),
+        None => Err(CommandError::Invalid("You grab at air.")),
     }
 }
 
 fn cmd_drop(context: &mut GameContext) -> CommandResult<()> {
-    let player = context.state.world.player().ok_or(CommandError::Bug("No player in the world!"))?;
+    let player = context.state.world.player().ok_or(CommandError::Bug(
+        "No player in the world!",
+    ))?;
     let items = context.state.world.entities_in(player);
-    let names = items.iter().map(|i| context.state.world.ecs().names.get(*i).unwrap().name.clone()).collect();
+    let names = items.iter().map(|i| i.name(&context.state.world)).collect();
     let idx = menu_choice(context, names).ok_or(CommandError::Cancel)?;
     cmd_add_action(context, Action::Drop(items[idx]))
 }
 
 fn cmd_inventory(context: &mut GameContext) -> CommandResult<()> {
-    let player = context.state.world.player().ok_or(CommandError::Bug("No player in the world!"))?;
+    let player = context.state.world.player().ok_or(CommandError::Bug(
+        "No player in the world!",
+    ))?;
     let items = context.state.world.entities_in(player);
-    let names = items.into_iter().map(|i| context.state.world.ecs().names.get(i).unwrap().name.clone()).collect();
+    let names = items.into_iter()
+                     .map(|i| {
+        context.state.world.ecs().names.get(i).unwrap().name.clone()
+    })
+                     .collect();
     let choose = menu_choice_indexed(context, names)?;
-    mes!(context.state.world, "You chose: {}", a=choose);
+    mes!(context.state.world, "You chose: {}", a = choose);
     Err(CommandError::Cancel)
 }
 
 fn find_stair_dest(world: &World, pos: Point, dir: StairDir) -> CommandResult<StairDest> {
-    let cell = world.cell_const(&pos).ok_or(CommandError::Bug("World was not loaded at stair pos!"))?;
+    let cell = world.cell_const(&pos).ok_or(CommandError::Bug(
+        "World was not loaded at stair pos!",
+    ))?;
 
     match cell.feature {
         Some(CellFeature::Stairs(stair_dir, dest)) => {
@@ -160,15 +194,19 @@ fn find_stair_dest(world: &World, pos: Point, dir: StairDir) -> CommandResult<St
             debug!(world.logger, "STAIR at {}: {:?}", pos, dest);
 
             Ok(dest)
-        }
-        _ => Err(CommandError::Cancel)
+        },
+        _ => Err(CommandError::Cancel),
     }
 }
 
 fn player_pos(context: &GameContext) -> CommandResult<Point> {
     let world = &context.state.world;
-    let player = world.player().ok_or(CommandError::Bug("No player in the world!"))?;
-    let pos = world.position(player).ok_or(CommandError::Bug("Player has no position!"))?;
+    let player = world.player().ok_or(
+        CommandError::Bug("No player in the world!"),
+    )?;
+    let pos = world.position(player).ok_or(CommandError::Bug(
+        "Player has no position!",
+    ))?;
     Ok(pos)
 }
 
@@ -184,25 +222,30 @@ fn cmd_use_stairs(context: &mut GameContext, dir: StairDir) -> CommandResult<()>
     Ok(())
 }
 
-fn load_stair_dest(world: &mut World, stair_pos: Point, next: StairDest) -> CommandResult<(World, Point)> {
+fn load_stair_dest(
+    world: &mut World,
+    stair_pos: Point,
+    next: StairDest,
+) -> CommandResult<(World, Point)> {
     match next {
         StairDest::Generated(map_id, dest) => {
             debug!(world.logger, "Found stair leading to: {:?}", map_id);
-            let world = world::serial::load_world(map_id)
-                .map_err(|_| CommandError::Bug("Failed to load already generated world!"))?;
+            let world = world::serial::load_world(map_id).map_err(|_| {
+                CommandError::Bug("Failed to load already generated world!")
+            })?;
             Ok((world, dest))
         },
         StairDest::Ungenerated => {
             debug!(world.logger, "Failed to load map, generating...");
 
-            // TODO: fix
-            // world.flags_mut().globals.max_map_id += 1;
-            // let next_id = world.flags().globals.max_map_id;
-
             let res = {
                 generate_stair_dest(world, stair_pos)
             };
-            debug!(world.logger, "new stairs: {:?}", world.cell_const(&stair_pos));
+            debug!(
+                world.logger,
+                "new stairs: {:?}",
+                world.cell_const(&stair_pos)
+            );
             res
         },
     }
@@ -214,26 +257,29 @@ fn generate_stair_dest(world: &mut World, stair_pos: Point) -> CommandResult<(Wo
         .with_prefab("rogue")
         .with_prefab_args(prefab_args!{ width: 100, height: 50, })
         .build()
-        .map_err(|e| CommandError::Bug("Failed to generate stair!"))?;
+        .map_err(|_| CommandError::Bug("Failed to generate stair!"))?;
 
     let prev_id = world.flags().map_id;
     let dest_id = new_world.flags().map_id;
 
     let mut stairs_mut = world.cell_mut(&stair_pos).unwrap();
 
-    if let Some(CellFeature::Stairs(stair_dir, ref mut dest@StairDest::Ungenerated)) = stairs_mut.feature {
-        let new_stair_pos = new_world.find_stairs_in().ok_or(CommandError::Bug("Generated world has no stairs!"))?;
+    if let Some(CellFeature::Stairs(stair_dir, ref mut dest @ StairDest::Ungenerated)) =
+        stairs_mut.feature
+    {
+        let new_stair_pos = new_world.find_stairs_in().ok_or(CommandError::Bug(
+            "Generated world has no stairs!",
+        ))?;
 
         *dest = StairDest::Generated(dest_id, new_stair_pos);
 
-        new_world.place_stairs(stair_dir.reverse(),
-                               new_stair_pos,
-                               prev_id,
-                               stair_pos);
+        new_world.place_stairs(stair_dir.reverse(), new_stair_pos, prev_id, stair_pos);
 
         Ok((new_world, new_stair_pos))
     } else {
-        Err(CommandError::Bug("Stairs should have already been found by now..."))
+        Err(CommandError::Bug(
+            "Stairs should have already been found by now...",
+        ))
     }
 }
 
@@ -243,11 +289,11 @@ use graphics::Color;
 use point::LineIter;
 use renderer;
 
-fn maybe_examine_tile(pos: Point, world: &mut World)  {
+fn maybe_examine_tile(pos: Point, world: &mut World) {
     if let Some(mob) = world.mob_at(pos) {
         if let Some(player) = world.player() {
             if player.can_see_other(mob, world) {
-                mes!(world, "You see here a {}.", a=mob.name(world));
+                mes!(world, "You see here a {}.", a = mob.name(world));
             }
         }
     }
@@ -271,56 +317,52 @@ fn draw_line(start: Point, end: Point, world: &mut World) {
 
 /// Allow the player to choose a tile.
 pub fn select_tile<F>(context: &mut GameContext, callback: F) -> CommandResult<Point>
-    where F: Fn(Point, &mut World) {
+where
+    F: Fn(Point, &mut World),
+{
     let mut selected = false;
     let mut result = context.state.world.flags().camera;
-    let player_pos = context.state.world.player().map(|p| context.state.world.position(p)).unwrap_or(None);
+    let player_pos = context.state
+                            .world
+                            .player()
+                            .map(|p| context.state.world.position(p))
+                            .unwrap_or(None);
 
     renderer::with_mut(|rc| {
         draw_targeting_line(player_pos, &mut context.state.world);
         rc.update(context);
 
-        rc.start_loop(|renderer| {
-            let events = renderer.poll_events();
-            if !events.is_empty() {
-                for event in events {
-                    match event {
-                        glutin::Event::KeyboardInput(ElementState::Pressed, _, Some(code)) => {
-                            println!("Key: {:?}", code);
-                            {
-                                {
-                                    let world = &mut context.state.world;
-                                    match code {
-                                        VirtualKeyCode::Up => world.flags_mut().camera.y -= 1,
-                                        VirtualKeyCode::Down => world.flags_mut().camera.y += 1,
-                                        VirtualKeyCode::Left => world.flags_mut().camera.x -= 1,
-                                        VirtualKeyCode::Right => world.flags_mut().camera.x += 1,
-                                        VirtualKeyCode::Escape => return renderer::Action::Stop,
-                                        VirtualKeyCode::Return => {
-                                            selected = true;
-                                            return renderer::Action::Stop;
-                                        },
-                                        _ => (),
-                                    }
-                                    let camera = world.flags().camera;
-                                    result = camera;
-                                    callback(camera, world);
+        rc.start_loop(|renderer, event| {
+            match event {
+                glutin::Event::KeyboardInput(ElementState::Pressed, _, Some(code)) => {
+                    println!("Key: {:?}", code);
+                    {
+                        let world = &mut context.state.world;
+                        match code {
+                            VirtualKeyCode::Up => world.flags_mut().camera.y -= 1,
+                            VirtualKeyCode::Down => world.flags_mut().camera.y += 1,
+                            VirtualKeyCode::Left => world.flags_mut().camera.x -= 1,
+                            VirtualKeyCode::Right => world.flags_mut().camera.x += 1,
+                            VirtualKeyCode::Escape => return Some(renderer::Action::Stop),
+                            VirtualKeyCode::Return => {
+                                selected = true;
+                                return Some(renderer::Action::Stop);
+                            },
+                            _ => (),
+                        }
+                        let camera = world.flags().camera;
+                        result = camera;
+                        callback(camera, world);
 
-                                    draw_targeting_line(player_pos, world);
-                                }
-
-                                renderer.update(context);
-                            }
-                        },
-                        _ => (),
+                        draw_targeting_line(player_pos, world);
                     }
-                    renderer.render();
-                }
-            } else {
-                renderer.render();
-            }
 
-            renderer::Action::Continue
+                    renderer.update(context);
+
+                },
+                _ => (),
+            }
+            None
         });
     });
 
@@ -344,7 +386,10 @@ pub fn menu_choice(context: &mut GameContext, choices: Vec<String>) -> Option<us
     })
 }
 
-pub fn menu_choice_indexed<T: Display + Clone>(context: &mut GameContext, mut choices: Vec<T>) -> CommandResult<T> {
+pub fn menu_choice_indexed<T: Display + Clone>(
+    context: &mut GameContext,
+    mut choices: Vec<T>,
+) -> CommandResult<T> {
     let strings = choices.iter().cloned().map(|t| t.to_string()).collect();
     let idx = menu_choice(context, strings).ok_or(CommandError::Cancel)?;
     Ok(choices.remove(idx))

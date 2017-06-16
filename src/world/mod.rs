@@ -1,4 +1,5 @@
-#[cfg(test)] mod tests;
+#[cfg(test)]
+mod tests;
 mod bounds;
 mod transition;
 pub mod flags;
@@ -78,7 +79,11 @@ impl World {
     }
 
     pub fn deploy_prefab(&mut self, prefab: &Prefab, offset: Point) {
-        debug!(self.logger, "About to deploy prefab on map {}...", self.flags().map_id);
+        debug!(
+            self.logger,
+            "About to deploy prefab on map {}...",
+            self.flags().map_id
+        );
 
         for (pos, cell) in prefab.iter() {
             let offset_pos = pos + offset;
@@ -92,9 +97,10 @@ impl World {
         }
 
         for (pos, marker) in prefab.markers.iter() {
+            let offset_pos = *pos + offset;
+            debug!(self.logger, "Marker: {:?} {}", marker, offset_pos);
             if *marker == PrefabMarker::Npc {
-                self.create(ecs::prefab::mob("guy", 1000, "npc")
-                            .c(components::Npc::new()), *pos);
+                self.create(ecs::prefab::npc("dude"), offset_pos);
             }
         }
 
@@ -109,7 +115,11 @@ impl WorldBuilder {
         let mut prefab_opt = None;
 
         if let Some(ref prefab_name) = self.prefab_name {
-            let prefab = prefab::create(prefab_name, &self.prefab_args).map_err(|e| e.to_string())?;
+            let prefab = prefab::create(prefab_name, &self.prefab_args).map_err(
+                |e| {
+                    e.to_string()
+                },
+            )?;
             self.bounds = Bounds::Bounded(prefab.width(), prefab.height());
             prefab_opt = Some(prefab);
         }
@@ -190,22 +200,22 @@ pub struct World {
 
     #[serde(skip_serializing)]
     #[serde(skip_deserializing)]
-    #[serde(default="get_world_log")]
+    #[serde(default = "get_world_log")]
     pub logger: Logger,
 
     #[serde(skip_serializing)]
     #[serde(skip_deserializing)]
-    #[serde(default="MessageLog::new")]
+    #[serde(default = "MessageLog::new")]
     messages: MessageLog,
 
     #[serde(skip_serializing)]
     #[serde(skip_deserializing)]
-    #[serde(default="Marks::new")]
+    #[serde(default = "Marks::new")]
     pub marks: Marks,
 
     #[serde(skip_serializing)]
     #[serde(skip_deserializing)]
-    #[serde(default="Marks::new")]
+    #[serde(default = "Marks::new")]
     pub debug_overlay: Marks,
 }
 
@@ -298,19 +308,33 @@ impl Query for World {
         seen
     }
 
-    fn seed(&self) -> u32 { self.flags.seed() }
+    fn seed(&self) -> u32 {
+        self.flags.seed()
+    }
 
-    fn entities(&self) -> slice::Iter<Entity> { self.ecs_.iter() }
+    fn entities(&self) -> slice::Iter<Entity> {
+        self.ecs_.iter()
+    }
 
-    fn entities_at(&self, loc: WorldPosition) -> Vec<Entity> { self.spatial.entities_at(loc) }
+    fn entities_at(&self, loc: WorldPosition) -> Vec<Entity> {
+        self.spatial.entities_at(loc)
+    }
 
-    fn entities_in(&self, entity: Entity) -> Vec<Entity> { self.spatial.entities_in(entity) }
+    fn entities_in(&self, entity: Entity) -> Vec<Entity> {
+        self.spatial.entities_in(entity)
+    }
 
-    fn ecs(&self) -> &Ecs { &self.ecs_ }
+    fn ecs(&self) -> &Ecs {
+        &self.ecs_
+    }
 
-    fn flags(&self) -> &Flags { &self.flags }
+    fn flags(&self) -> &Flags {
+        &self.flags
+    }
 
-    fn turn_order(&self) -> &TurnOrder { &self.turn_order }
+    fn turn_order(&self) -> &TurnOrder {
+        &self.turn_order
+    }
 }
 
 impl Mutate for World {
@@ -322,7 +346,9 @@ impl Mutate for World {
         self.spatial.insert_in(e, container);
     }
 
-    fn set_player(&mut self, player: Option<Entity>) { self.flags.globals.player = player; }
+    fn set_player(&mut self, player: Option<Entity>) {
+        self.flags.globals.player = player;
+    }
 
     fn kill_entity(&mut self, e: Entity) {
         debug!(self.logger, "Marking entity {:?} as killed.", e);
@@ -346,9 +372,13 @@ impl Mutate for World {
         self.ecs_.remove(e);
     }
 
-    fn ecs_mut(&mut self) -> &mut Ecs { &mut self.ecs_ }
+    fn ecs_mut(&mut self) -> &mut Ecs {
+        &mut self.ecs_
+    }
 
-    fn flags_mut(&mut self) -> &mut Flags { &mut self.flags }
+    fn flags_mut(&mut self) -> &mut Flags {
+        &mut self.flags
+    }
 
     fn move_entity(&mut self, e: Entity, dir: Direction) -> Result<(), ()> {
         let loc = self.position(e).ok_or(())? + dir;
@@ -426,10 +456,18 @@ fn is_persistent(world: &World, entity: Entity) -> bool {
 }
 
 impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for World {
-    fn terrain(&self) -> &Terrain { &self.terrain }
-    fn terrain_mut(&mut self) -> &mut Terrain { &mut self.terrain }
+    fn terrain(&self) -> &Terrain {
+        &self.terrain
+    }
+    fn terrain_mut(&mut self) -> &mut Terrain {
+        &mut self.terrain
+    }
 
-    fn load_chunk_internal(&mut self, chunk: SerialChunk, index: &ChunkIndex) -> Result<(), SerialError> {
+    fn load_chunk_internal(
+        &mut self,
+        chunk: SerialChunk,
+        index: &ChunkIndex,
+    ) -> Result<(), SerialError> {
         debug!(self.logger, "LOAD CHUNK: {}", index);
         self.terrain.insert_chunk(*index, chunk.chunk);
 
@@ -446,9 +484,16 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for World {
     }
 
     fn unload_chunk_internal(&mut self, index: &ChunkIndex) -> Result<SerialChunk, SerialError> {
-        debug!(self.logger, "UNLOAD CHUNK: {} MapId: {}", index, self.flags().map_id);
-        let chunk = self.terrain.remove_chunk(index)
-            .expect(&format!("Expected chunk at {}!", index));
+        debug!(
+            self.logger,
+            "UNLOAD CHUNK: {} MapId: {}",
+            index,
+            self.flags().map_id
+        );
+        let chunk = self.terrain.remove_chunk(index).expect(&format!(
+            "Expected chunk at {}!",
+            index
+        ));
 
         let entities = self.entities_in_chunk(index);
         for e in entities {
@@ -464,26 +509,42 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for World {
 
         }
 
-        debug!(self.logger, "Chunk ready for serializing, MapId: {}", self.flags().map_id);
+        debug!(
+            self.logger,
+            "Chunk ready for serializing, MapId: {}",
+            self.flags().map_id
+        );
 
-        let serial = SerialChunk {
-            chunk: chunk,
-        };
+        let serial = SerialChunk { chunk: chunk };
         Ok(serial)
     }
 
     fn generate_chunk(&mut self, index: &ChunkIndex) -> SerialResult<()> {
-        debug!(self.logger, "GEN: {} {:?} reg: {}, map: {}", index, self.chunk_type, self.terrain.id, self.flags().map_id);
-        self.terrain.insert_chunk(*index, self.chunk_type.generate(index, self.flags.seed()));
+        debug!(
+            self.logger,
+            "GEN: {} {:?} reg: {}, map: {}",
+            index,
+            self.chunk_type,
+            self.terrain.id,
+            self.flags().map_id
+        );
+        self.terrain.insert_chunk(
+            *index,
+            self.chunk_type.generate(
+                index,
+                self.flags.seed(),
+            ),
+        );
 
         let chunk_pos = ChunkPosition::from(Point::new(0, 0));
         let cell_pos = Chunk::world_position_at(index, &chunk_pos);
         let stair_pos = cell_pos + (0, 1);
 
         if self.can_walk(stair_pos, Walkability::MonstersWalkable) {
-            self.terrain.cell_mut(&stair_pos).unwrap().feature =
-                Some(CellFeature::Stairs(StairDir::Descending,
-                                         StairDest::Ungenerated));
+            self.terrain.cell_mut(&stair_pos).unwrap().feature = Some(CellFeature::Stairs(
+                StairDir::Descending,
+                StairDest::Ungenerated,
+            ));
         }
 
         Ok(())
@@ -501,26 +562,24 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for World {
 }
 
 impl World {
-    pub fn update_chunks(&mut self, center: Point) -> Result<(), SerialError>{
+    pub fn update_chunks(&mut self, center: Point) -> Result<(), SerialError> {
         let mut relevant: HashSet<ChunkIndex> = HashSet::new();
 
         let start = ChunkIndex::from_world_pos(center);
 
         relevant.insert(start);
-        let quadrant = |dx, dy, idxes: &mut HashSet<ChunkIndex>| {
-            for dr in 1..UPDATE_RADIUS+1 {
-                for i in 0..dr+1 {
-                    let ax = start.0.x + (dr - i) * dx;
-                    let ay = start.0.y + i * dy;
-                    let chunk_idx = ChunkIndex::new(ax, ay);
-                    idxes.insert(chunk_idx);
-                }
+        let quadrant = |dx, dy, idxes: &mut HashSet<ChunkIndex>| for dr in 1..UPDATE_RADIUS + 1 {
+            for i in 0..dr + 1 {
+                let ax = start.0.x + (dr - i) * dx;
+                let ay = start.0.y + i * dy;
+                let chunk_idx = ChunkIndex::new(ax, ay);
+                idxes.insert(chunk_idx);
             }
         };
-        quadrant(-1,  1, &mut relevant);
-        quadrant(1,   1, &mut relevant);
+        quadrant(-1, 1, &mut relevant);
+        quadrant(1, 1, &mut relevant);
         quadrant(-1, -1, &mut relevant);
-        quadrant(1,  -1, &mut relevant);
+        quadrant(1, -1, &mut relevant);
 
         for idx in relevant.iter() {
             if self.terrain().index_in_bounds(idx) && !self.terrain.chunk_loaded(idx) {
@@ -558,7 +617,7 @@ impl World {
     pub fn update_terrain(&mut self) {
         let center = match self.player() {
             Some(p) => self.position(p).map_or(POINT_ZERO, |p| p),
-            None    => POINT_ZERO,
+            None => POINT_ZERO,
         };
 
         self.update_chunks(center).unwrap();

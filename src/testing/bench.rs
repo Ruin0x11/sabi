@@ -10,8 +10,8 @@ use world::WorldPosition;
 
 fn many_entities() -> GameContext {
     let mut context = test_context_bounded(128, 128);
-    for i in 1..32 {
-        for j in 1..32 {
+    for i in 0..32 {
+        for j in 0..32 {
             place_mob(&mut context.state.world, WorldPosition::new(i, j));
         }
     }
@@ -19,13 +19,35 @@ fn many_entities() -> GameContext {
 }
 
 #[bench]
+fn bench_ai(b: &mut Bencher) {
+    let mut context = test_context_bounded(128, 128);
+    place_mob(&mut context.state.world, WorldPosition::new(64, 64));
+
+    b.iter(|| { state::run_action(&mut context, Action::Wait); });
+}
+
+#[bench]
+fn bench_no_ai(b: &mut Bencher) {
+    let mut context = test_context_bounded(128, 128);
+    place_mob(&mut context.state.world, WorldPosition::new(64, 64));
+
+    b.iter(|| { state::run_action_no_ai(&mut context, Action::Wait); });
+}
+
+#[bench]
 #[ignore]
 fn bench_many_entities(b: &mut Bencher) {
     let mut context = many_entities();
 
-    b.iter(|| {
-        state::run_action(&mut context, Action::Wait);
-    });
+    b.iter(|| { state::run_action(&mut context, Action::Wait); });
+}
+
+#[bench]
+#[ignore]
+fn bench_many_entities_no_ai(b: &mut Bencher) {
+    let mut context = many_entities();
+
+    b.iter(|| { state::run_action_no_ai(&mut context, Action::Wait); });
 }
 
 #[bench]
@@ -43,7 +65,8 @@ fn bench_fov(b: &mut Bencher) {
 
 use renderer::RenderContext;
 
-#[bench] #[ignore]
+#[bench]
+#[ignore]
 fn bench_renderer_update(b: &mut Bencher) {
     let context = many_entities();
     let mut renderer = RenderContext::new();
@@ -54,13 +77,12 @@ fn bench_renderer_update(b: &mut Bencher) {
     });
 }
 
-#[bench] #[ignore]
+#[bench]
+#[ignore]
 fn bench_renderer_idle(b: &mut Bencher) {
     let context = many_entities();
     let mut renderer = RenderContext::new();
 
     renderer.update(&context);
-    b.iter(|| {
-        renderer.render();
-    });
+    b.iter(|| { renderer.render(); });
 }

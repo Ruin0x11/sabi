@@ -15,6 +15,7 @@ pub(super) fn cmd_debug_menu(context: &mut GameContext) -> CommandResult<()> {
     menu!(context,
           "Item test"      => debug_item_test(context),
           "List entities"  => debug_list_entities(context),
+          "Place enemies"  => debug_place_enemies(context),
           "Goto world"     => debug_goto_world(context),
           "Debug prefab"   => debug_prefab(context),
           "Deploy prefab"  => debug_deploy_prefab(context),
@@ -54,15 +55,29 @@ fn debug_list_entities(context: &mut GameContext) -> CommandResult<()> {
     {
         let world = &context.state.world;
         for e in world.entities() {
-            let name = world.ecs().names.get(*e).map_or("(unknown)".to_string(), |n| n.name.clone());
+            let name =
+                world.ecs().names.get(*e).map_or("(unknown)".to_string(), |n| n.name.clone());
             let pos = match world.position(*e) {
                 Some(pos) => pos.to_string(),
-                None      => "(unknown)".to_string(),
+                None => "(unknown)".to_string(),
             };
             mes.push_str(&format!("[name: {}, pos: {}] ", name, pos));
         }
     }
-    mes!(context.state.world, "{}", a=mes);
+    mes!(context.state.world, "{}", a = mes);
+    Ok(())
+}
+
+fn debug_place_enemies(context: &mut GameContext) -> CommandResult<()> {
+    mes!(context.state.world, "Where to place?");
+    let pos = select_tile(context, |_, _| ())?;
+
+    for i in 0..4 {
+        for j in 0..4 {
+            context.state.world.create(ecs::prefab::mob("putit", 50, "putit"), pos + Point::new(i, j));
+        }
+    }
+
     Ok(())
 }
 
@@ -85,7 +100,7 @@ fn debug_goto_world(context: &mut GameContext) -> CommandResult<()> {
     let input = player_input(context, "Which id?").ok_or(CommandError::Cancel)?;
 
     let id = input.parse::<u32>()
-        .map_err(|_| CommandError::Invalid("That's not a valid id."))?;
+                  .map_err(|_| CommandError::Invalid("That's not a valid id."))?;
 
     let new_world = world::serial::load_world(id)
         .map_err(|_| CommandError::Invalid("That world doesn't exist."))?;
@@ -103,7 +118,7 @@ fn debug_item_test(context: &mut GameContext) -> CommandResult<()> {
         }
     }
 
-    context.state.world.create(ecs::prefab::mob("putit", 10, "putit"), Point::new(5,5));
+    context.state.world.create(ecs::prefab::mob("putit", 100, "putit"), Point::new(5, 5));
 
     Ok(())
 }
@@ -113,7 +128,7 @@ fn goto_new_world(context: &mut GameContext, mut new_world: World) {
 
     let start_pos = match new_world.find_stairs_in() {
         Some(pos) => pos,
-        None      => POINT_ZERO,
+        None => POINT_ZERO,
     };
 
     world.move_to_map(new_world, start_pos).unwrap();

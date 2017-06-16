@@ -44,7 +44,9 @@ impl Spatial {
     }
 
     /// Insert an entity into space.
-    pub fn insert_at(&mut self, entity: Entity, loc: Point) { self.insert(entity, At(loc)); }
+    pub fn insert_at(&mut self, entity: Entity, loc: Point) {
+        self.insert(entity, At(loc));
+    }
 
     /// Return whether the parent entity or an entity contained in the parent
     /// entity contains entity e.
@@ -58,8 +60,10 @@ impl Spatial {
 
     /// Insert an entity into container.
     pub fn insert_in(&mut self, e: Entity, parent: Entity) {
-        assert!(!self.contains(e, parent),
-                "Trying to create circular containment");
+        assert!(
+            !self.contains(e, parent),
+            "Trying to create circular containment"
+        );
         self.insert(e, In(parent));
     }
 
@@ -91,7 +95,7 @@ impl Spatial {
                 // This was the only entity in the location.
                 // Drop the entry for this location from the index.
                 // (Need to drop out of scope for borrows reasons)
-                assert_eq!((*entities)[0],  entity);
+                assert_eq!((*entities)[0], entity);
             }
         }
         // We only end up here if we need to clear the container for the
@@ -136,14 +140,17 @@ impl Spatial {
         }
     }
 
-    pub fn iter(&self) -> btree_map::Iter<Entity, Place> { self.entity_to_place.iter() }
+    pub fn iter(&self) -> btree_map::Iter<Entity, Place> {
+        self.entity_to_place.iter()
+    }
 
     /// List entities at a location.
-    pub fn entities_at(&self, loc: Point) -> Vec<Entity> { self.entities(At(loc)) }
+    pub fn entities_at(&self, loc: Point) -> Vec<Entity> {
+        self.entities(At(loc))
+    }
 
     /// List entities in a container.
     pub fn entities_in(&self, parent: Entity) -> Vec<Entity> {
-        println!("ENTITIES IN: {:?}", self.place_to_entities);
         self.place_to_entities.range((Included(&In(parent)), Unbounded))
         // Consume the contingent elements for the parent container.
              .take_while(|&(ref k, _)| if let &&In(ref p) = k { *p == parent } else { false })
@@ -220,13 +227,15 @@ mod test {
         ];
 
         places.sort();
-        assert_eq!(places,
-                   vec![
-                       Place::In(e1, None),
-                       Place::In(e1, Some(Slot::Melee)),
-                       Place::In(e1, Some(Slot::Ranged)),
-                       Place::In(e2, None),
-                   ]);
+        assert_eq!(
+            places,
+            vec![
+                Place::In(e1, None),
+                Place::In(e1, Some(Slot::Melee)),
+                Place::In(e1, Some(Slot::Ranged)),
+                Place::In(e2, None),
+            ]
+        );
     }
 
     #[test]
@@ -243,10 +252,10 @@ mod test {
         spatial.insert(e1, p1);
         // spatial.insert(e2, p2);
 
-        let saved = bincode::serialize(&spatial, bincode::Infinite)
-            .expect("Spatial serialization failed");
-        let spatial2: Spatial = bincode::deserialize(&saved)
-            .expect("Spatial deserialization failed");
+        let saved =
+            bincode::serialize(&spatial, bincode::Infinite).expect("Spatial serialization failed");
+        let spatial2: Spatial =
+            bincode::deserialize(&saved).expect("Spatial deserialization failed");
 
         assert_eq!(spatial2.get(e1), Some(p1));
         // assert_eq!(spatial2.get(e2), Some(p2));
