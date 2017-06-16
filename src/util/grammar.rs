@@ -1,6 +1,7 @@
+use std::ascii::AsciiExt;
 use regex::Regex;
 
-#[derive(PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum VerbPerson {
     I,
     You,
@@ -8,7 +9,13 @@ pub enum VerbPerson {
     She,
     It,
     We,
-    They
+    They,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum VerbTense {
+    Past,
+    Present,
 }
 
 use self::VerbPerson::*;
@@ -16,60 +23,60 @@ use self::VerbPerson::*;
 impl VerbPerson {
     pub fn pronoun(&self) -> &str {
         match *self {
-            I    => "I",
-            You  => "you",
-            He   => "he",
-            She  => "she",
-            It   => "it",
-            We   => "we",
+            I => "I",
+            You => "you",
+            He => "he",
+            She => "she",
+            It => "it",
+            We => "we",
             They => "they",
         }
     }
 
-    pub fn exists(&self) -> &str {
+    pub fn is(&self) -> &str {
         match *self {
-            I    => "am",
-            You  => "are",
-            He   => "is",
-            She  => "is",
-            It   => "is",
-            We   => "are",
+            I => "am",
+            You => "are",
+            He => "is",
+            She => "is",
+            It => "is",
+            We => "are",
             They => "are",
         }
     }
 
-    pub fn existed(&self) -> &str {
+    pub fn was(&self) -> &str {
         match *self {
-            I    => "was",
-            You  => "were",
-            He   => "was",
-            She  => "was",
-            It   => "was",
-            We   => "were",
+            I => "was",
+            You => "were",
+            He => "was",
+            She => "was",
+            It => "was",
+            We => "were",
             They => "were",
         }
     }
 
     pub fn possessive(&self) -> &str {
         match *self {
-            I    => "my",
-            You  => "your",
-            He   => "his",
-            She  => "her",
-            It   => "its",
-            We   => "our",
+            I => "my",
+            You => "your",
+            He => "his",
+            She => "her",
+            It => "its",
+            We => "our",
             They => "their",
         }
     }
 
     pub fn accusative(&self) -> &str {
         match *self {
-            I    => "me",
-            You  => "you",
-            He   => "him",
-            She  => "her",
-            It   => "it",
-            We   => "us",
+            I => "me",
+            You => "you",
+            He => "him",
+            She => "her",
+            It => "it",
+            We => "us",
             They => "them",
         }
     }
@@ -78,6 +85,14 @@ impl VerbPerson {
 fn last_char(s: &str) -> Option<char> {
     if let Some((_, c)) = s.char_indices().rev().nth(0) {
         return Some(c);
+    }
+
+    None
+}
+
+fn last_two_chars(s: &str) -> Option<&str> {
+    if let Some((i, _)) = s.char_indices().rev().nth(1) {
+        return Some(&s[i..]);
     }
 
     None
@@ -122,12 +137,8 @@ pub fn make_plural(name: &str) -> String {
 
 fn is_vowel(ch: char) -> bool {
     match ch {
-        'a' |
-        'e' |
-        'i' |
-        'o' |
-        'u' => true,
-        _   => false,
+        'a' | 'e' | 'i' | 'o' | 'u' => true,
+        _ => false,
     }
 }
 
@@ -139,11 +150,7 @@ fn get_article(name: &str) -> &str {
     let first_char = |s: &str| s.chars().next().unwrap();
     let first = first_char(name);
 
-    if !is_vowel(first) {
-        "a"
-    } else {
-        "an"
-    }
+    if !is_vowel(first) { "a" } else { "an" }
 }
 
 pub fn make_count(name: &str, count: u32) -> String {
@@ -172,19 +179,90 @@ pub fn make_count_with_article(name: &str, count: u32) -> String {
 
 pub fn make_possessive(s: &str) -> String {
     match s {
-        "I"    => "my".to_string(),
-        "you"  => "your".to_string(),
-        "it"   => "its".to_string(),
-        "he"   => "his".to_string(),
-        "she"  => "her".to_string(),
-        "we"   => "our".to_string(),
+        "I" => "my".to_string(),
+        "you" => "your".to_string(),
+        "it" => "its".to_string(),
+        "he" => "his".to_string(),
+        "she" => "her".to_string(),
+        "we" => "our".to_string(),
         "they" => "their".to_string(),
         _ => {
             match last_char(s) {
                 Some('s') => format!("{}'", s),
-                _         => format!("{}'s", s),
+                _ => format!("{}'s", s),
             }
-        }
+        },
+    }
+}
+
+// staight ripoff of Jeff Lait's conjugation algorithm
+pub fn conjugate(verb: &str, person: VerbPerson, tense: VerbTense) -> String {
+    let re = Regex::new(r"(\w+)\s(.*)$").unwrap();
+    let caps_opt = re.captures(verb);
+
+    // Step 1: Check for preposition (spit at -> spits at)
+    if let Some(caps) = caps_opt {
+        let verb = caps.get(1).unwrap().as_str();
+        let rest = caps.get(2).unwrap().as_str();
+        let conj = format!("{} {}", conjugate(verb, person, tense), rest);
+        return conj;
+    }
+
+    // Step 2: Check for nonstandard verbs (be, have)
+    if verb == "be" {
+        let s = match tense {
+            VerbTense::Past => person.was(),
+            VerbTense::Present => person.is(),
+        };
+        return s.to_string();
+    }
+
+    if verb == "have" {
+        let s = match tense {
+            VerbTense::Past => "had",
+            VerbTense::Present => {
+                match person {
+                    He | She | It => "has",
+                    _ => "have",
+                }
+            },
+        };
+        return s.to_string();
+    }
+
+    let ending = last_two_chars(verb).expect(&format!("Not enough chars in verb \"{}\"!", verb));
+    let ending = ending.chars().collect::<Vec<char>>();
+
+    // Step 3: Build from infinitive
+    match tense {
+        VerbTense::Past => verb.to_string(),
+        VerbTense::Present => {
+            match person {
+                He | She | It => {
+                    if ending[1] == 's' || ending[1] == 'o' || ending[1] == 'x' ||
+                        ending[1] == 'z' ||
+                        (ending[0] == 's' && ending[1] == 'h') ||
+                        (ending[0] == 'c' && ending[1] == 'h')
+                    {
+                        // hit->hits
+                        // miss->misses
+                        // bash->bashes...
+                        format!("{}es", verb)
+                    } else if ending[1] == 'y' {
+                        if is_vowel(ending[0]) {
+                            // say -> says
+                            format!("{}s", verb)
+                        } else {
+                            // fly -> flies
+                            format!("{}ies", &verb[..2])
+                        }
+                    } else {
+                        format!("{}s", verb)
+                    }
+                },
+                I | You | We | They => verb.to_string(),
+            }
+        },
     }
 }
 
@@ -213,5 +291,35 @@ mod tests {
     fn test_count_with_article() {
         assert_eq!(&make_count_with_article("cat", 1), "a cat");
         assert_eq!(&make_count_with_article("archer", 1), "an archer");
+    }
+
+    #[test]
+    fn test_conjugate() {
+        assert_eq!(&conjugate("spit at", VerbPerson::It, VerbTense::Present), "spits at");
+
+        assert_eq!(&conjugate("be", VerbPerson::You, VerbTense::Past), "were");
+        assert_eq!(&conjugate("be", VerbPerson::You, VerbTense::Present), "are");
+        assert_eq!(&conjugate("be", VerbPerson::It, VerbTense::Past), "was");
+        assert_eq!(&conjugate("be", VerbPerson::It, VerbTense::Present), "is");
+
+        assert_eq!(&conjugate("have", VerbPerson::You, VerbTense::Past), "had");
+        assert_eq!(&conjugate("have", VerbPerson::You, VerbTense::Present), "have");
+        assert_eq!(&conjugate("have", VerbPerson::It, VerbTense::Present), "has");
+
+        assert_eq!(&conjugate("hit", VerbPerson::It, VerbTense::Present), "hits");
+        assert_eq!(&conjugate("miss", VerbPerson::It, VerbTense::Present), "misses");
+        assert_eq!(&conjugate("bash", VerbPerson::It, VerbTense::Present), "bashes");
+        assert_eq!(&conjugate("fly", VerbPerson::It, VerbTense::Present), "flies");
+        assert_eq!(&conjugate("say", VerbPerson::It, VerbTense::Present), "says");
+        assert_eq!(&conjugate("go", VerbPerson::It, VerbTense::Present), "goes");
+        assert_eq!(&conjugate("watch", VerbPerson::It, VerbTense::Present), "watches");
+        assert_eq!(&conjugate("fix", VerbPerson::It, VerbTense::Present), "fixes");
+        assert_eq!(&conjugate("buzz", VerbPerson::It, VerbTense::Present), "buzzes");
+        assert_eq!(&conjugate("have", VerbPerson::It, VerbTense::Present), "has");
+        assert_eq!(&conjugate("catch", VerbPerson::It, VerbTense::Present), "catches");
+
+        assert_eq!(&conjugate("hit", VerbPerson::I, VerbTense::Present), "hit");
+        assert_eq!(&conjugate("hit", VerbPerson::We, VerbTense::Present), "hit");
+        assert_eq!(&conjugate("hit", VerbPerson::They, VerbTense::Present), "hit");
     }
 }

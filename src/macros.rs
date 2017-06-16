@@ -19,9 +19,29 @@ macro_rules! mes {
         use util::grammar;
         $(
             let $x = $y;
-        )*
+        )*;
 
-            $w.message(&grammar::capitalize(&format!($e, $($x),+)));
+        $w.message(&grammar::capitalize(&format!($e, $($x),+)));
+    };
+}
+
+// format_mes!(world, entity, "<u> <kill> {}! ({})", a = other.name(world), b = damage);
+macro_rules! format_mes {
+    ($world:expr, $entity:expr, $format:expr) => {
+        use util::format;
+        let formatted = format::format_message($format, $entity, $world);
+        $world.message(&formatted);
+    };
+    ($world:expr, $entity:expr, $format:expr, $( $x:ident=$y:expr ),+) => {
+        use util::format;
+        $(
+            let $x = $y;
+        )*;
+
+        let raw = format!($format, $($x),+);
+
+        let formatted = format::format_message(&raw, $entity, $world);
+        $world.message(&formatted);
     };
 }
 
@@ -41,23 +61,23 @@ macro_rules! menu {
 
             $(
                 temp_vec.push($x.to_string());
-            )*
+            )*;
 
-                match menu_choice($context, temp_vec) {
-                    Some(idx) => {
-                        let mut i: usize = 0;
+            match menu_choice($context, temp_vec) {
+                Some(idx) => {
+                    let mut i: usize = 0;
 
-                        $(
-                            if idx == i {
-                                return $y;
-                            }
-                            i += 1;
-                        )*
+                    $(
+                        if idx == i {
+                            return $y;
+                        }
+                        i += 1;
+                    )*
 
-                            Err(CommandError::Cancel)
-                    },
-                    None => Err(CommandError::Cancel)
-                }
+                        Err(CommandError::Cancel)
+                },
+                None => Err(CommandError::Cancel)
+            }
 
         }
     }
@@ -80,7 +100,7 @@ macro_rules! prefab_args {
 
             $(
                 res.insert(stringify!($var).to_string(), stringify!($value).to_string());
-            )*
+            )*;
 
             res
         }

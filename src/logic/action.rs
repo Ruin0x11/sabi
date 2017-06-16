@@ -56,7 +56,10 @@ fn action_move_entity(world: &mut World, entity: Entity, dir: Direction) -> Acti
 fn action_swing_at(world: &mut World, attacker: Entity, other: Entity) -> ActionResult {
     let damage;
     {
-        if !world.position(attacker).unwrap().is_next_to(world.position(other).unwrap()) {
+        if !world.position(attacker)
+                 .unwrap()
+                 .is_next_to(world.position(other).unwrap())
+        {
             return Err(());
         }
 
@@ -70,17 +73,10 @@ fn action_swing_at(world: &mut World, attacker: Entity, other: Entity) -> Action
     }
     world.ecs_mut().healths.map_mut(|h| h.hurt(damage), other);
 
-    mes!(world,
-         "{} hits {}! ({})",
-         a = attacker.name(world),
-         b = other.name(world),
-         c = damage);
+    format_mes!(world, attacker, "%U <hit> {}! ({})", a = other.name(world), b = damage);
 
     if other.is_dead(world) {
-        mes!(world,
-             "{} kills {}!",
-             a = attacker.name(world),
-             b = other.name(world));
+        format_mes!(world, attacker, "%U <kill> {}! ({})", a = other.name(world), b = damage);
     }
 
     Ok(())
@@ -88,26 +84,20 @@ fn action_swing_at(world: &mut World, attacker: Entity, other: Entity) -> Action
 
 fn action_pickup(world: &mut World, parent: Entity, target: Entity) -> ActionResult {
     world.place_entity_in(parent, target);
-    mes!(world,
-         "{} picks up {}.",
-         a = parent.name(world),
-         b = target.name(world));
+    mes!(world, "{} picks up {}.", a = parent.name(world), b = target.name(world));
     Ok(())
 }
 
 fn action_drop(world: &mut World, entity: Entity, target: Entity) -> ActionResult {
     let pos = world.position(entity).unwrap();
     world.place_entity(target, pos);
-    mes!(world,
-         "{} drops {}.",
-         a = entity.name(world),
-         b = target.name(world));
+    format_mes!(world, entity, "%U <drop> {}.", a = target.name(world));
     Ok(())
 }
 
 fn action_try_teleport(world: &mut World, entity: Entity, pos: WorldPosition) -> ActionResult {
     if world.can_walk(pos, Walkability::MonstersBlocking) {
-        mes!(world, "Suddenly, {} disappears.", a = entity.name(world));
+        format_mes!(world, entity, "Suddenly, %U <disappear>.");
         world.place_entity(entity, pos);
         Ok(())
     } else {

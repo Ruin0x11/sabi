@@ -85,7 +85,7 @@ impl RenderContext {
         let display = glutin::WindowBuilder::new()
             .with_vsync()
             .with_dimensions(SCREEN_WIDTH, SCREEN_HEIGHT)
-            .with_title("Tile")
+            .with_title("sabi")
             .build_glium()
             .unwrap();
 
@@ -181,32 +181,20 @@ impl RenderContext {
 
         let millis = self.accumulator.millis_since_start();
 
-        self.background.render(
-            &self.backend,
-            &mut target,
-            &self.viewport,
-        );
+        self.background
+            .render(&self.backend, &mut target, &self.viewport);
 
         self.tilemap.redraw(&self.backend, millis);
-        self.tilemap.render(
-            &self.backend,
-            &mut target,
-            &self.viewport,
-        );
+        self.tilemap
+            .render(&self.backend, &mut target, &self.viewport);
 
         self.spritemap.redraw(&self.backend, millis);
-        self.spritemap.render(
-            &self.backend,
-            &mut target,
-            &self.viewport,
-        );
+        self.spritemap
+            .render(&self.backend, &mut target, &self.viewport);
 
         self.shadowmap.redraw(&self.backend, millis);
-        self.shadowmap.render(
-            &self.backend,
-            &mut target,
-            &self.viewport,
-        );
+        self.shadowmap
+            .render(&self.backend, &mut target, &self.viewport);
 
         self.ui.render(&self.backend, &mut target, &self.viewport);
 

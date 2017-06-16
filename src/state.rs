@@ -49,6 +49,7 @@ impl GameState {
 pub fn game_step(context: &mut GameContext, input: Option<Key>) {
     let dead = check_player_dead(&mut context.state.world);
     if dead {
+        restart_game(context);
         return;
     }
 

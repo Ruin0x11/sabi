@@ -7,6 +7,8 @@ pub use self::grid_from_str::make_grid_from_str;
 pub mod fov;
 pub mod grammar;
 pub mod toml;
+#[macro_use]
+pub mod format;
 
 use std::time::Duration;
 
@@ -22,5 +24,5 @@ pub fn read_string(path: &str) -> String {
 
 pub fn get_duration_millis(duration: &Duration) -> u64 {
     let nanos = duration.subsec_nanos() as u64;
-    (1000*1000*1000 * duration.as_secs() + nanos)/(1000 * 1000)
+    (1000 * 1000 * 1000 * duration.as_secs() + nanos) / (1000 * 1000)
 }
