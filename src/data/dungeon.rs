@@ -195,7 +195,7 @@ impl DungeonPlan {
         DungeonPlan {
             prufer_code: prufer_code,
             min_floor_length: len,
-            max_floor_length: len,
+            max_floor_length: len + 1,
             kind: kind,
         }
     }
