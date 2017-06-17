@@ -61,79 +61,66 @@ fn prufer_to_edges(prufer: &[usize]) -> Vec<(usize, usize)> {
     edges
 }
 
-struct DungeonFloor {
+struct DungeonSection {
     kind: String,
-    map_ids: Vec<Option<MapId>>,
+    floor_ids: Vec<Option<MapId>>,
 }
 
-impl DungeonFloor {
+impl DungeonSection {
     pub fn new(kind: &str, length: usize) -> Self {
         assert!(length > 0);
-        DungeonFloor {
+        DungeonSection {
             kind: kind.to_string(),
-            map_ids: vec![None; length],
+            floor_ids: vec![None; length],
         }
     }
 
     pub fn exists(&self) -> bool {
-        self.map_ids.first().unwrap().is_some()
+        self.floor_ids.first().unwrap().is_some()
     }
 
     pub fn generate(&mut self, current: &World) -> Option<World> {
         self.frontier().map(|idx| {
-            let w = if !self.exists() {
-                World::new()
-                    .from_other_world(current)
-                    .with_prefab(&self.kind)
-                    .build()
-                    .unwrap()
-            } else {
-                assert!(idx >= 1);
-                assert!(&self.map_ids[idx].is_none());
+            let world = World::new()
+                .from_other_world(current)
+                .with_prefab(&self.kind)
+                .build()
+                .unwrap();
 
-                let frontier = &self.map_ids[idx - 1].unwrap();
-                assert!(*frontier == current.flags().map_id);
-
-                World::new()
-                    .from_other_world(current)
-                    .with_prefab(&self.kind)
-                    .build()
-                    .unwrap()
+            if self.exists() {
+                // Do a sanity check to ensure we're right before the world to be generated
+                let floor_before_frontier = &self.floor_ids[idx - 1].unwrap();
+                assert!(*floor_before_frontier == current.flags().map_id);
             };
 
-            self.map_ids[idx] = Some(w.flags().map_id);
+            self.floor_ids[idx] = Some(world.flags().map_id);
 
-            w
+            world
         })
     }
 
-    fn has_map(&self, target: MapId) -> bool {
-        self.map_ids
+    fn has_floor(&self, target: MapId) -> bool {
+        self.floor_ids
             .iter()
             .any(|id| id.map_or(false, |i| i == target))
     }
 
-    // The position of the next ungenerated dungeon map in this section
+    /// Gets the position of the next ungenerated dungeon floor in this section.
     fn frontier(&self) -> Option<usize> {
-        println!("our ids: {:?}", self.map_ids);
-        if !self.exists() {
-            return Some(0);
-        }
-
-        self.map_ids.iter().position(|&id| id.is_none())
+        self.floor_ids.iter().position(|&id| id.is_none())
     }
 }
 
 pub struct Dungeon {
     adjacencies: Vec<HashSet<usize>>,
-    floors: Vec<DungeonFloor>,
+    sections: Vec<DungeonSection>,
 }
 
 fn prune_adjacencies(
     adjacencies: &mut Vec<HashSet<usize>>,
     current: usize,
     visited: &mut HashSet<usize>,
-) {
+    ) {
     for a in adjacencies[current].clone().iter() {
         if !visited.contains(a) {
             {
@@ -148,7 +135,7 @@ fn prune_adjacencies(
     }
 }
 
-fn prufer_code(min_len: usize, max_len: usize, weight: u32, step: u32) -> Vec<usize> {
+fn generate_prufer_code(min_len: usize, max_len: usize, weight: u32, step: u32) -> Vec<usize> {
     let len = rand::thread_rng().gen_range(min_len, max_len + 1);
     let mut weights = vec![weight; len];
     let mut code = Vec::new();
@@ -164,14 +151,14 @@ fn prufer_code(min_len: usize, max_len: usize, weight: u32, step: u32) -> Vec<us
 fn choose_prufer_digit(weights: &mut Vec<u32>, step: u32) -> usize {
     let mut choices: Vec<Weighted<usize>> =
         weights.iter()
-               .enumerate()
-               .map(|(i, &w)| {
-                        Weighted {
-                            weight: w,
-                            item: i + 1,
-                        }
-                    })
-               .collect();
+        .enumerate()
+        .map(|(i, &w)| {
+            Weighted {
+                weight: w,
+                item: i + 1,
+            }
+        })
+    .collect();
 
     let wc = WeightedChoice::new(&mut choices);
     let mut rng = rand::thread_rng();
@@ -185,8 +172,8 @@ fn choose_prufer_digit(weights: &mut Vec<u32>, step: u32) -> usize {
 
 pub struct DungeonPlan {
     prufer_code: Vec<usize>,
-    min_floor_length: usize,
-    max_floor_length: usize,
+    min_section_length: usize,
+    max_section_length: usize,
     kind: String,
 }
 
@@ -194,18 +181,18 @@ impl DungeonPlan {
     pub fn new(prufer_code: Vec<usize>, len: usize, kind: String) -> Self {
         DungeonPlan {
             prufer_code: prufer_code,
-            min_floor_length: len,
-            max_floor_length: len + 1,
+            min_section_length: len,
+            max_section_length: len + 1,
             kind: kind,
         }
     }
 
     pub fn easy() -> Self {
         DungeonPlan {
-            prufer_code: prufer_code(2, 4, 20, 10),
-            min_floor_length: 2,
-            max_floor_length: 5,
-            kind: "blank".to_string(),
+            prufer_code: generate_prufer_code(2, 4, 20, 10),
+            min_section_length: 2,
+            max_section_length: 5,
+            kind: "cave".to_string(),
         }
     }
 
@@ -217,9 +204,9 @@ impl DungeonPlan {
             adjacencies.push(HashSet::new());
         }
 
-        let mut floors = Vec::with_capacity(vertex_count);
+        let mut sections = Vec::with_capacity(vertex_count);
         for _ in 0..vertex_count {
-            floors.push(generate_floor(self.min_floor_length, self.max_floor_length, &self.kind));
+            sections.push(generate_section(self.min_section_length, self.max_section_length, &self.kind));
         }
 
         let edges = prufer_to_edges(&self.prufer_code);
@@ -234,36 +221,36 @@ impl DungeonPlan {
 
         Dungeon {
             adjacencies: adjacencies,
-            floors: floors,
+            sections: sections,
         }
     }
 }
 
-fn generate_floor(min_len: usize, max_len: usize, kind: &str) -> DungeonFloor {
-    DungeonFloor::new(kind, rand::thread_rng().gen_range(min_len, max_len))
+fn generate_section(min_len: usize, max_len: usize, kind: &str) -> DungeonSection {
+    DungeonSection::new(kind, rand::thread_rng().gen_range(min_len, max_len))
 }
 
 impl Dungeon {
     /// Generate the next floor of this dungeon, given the world representing the current dungeon
     /// floor.
     pub fn generate(&mut self, current: &World) -> Option<World> {
-        let floor = self.floor_for_map_id(current.flags().map_id);
-        floor.generate(current)
+        let section = self.section_for_map_id(current.flags().map_id);
+        section.generate(current)
 
     }
 
-    fn floor_for_map_id(&mut self, id: MapId) -> &mut DungeonFloor {
+    fn section_for_map_id(&mut self, id: MapId) -> &mut DungeonSection {
         // to get around borrowing
-        let found_floor = self.floors
-                              .iter_mut()
-                              .find(|floor| floor.has_map(id))
-                              .is_some();
-        if !found_floor {
-            return self.floors.first_mut().unwrap();
-        }
-        self.floors
+        let found_section = self.sections
             .iter_mut()
-            .find(|floor| floor.has_map(id))
+            .find(|section| section.has_floor(id))
+            .is_some();
+        if !found_section {
+            return self.sections.first_mut().unwrap();
+        }
+        self.sections
+            .iter_mut()
+            .find(|section| section.has_floor(id))
             .unwrap()
     }
 
@@ -271,19 +258,19 @@ impl Dungeon {
         &self.adjacencies[idx]
     }
 
-    pub fn floors(&self) -> usize {
+    pub fn sections(&self) -> usize {
         self.adjacencies.len()
     }
 }
 
 impl fmt::Display for Dungeon {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for (i, floor) in self.floors.iter().enumerate() {
+        for (i, section) in self.sections.iter().enumerate() {
             writeln!(f,
-                     "Floor: {} ({}) len: {} children: {:?}",
+                     "section: {} ({}) len: {} children: {:?}",
                      i,
-                     floor.kind,
-                     floor.map_ids.len(),
+                     section.kind,
+                     section.floor_ids.len(),
                      self.adjacencies[i])?;
         }
         Ok(())
@@ -309,7 +296,7 @@ mod tests {
     fn test_branches() {
         let dungeon = DungeonPlan::new(vec![3, 3, 3, 4], 1, "blank".to_string()).build();
 
-        assert_eq!(dungeon.floors(), 6);
+        assert_eq!(dungeon.sections(), 6);
         assert_eq!(dungeon.branches(0), &hashset(&[2]));
         assert_eq!(dungeon.branches(1), &hashset(&[]));
         assert_eq!(dungeon.branches(2), &hashset(&[1, 3, 4]));
@@ -323,10 +310,10 @@ mod tests {
         let mut context = test_context();
         let world = &mut context.state.world;
 
-        let floor = DungeonFloor::new("blank", 2);
+        let section = DungeonSection::new("blank", 2);
         let mut dungeon = Dungeon {
             adjacencies: vec![HashSet::new()],
-            floors: vec![floor],
+            sections: vec![section],
         };
 
         let floor_a = dungeon.generate(world);

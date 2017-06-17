@@ -72,7 +72,12 @@ impl EntityQuery for Entity {
     fn can_see_other(&self, target: Entity, world: &World) -> bool {
         if let Some(target_pos) = world.position(target) {
             if !world.is_player(*self) {
-                return self.has_los(target_pos, world);
+                if world.is_player(target) {
+                    // enemies can always see the player
+                    return true
+                } else {
+                    return self.has_los(target_pos, world);
+                }
             }
 
             let fov = world.ecs().fovs.get(*self);

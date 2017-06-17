@@ -49,6 +49,25 @@ pub struct Prefab {
     pub markers: Markers,
 }
 
+impl fmt::Display for Prefab {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "\n")?;
+        for j in 0..self.size.y {
+            for i in 0..self.size.x {
+                let pos = Point::new(i, j);
+                let ch = if self.get(&pos).can_pass_through() {
+                    '.'
+                } else {
+                    '#'
+                };
+                write!(f, "{}", ch)?;
+            }
+            write!(f, "\n")?;
+        }
+        Ok(())
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub enum PrefabMarker {
     Mob(String),

@@ -1,4 +1,4 @@
-world = {}
+-- table "world" was predeclared in lua/world.rs
 
 function world.size()
    return world.point(self:width() - 1, self:height() - 1)
@@ -13,12 +13,7 @@ SOUTHEAST = "Southeast"
 EAST = "East"
 NORTHEAST = "Northeast"
 
-dir_name_table =
-   {
-
-   }
-
-dir_table =
+world.dir_table =
 {
       [NORTH]     = { 0,  -1 } ,
       [NORTHWEST] = { -1, -1 } ,
@@ -31,7 +26,11 @@ dir_table =
 }
 
 function world.dir(n)
-   local x = dir_table[n][1]
-   local y = dir_table[n][2]
+   local x = world.dir_table[n][1]
+   local y = world.dir_table[n][2]
    return world.point(x, y)
+end
+
+function world.dist(a, b)
+   return world.dist_raw(a.x, a.y, b.x, b.y)
 end

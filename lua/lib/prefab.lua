@@ -52,11 +52,10 @@ function prefab_metatable:random_point(filter)
    local iterations = 100
    repeat
       iterations = iterations - 1
-     point = rand.point_zero_to(self:size())
-     log.info(tostring(point))
-     if filter(point) == true then
-        found = true
-     end
+      point = rand.point_zero_to(self:size())
+      if filter(point) == true then
+         found = true
+      end
    until found or iterations <= 0
 
    return point

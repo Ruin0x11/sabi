@@ -1,6 +1,7 @@
 pub mod log;
 mod random;
 pub use self::log::*;
+mod world;
 
 use std::fs::File;
 use std::io::Read;
@@ -20,7 +21,9 @@ pub fn log(mes: String) {
 }
 
 pub fn run_script<'a, 'lua>(lua: &'a mut Lua<'lua>, filename: &str) -> Result<(), hlua::LuaError>
-           {
+{
+    // refresh
+    open_lua_libs(lua)?;
     let mut script = String::new();
     let full_path = format!("{}/{}.lua", SCRIPT_DIRECTORY, filename);
     File::open(full_path).expect("No such script file").read_to_string(&mut script).unwrap();
@@ -32,8 +35,13 @@ fn open_libs(lua: &mut Lua) -> Result<(), hlua::LuaError> {
 
     self::log::add_lua_interop(lua);
     self::random::add_lua_interop(lua);
+    self::world::add_lua_interop(lua);
     prefab::add_lua_interop(lua);
 
+    open_lua_libs(lua)
+}
+
+fn open_lua_libs(lua: &mut Lua) -> Result<(), hlua::LuaError> {
     run_script(lua, "lib/init")
 }
 

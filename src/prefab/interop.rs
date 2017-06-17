@@ -92,8 +92,8 @@ fn lua_height(prefab: &Prefab) -> i32 {
     prefab.height()
 }
 
-fn lua_print(_prefab: &Prefab) {
-
+fn lua_print(prefab: &Prefab) {
+    lua::lua_log_info(format!("{}", prefab));
 }
 
 fn lua_place_door(prefab: &mut Prefab, x: i32, y: i32) {
@@ -122,8 +122,6 @@ pub fn add_lua_interop(lua: &mut Lua) {
     prefab_namespace.set("new_raw", hlua::function3(lua_new));
 }
 
-// this macro implements the required trait so that we can *push* the object to lua
-// (ie. move it inside lua)
 implement_lua_push!(Prefab, |mut metatable| {
     let mut index = metatable.empty_array("__index");
 
@@ -142,7 +140,6 @@ implement_lua_push!(Prefab, |mut metatable| {
     index.set("print", hlua::function1(lua_print));
 });
 
-// this macro implements the require traits so that we can *read* the object back
 implement_lua_read!(Prefab);
 
 #[cfg(test)]
