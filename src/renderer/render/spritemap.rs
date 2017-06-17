@@ -146,25 +146,6 @@ impl<'a> Renderable for SpriteMap {
 
             let instances = &self.instances[pass];
 
-            // Pass 1: Shadows
-            let uniforms =
-                uniform! {
-                    matrix: proj,
-                    tile_size: [48u32; 2],
-                    tex: texture.sampled()
-                        .wrap_function(glium::uniforms::SamplerWrapFunction::Clamp)
-                        .minify_filter(glium::uniforms::MinifySamplerFilter::Nearest)
-                        .magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
-                };
-
-            target.draw((&self.vertices, instances.per_instance().unwrap()),
-                        &self.indices,
-                        &self.shadow_program,
-                        &uniforms,
-                        &params)
-                  .unwrap();
-
-            // Pass 2: Sprites
             let uniforms =
                 uniform! {
                     matrix: proj,

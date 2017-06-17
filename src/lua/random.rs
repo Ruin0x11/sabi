@@ -1,20 +1,21 @@
-use prefab::{PrefabError, PrefabResult};
 use rand::{self, Rng};
 use hlua::{self, Lua};
+
+use prefab::{PrefabError, PrefabResult};
 
 fn lua_between(a: i32, b: i32) -> PrefabResult<i32> {
     if a == b {
         return Ok(a);
     }
     if a > b {
-        return Err(PrefabError::BadRange(a, b))
+        return Err(PrefabError::BadRange(a, b));
     }
     Ok(rand::thread_rng().gen_range(a, b))
 }
 
 fn lua_zero_to(n: i32) -> PrefabResult<i32> {
     if n <= 0 {
-        return Err(PrefabError::BadRange(0, n))
+        return Err(PrefabError::BadRange(0, n));
     }
     Ok(rand::thread_rng().gen_range(0, n))
 }
