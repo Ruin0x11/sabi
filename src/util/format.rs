@@ -54,6 +54,7 @@ fn format_message_internal<W: Write>(
             Normal if c == '%' => state = Formatter,
             Normal => write!(writer, "{}", c)?,
             TagBegin if c == '<' => {
+                // literal '<' is "<<"
                 state = Normal;
                 write!(writer, "{}", c)?;
             },
@@ -71,18 +72,7 @@ fn format_message_internal<W: Write>(
             Tag => buf.push(c),
             Formatter => {
                 state = Normal;
-                let text = match c {
-                    'u' => entity.verb_person(world).pronoun().to_string(),
-                    'U' => entity.name(world),
-                    'R' => {
-                        let name = entity.name(world);
-                        grammar::make_possessive(&name)
-                    },
-                    'r' => entity.verb_person(world).possessive().to_string(),
-                    'A' => entity.verb_person(world).accusative().to_string(),
-                    _ => "".to_string(),
-                };
-
+                let text = expand_format_specifier(c, entity, world);
                 write!(writer, "{}", text)?;
             },
         }
@@ -94,14 +84,46 @@ fn format_message_internal<W: Write>(
     }
 }
 
+fn expand_format_specifier(c: char, entity: Entity, world: &World) -> String {
+    match c {
+        'u' => entity.verb_person(world).pronoun().to_string(),
+        'U' => entity.name(world),
+        'r' => entity.verb_person(world).possessive().to_string(),
+        'R' => {
+            let name = entity.name(world);
+            grammar::make_possessive(&name)
+        },
+        'A' => entity.verb_person(world).accusative().to_string(),
+        '%' => "%".to_string(),
+        _ => "".to_string(),
+    }
+}
+
+/// Formats a string with some properties of the provided entity. Format specifiers and tagged
+/// verbs can be used.
+///
+/// To conjugate a verb, surround the infinitive with angle brackets ("<>").
+///
+/// For easier use with `format!`, see `format_mes!`
+///
+/// Available format specifiers:
+/// - `%u`: Pronoun, "I/it/they"
+/// - `%U`: Full name, "the putit"
+/// - `%r`: Possessive, "my/its/their"
+/// - `%R`: Named possessive, "the putit's"
+/// - `%A`: Accusative, "me/it/them"
+/// - `%%`: Literal '%'
+/// - `<<`: Literal '<'
+///
+/// ```no_run
+/// format_message("%U <hit> the brick wall. It hurts %A.", entity, world);
+/// ```
 pub fn format_message(s: &str, entity: Entity, world: &World) -> String {
     let mut writer = Vec::with_capacity(s.len());
     format_message_internal(s, &mut writer, entity, world).unwrap();
     let mes = String::from_utf8(writer).unwrap();
     grammar::capitalize(&mes)
 }
-
-// fn expand_subject(s: &str, name: &str) -> String {}
 
 #[cfg(test)]
 mod tests {
@@ -121,11 +143,14 @@ mod tests {
         assert_eq!(&format_message("%u <kill> it.", player, world), "You kill it.");
         assert_eq!(&format_message("%u <target> you.", e, world), "It targets you.");
         assert_eq!(&format_message("%U <evaporate>!", e, world), "The putit evaporates!");
+
         assert_eq!(&format_message("%R dreams sound brightly.", player, world),
                    "Your dreams sound brightly.");
         assert_eq!(&format_message("%R dreams sound brightly.", e, world),
                    "The putit's dreams sound brightly.");
         assert_eq!(&format_message("%r parameters:", e, world), "Its parameters:");
+
         assert_eq!(&format_message("<<>>", player, world), "<>>");
+        assert_eq!(&format_message("%%", player, world), "%");
     }
 }

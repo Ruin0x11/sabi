@@ -77,10 +77,11 @@ impl Viewport {
         let (_, h) = self.scaled_size();
         let conv = |i| (i as f32 * self.scale) as u32;
 
-        glium::Rect { left:   conv(ax),
-                      bottom: conv(ay) + conv(h - ah),
-                      width:  conv(aw - ax),
-                      height: conv(ah) - conv(ay * 2),
+        glium::Rect {
+            left: conv(ax),
+            bottom: conv(ay) + conv(h - ah),
+            width: conv(aw - ax),
+            height: conv(ah) - conv(ay * 2),
         }
     }
 }

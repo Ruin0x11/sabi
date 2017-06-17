@@ -7,6 +7,10 @@ name="sprite2.png"
 tile_size=[24, 24]
 
 [[maps]]
+name="shad.png"
+tile_size=[48, 48]
+
+[[maps]]
 name="chara.png"
 tile_size=[48, 48]
 
@@ -37,5 +41,11 @@ is_autotile=false
 [[tiles]]
 name="putit"
 atlas="chara.png"
+offset=[0, 0]
+is_autotile=false
+
+[[tiles]]
+name="shadow"
+atlas="shad.png"
 offset=[0, 0]
 is_autotile=false

@@ -14,14 +14,25 @@ use stats::properties::Properties;
 // For persistence between worlds, because the entity ID may change.
 pub struct Uuid {}
 
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub enum Gender {
+    Male,
+    Female,
+    Unknown,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Name {
     pub name: String,
+    pub gender: Gender,
 }
 
 impl Name {
     pub fn new(name: &str) -> Self {
-        Name { name: name.to_string() }
+        Name {
+            name: name.to_string(),
+            gender: Gender::Unknown,
+        }
     }
 }
 
@@ -160,7 +171,8 @@ impl Log {
 
 impl Serialize for Log {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
+    where
+        S: Serializer,
     {
         serializer.serialize_str(&self.ident)
     }
@@ -168,7 +180,8 @@ impl Serialize for Log {
 
 impl<'de> Deserialize<'de> for Log {
     fn deserialize<D>(deserializer: D) -> Result<Log, D::Error>
-        where D: Deserializer<'de>
+    where
+        D: Deserializer<'de>,
     {
         struct LogVisitor;
 
@@ -180,7 +193,8 @@ impl<'de> Deserialize<'de> for Log {
             }
 
             fn visit_str<E>(self, value: &str) -> Result<Log, E>
-                where E: de::Error
+            where
+                E: de::Error,
             {
                 let logger = get_mob_log();
                 let log = Log {

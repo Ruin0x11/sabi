@@ -6,6 +6,7 @@
 
 use calx_ecs::Entity;
 
+use ecs::components::Gender;
 use point::{Point, LineIter};
 use util::grammar::VerbPerson;
 use world::traits::*;
@@ -36,8 +37,10 @@ impl EntityQuery for Entity {
     }
 
     fn name(&self, world: &World) -> String {
-        let basename = world.ecs().names.get(*self)
-            .map_or("something".to_string(), |n| n.name.clone());
+        let basename = world.ecs()
+                            .names
+                            .get(*self)
+                            .map_or("something".to_string(), |n| n.name.clone());
 
         if world.is_player(*self) {
             return "you".to_string();
@@ -47,16 +50,23 @@ impl EntityQuery for Entity {
     }
 
     fn verb_person(&self, world: &World) -> VerbPerson {
+        let gender = world.ecs()
+                          .names
+                          .get(*self)
+                          .map_or(Gender::Unknown, |n| n.gender);
         if world.is_player(*self) {
             VerbPerson::You
         } else {
-            VerbPerson::It
+            match gender {
+                Gender::Male => VerbPerson::He,
+                Gender::Female => VerbPerson::She,
+                _ => VerbPerson::It,
+            }
         }
     }
 
     fn is_dead(&self, world: &World) -> bool {
-        world.ecs().healths.get(*self)
-            .map_or(true, |h| h.is_dead())
+        world.ecs().healths.get(*self).map_or(true, |h| h.is_dead())
     }
 
     fn can_see_other(&self, target: Entity, world: &World) -> bool {

@@ -166,6 +166,7 @@ impl RenderContext {
 
     pub fn reload_shaders(&mut self) {
         self.background.reload_shaders(&self.backend);
+        self.spritemap.reload_shaders(&self.backend);
     }
 
     pub fn update(&mut self, context: &GameContext) {
