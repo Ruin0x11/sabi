@@ -16,7 +16,16 @@ impl Dungeon {
     /// Generate the next floor of this dungeon, given the world representing the current dungeon
     /// floor.
     pub fn generate(&mut self, current: &World) -> Option<World> {
-        let section = self.section_for_map_id(current.flags().map_id);
+        let section = self.section_for_map_id_mut(current.flags().map_id);
+        section.generate(current)
+    }
+
+    pub fn generate_branch(&mut self, current: &World, branch: usize) -> Option<World> {
+        assert!(self.is_branch_point(current.flags().map_id));
+        assert!(branch < self.sections.len());
+        assert!(!self.sections[branch].exists());
+
+        let section = &mut self.sections[branch];
         section.generate(current)
     }
 
@@ -24,14 +33,34 @@ impl Dungeon {
         self.sections.iter().any(|s| s.has_floor(id))
     }
 
-    fn section_for_map_id(&mut self, id: MapId) -> &mut DungeonSection {
+    fn map_id_to_section_index(&self, map_id: MapId) -> Option<usize> {
+        self.sections.iter().position(|s| s.has_floor(map_id))
+    }
+
+    fn section_for_map_id(&self, id: MapId) -> &DungeonSection {
+        let found_section = self.sections
+            .iter()
+            .find(|section| section.has_floor(id));
+        if !found_section.is_some() {
+            if !self.exists() {
+                // Dungeon hasn't been entered before, so start off in the first section.
+                return self.sections.first().unwrap();
+            } else {
+                panic!("Map id {} doesn't exist in dungeon!", id);
+            }
+        }
+
+        found_section.unwrap()
+    }
+
+    fn section_for_map_id_mut(&mut self, id: MapId) -> &mut DungeonSection {
         // to get around borrowing
         let found_section = self.sections
             .iter_mut()
             .find(|section| section.has_floor(id))
             .is_some();
         if !found_section {
-            if !self.sections.first().unwrap().exists() {
+            if !self.exists() {
                 // Dungeon hasn't been entered before, so start off in the first section.
                 return self.sections.first_mut().unwrap();
             } else {
@@ -44,8 +73,20 @@ impl Dungeon {
             .unwrap()
     }
 
-    pub fn branches(&self, idx: usize) -> &HashSet<usize> {
-        &self.adjacencies[idx]
+    pub fn is_leaf(&self, id: MapId) -> bool {
+        self.map_id_to_section_index(id).map_or(true, |i| self.adjacencies[i].is_empty())
+    }
+
+    pub fn is_branch_point(&self, id: MapId) -> bool {
+        self.section_for_map_id(id).is_branch_point(id)
+    }
+
+    pub fn branches(&self, id: MapId) -> Option<&HashSet<usize>> {
+        self.map_id_to_section_index(id).map(|i| &self.adjacencies[i])
+    }
+
+    pub fn exists(&self) -> bool {
+        self.sections.first().unwrap().exists()
     }
 
     pub fn sections(&self) -> usize {
@@ -170,7 +211,8 @@ impl DungeonSection {
                 .unwrap();
 
             if self.exists() {
-                // Do a sanity check to ensure we're right before the world to be generated
+                // Do a sanity check to ensure we're directly a floor above the world to be
+                // generated
                 let floor_before_frontier = &self.floor_ids[idx - 1].unwrap();
                 assert!(*floor_before_frontier == current.flags().map_id);
             };
@@ -185,6 +227,10 @@ impl DungeonSection {
         self.floor_ids
             .iter()
             .any(|id| id.map_or(false, |i| i == target))
+    }
+
+    fn is_branch_point(&self, target: MapId) -> bool {
+        self.floor_ids.last().unwrap().map_or(false, |i| i == target)
     }
 
     /// Gets the position of the next ungenerated dungeon floor in this section.
@@ -307,12 +353,12 @@ mod tests {
         let dungeon = DungeonPlan::new(vec![3, 3, 3, 4], 1, "blank".to_string()).build();
 
         assert_eq!(dungeon.sections(), 6);
-        assert_eq!(dungeon.branches(0), &hashset(&[2]));
-        assert_eq!(dungeon.branches(1), &hashset(&[]));
-        assert_eq!(dungeon.branches(2), &hashset(&[1, 3, 4]));
-        assert_eq!(dungeon.branches(3), &hashset(&[5]));
-        assert_eq!(dungeon.branches(4), &hashset(&[]));
-        assert_eq!(dungeon.branches(5), &hashset(&[]));
+        assert_eq!(dungeon.adjacencies[0], hashset(&[2]));
+        assert_eq!(dungeon.adjacencies[1], hashset(&[]));
+        assert_eq!(dungeon.adjacencies[2], hashset(&[1, 3, 4]));
+        assert_eq!(dungeon.adjacencies[3], hashset(&[5]));
+        assert_eq!(dungeon.adjacencies[4], hashset(&[]));
+        assert_eq!(dungeon.adjacencies[5], hashset(&[]));
     }
 
     #[test]

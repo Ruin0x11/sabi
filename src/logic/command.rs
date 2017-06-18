@@ -6,6 +6,7 @@ use GameContext;
 use data::Walkability;
 use engine::keys::{Key, KeyCode};
 use ecs::traits::*;
+use ecs::globals;
 use graphics::cell::{CellFeature, StairDest, StairDir, StairKind};
 use logic::Action;
 use logic::entity::EntityQuery;
@@ -259,9 +260,47 @@ fn load_stair_dest(
 
 fn generate_dungeon_floor(state: &mut GameState, dungeon_entity: Entity) -> CommandResult<World> {
     let dungeon = state.globals.ecs.dungeons.get_mut(dungeon_entity).expect("Invalid dungeon!");
-    debug!(state.world.logger, "Dungeon status: {:?}", dungeon);
     let mut new_floor = dungeon.data.generate(&state.world)
         .ok_or(CommandError::Bug("Failed to generate stair!"))?;
+
+    integrate_world_with_dungeon(&mut new_floor, dungeon, dungeon_entity)?;
+
+    debug!(state.world.logger, "Dungeon status: {:?}", dungeon);
+
+    Ok(new_floor)
+}
+
+fn generate_dungeon_branch(state: &mut GameState, dungeon_entity: Entity, branch: usize) -> CommandResult<World> {
+    let dungeon = state.globals.ecs.dungeons.get_mut(dungeon_entity).expect("Invalid dungeon!");
+    let mut new_floor = dungeon.data.generate_branch(&state.world, branch)
+        .ok_or(CommandError::Bug("Failed to generate stair!"))?;
+
+    integrate_world_with_dungeon(&mut new_floor, dungeon, dungeon_entity)?;
+
+    debug!(state.world.logger, "Dungeon status: {:?}", dungeon);
+
+    Ok(new_floor)
+}
+
+/// Connects the given world to a dungeon as a floor of the dungeon.
+fn integrate_world_with_dungeon(new_floor: &mut World, dungeon: &globals::Dungeon, dungeon_entity: Entity) -> CommandResult<()> {
+    let floor_id = new_floor.flags().map_id;
+    assert!(dungeon.data.has_floor(floor_id));
+
+    // If this is a leaf node, there is no way farther down.
+    if dungeon.data.is_leaf(floor_id) {
+        return Ok(())
+    }
+
+    // If we are at a branch point, wire the stairs down to point to each one of the branches.
+    // Otherwise, wire them to continue the current dungeon section.
+    let is_branch_point = dungeon.data.is_branch_point(floor_id);
+    let mut branches = Vec::new();
+    if is_branch_point {
+        branches = dungeon.data.branches(floor_id)
+            .ok_or(CommandError::Bug("No dungeon branches available!"))?
+        .iter().collect();
+    }
 
     // now, connect the stairs to the next floor
     for (pos, marker) in new_floor.terrain().markers.clone().iter() {
@@ -272,12 +311,20 @@ fn generate_dungeon_floor(state: &mut GameState, dungeon_entity: Entity) -> Comm
 
             if let Some(CellFeature::Stairs(_, StairDest::Ungenerated(ref mut kind))) =
                 stairs_mut.feature {
-                    *kind = StairKind::Dungeon(dungeon_entity);
+                    let new_kind = if is_branch_point {
+                        let branch = branches.pop().expect("Not enough branches in dungeon!");
+                        StairKind::DungeonBranch(dungeon_entity, *branch)
+                    } else {
+                        StairKind::Dungeon(dungeon_entity)
+                    };
+                    *kind = new_kind
                 }
         }
     }
 
-    Ok(new_floor)
+    // assert!(branches.is_empty(), "Not all branches were given stairs in the prefab!");
+
+    Ok(())
 }
 
 fn generate_stair_dest(state: &mut GameState, stair_pos: Point, stair_kind: StairKind) -> CommandResult<(World, Point)> {
@@ -285,7 +332,10 @@ fn generate_stair_dest(state: &mut GameState, stair_pos: Point, stair_kind: Stai
         StairKind::Dungeon(dungeon_entity) => {
             generate_dungeon_floor(state, dungeon_entity)?
         },
-        StairKind::Blank => {
+        StairKind::DungeonBranch(dungeon_entity, branch) => {
+            generate_dungeon_branch(state, dungeon_entity, branch)?
+        },
+        StairKind::Unconnected => {
             return Err(CommandError::Bug("Stair was left in an unconnected state!"));
         }
     };
@@ -298,9 +348,8 @@ fn generate_stair_dest(state: &mut GameState, stair_pos: Point, stair_kind: Stai
     if let Some(CellFeature::Stairs(stair_dir, ref mut dest @ StairDest::Ungenerated(..))) =
         stairs_mut.feature
     {
-        let new_stair_pos = new_world.find_stairs_in().ok_or(CommandError::Bug(
-            "Generated world has no stairs!",
-        ))?;
+        let new_stair_pos = new_world.find_stairs_in()
+            .ok_or(CommandError::Bug("Generated world has no stairs!"))?;
 
         *dest = StairDest::Generated(dest_id, new_stair_pos);
 

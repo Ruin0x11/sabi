@@ -85,8 +85,8 @@ pub enum StairDir {
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum StairKind {
     Dungeon(Entity),
-    // DungeonBranch(Entity, usize)
-    Blank,
+    DungeonBranch(Entity, usize),
+    Unconnected,
 }
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Copy, Clone)]

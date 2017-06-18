@@ -103,7 +103,8 @@ impl World {
                 PrefabMarker::Npc => {
                     self.create(ecs::prefab::npc("dude"), offset_pos);
                 },
-                PrefabMarker::StairsOut => self.place_stairs_down(*pos, StairKind::Blank),
+                // TODO: Allow both stair directions
+                PrefabMarker::StairsOut => self.place_stairs_down(*pos, StairKind::Unconnected),
                 _ => (),
             }
         }
