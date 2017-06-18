@@ -10,10 +10,10 @@ use glium::backend::Facade;
 use glium::index::PrimitiveType;
 
 use point::{Point, CircleIter};
-use renderer::interop::RenderUpdate;
+use renderer::RenderUpdate;
 use renderer::ui::*;
 use util;
-use GameContext;
+use state::GameState;
 
 pub mod background;
 pub mod shadowmap;
@@ -130,7 +130,7 @@ impl RenderContext {
         F: FnMut(&mut RenderContext, glutin::Event) -> Option<Action>,
     {
         let mut closure = |renderer: &mut RenderContext| {
-            let events = renderer.poll_events();
+            let events: Vec<glutin::Event> = renderer.poll_events().collect();
             if !events.is_empty() {
                 for event in events {
                     if let Some(a) = callback(renderer, event) {
@@ -169,11 +169,11 @@ impl RenderContext {
         self.spritemap.reload_shaders(&self.backend);
     }
 
-    pub fn update(&mut self, context: &GameContext) {
-        self.tilemap.update(context, &self.viewport);
-        self.spritemap.update(context, &self.viewport);
-        self.shadowmap.update(context, &self.viewport);
-        self.ui.update(context, &self.viewport);
+    pub fn update(&mut self, state: &GameState) {
+        self.tilemap.update(state, &self.viewport);
+        self.spritemap.update(state, &self.viewport);
+        self.shadowmap.update(state, &self.viewport);
+        self.ui.update(state, &self.viewport);
     }
 
     pub fn render(&mut self) {
@@ -211,8 +211,8 @@ impl RenderContext {
         };
     }
 
-    pub fn poll_events(&self) -> Vec<glutin::Event> {
-        self.backend.poll_events().collect()
+    pub fn poll_events(&self) -> glium::backend::glutin_backend::PollEventsIter {
+        self.backend.poll_events()
     }
 
     // pub fn update_ui(&mut self, event: &glutin::Event) -> bool {

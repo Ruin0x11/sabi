@@ -28,7 +28,7 @@ use ecs::*;
 use ecs::components;
 use ecs::traits::*;
 use graphics::Marks;
-use graphics::cell::{CellFeature, StairDir, StairDest};
+use graphics::cell::{CellFeature, StairDir, StairDest, StairKind};
 use log;
 use logic::entity::EntityQuery;
 use point::{Direction, Point, POINT_ZERO};
@@ -92,15 +92,19 @@ impl World {
             }
             {
                 let cellb = self.cell_const(&offset_pos);
-                debug!(self.logger, "{}: {:?}, {:?}", offset_pos, cell.type_, cellb);
+                // debug!(self.logger, "{}: {:?}, {:?}", offset_pos, cell.type_, cellb);
             }
         }
 
         for (pos, marker) in prefab.markers.iter() {
             let offset_pos = *pos + offset;
             debug!(self.logger, "Marker: {:?} {}", marker, offset_pos);
-            if *marker == PrefabMarker::Npc {
-                self.create(ecs::prefab::npc("dude"), offset_pos);
+            match *marker {
+                PrefabMarker::Npc => {
+                    self.create(ecs::prefab::npc("dude"), offset_pos);
+                },
+                PrefabMarker::StairsOut => self.place_stairs_down(*pos, StairKind::Blank),
+                _ => (),
             }
         }
 
@@ -468,7 +472,7 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for World {
         chunk: SerialChunk,
         index: &ChunkIndex,
     ) -> Result<(), SerialError> {
-        debug!(self.logger, "LOAD CHUNK: {}", index);
+        // debug!(self.logger, "LOAD CHUNK: {}", index);
         self.terrain.insert_chunk(*index, chunk.chunk);
 
         let entities = self.frozen_in_chunk(index);
@@ -484,12 +488,12 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for World {
     }
 
     fn unload_chunk_internal(&mut self, index: &ChunkIndex) -> Result<SerialChunk, SerialError> {
-        debug!(
-            self.logger,
-            "UNLOAD CHUNK: {} MapId: {}",
-            index,
-            self.flags().map_id
-        );
+        // debug!(
+        //     self.logger,
+        //     "UNLOAD CHUNK: {} MapId: {}",
+        //     index,
+        //     self.flags().map_id
+        // );
         let chunk = self.terrain.remove_chunk(index).expect(&format!(
             "Expected chunk at {}!",
             index
@@ -509,25 +513,25 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for World {
 
         }
 
-        debug!(
-            self.logger,
-            "Chunk ready for serializing, MapId: {}",
-            self.flags().map_id
-        );
+        // debug!(
+        //     self.logger,
+        //     "Chunk ready for serializing, MapId: {}",
+        //     self.flags().map_id
+        // );
 
         let serial = SerialChunk { chunk: chunk };
         Ok(serial)
     }
 
     fn generate_chunk(&mut self, index: &ChunkIndex) -> SerialResult<()> {
-        debug!(
-            self.logger,
-            "GEN: {} {:?} reg: {}, map: {}",
-            index,
-            self.chunk_type,
-            self.terrain.id,
-            self.flags().map_id
-        );
+        // debug!(
+        //     self.logger,
+        //     "GEN: {} {:?} reg: {}, map: {}",
+        //     index,
+        //     self.chunk_type,
+        //     self.terrain.id,
+        //     self.flags().map_id
+        // );
         self.terrain.insert_chunk(
             *index,
             self.chunk_type.generate(
@@ -536,17 +540,6 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for World {
             ),
         );
 
-        let chunk_pos = ChunkPosition::from(Point::new(0, 0));
-        let cell_pos = Chunk::world_position_at(index, &chunk_pos);
-        let stair_pos = cell_pos + (0, 1);
-
-        if self.can_walk(stair_pos, Walkability::MonstersWalkable) {
-            self.terrain.cell_mut(&stair_pos).unwrap().feature = Some(CellFeature::Stairs(
-                StairDir::Descending,
-                StairDest::Ungenerated,
-            ));
-        }
-
         Ok(())
     }
 
@@ -554,7 +547,7 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for World {
         let indices = self.terrain.chunk_indices();
         debug!(self.logger, "Saving world...");
         for index in indices.iter() {
-            debug!(self.logger, "SAVE/UNLOAD: {}", index);
+            // debug!(self.logger, "SAVE/UNLOAD: {}", index);
             self.unload_chunk(index)?;
         }
         Ok(())
@@ -583,7 +576,7 @@ impl World {
 
         for idx in relevant.iter() {
             if self.terrain().index_in_bounds(idx) && !self.terrain.chunk_loaded(idx) {
-                debug!(self.logger, "LOAD CHUNK: {} MapId {}", idx, self.map_id());
+                // debug!(self.logger, "LOAD CHUNK: {} MapId {}", idx, self.map_id());
                 self.load_chunk(idx)?;
             }
         }
@@ -627,5 +620,15 @@ impl World {
         self.update_terrain();
         self.recalc_entity_fovs();
         self.update_camera();
+    }
+}
+
+impl World {
+    pub fn place_stairs_down(&mut self, pos: WorldPosition, kind: StairKind) {
+        assert!(self.can_walk(pos, Walkability::MonstersWalkable));
+        self.terrain.cell_mut(&pos).unwrap().feature = Some(CellFeature::Stairs(
+            StairDir::Descending,
+            StairDest::Ungenerated(kind),
+        ));
     }
 }

@@ -143,17 +143,17 @@ impl UiWindow {
     }
 }
 
-use renderer::interop::RenderUpdate;
+use renderer::RenderUpdate;
 use world::traits::*;
-use GameContext;
+use state::GameState;
 
 impl RenderUpdate for Ui {
-    fn should_update(&self, _context: &GameContext) -> bool {
+    fn should_update(&self, _state: &GameState) -> bool {
         true
     }
 
-    fn update(&mut self, context: &GameContext, _viewport: &Viewport) {
-        let world = &context.state.world;
+    fn update(&mut self, state: &GameState, _viewport: &Viewport) {
+        let world = &state.world;
 
         if let Some(player) = world.player() {
             if let Some(health) = world.ecs().healths.get(player) {

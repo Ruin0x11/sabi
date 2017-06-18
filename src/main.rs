@@ -35,7 +35,6 @@ extern crate serde;
 extern crate slog_stream;
 extern crate texture_packer;
 extern crate toml;
-pub extern crate tcod;
 
 extern crate test;
 
@@ -104,16 +103,17 @@ fn game_loop() {
     world::serial::init_paths().unwrap();
 
     let mut context = state::load_context();
-    renderer::with_mut(|rc| rc.update(&context));
+    renderer::with_mut(|rc| rc.update(&context.state));
 
     'outer: loop {
-        let events = renderer::with(|rc| rc.poll_events());
-        if !events.is_empty() {
-            for event in events {
+        let mut keys = Vec::new();
+        let mut resize = None;
+        let res = renderer::with(|rc| {
+            for event in rc.poll_events() {
                 match event {
-                    glutin::Event::Closed => break 'outer,
+                    glutin::Event::Closed => return false,
                     glutin::Event::Resized(w, h) => {
-                        renderer::with_mut(|renderer| renderer.set_viewport(w, h));
+                        resize = Some((w, h));
                         continue;
                     },
                     _ => (),
@@ -122,23 +122,37 @@ fn game_loop() {
                 match event {
                     glutin::Event::KeyboardInput(ElementState::Pressed, _, Some(code)) => {
                         match code {
-                            VirtualKeyCode::Escape => break 'outer,
+                            VirtualKeyCode::Escape => return false,
                             _ => {
                                 let key = Key::from(KeyCode::from(code));
-                                state::game_step(&mut context, Some(key));
-                                renderer::with_mut(|renderer| renderer.update(&context));
+                                keys.push(key);
                             },
                         }
                     },
                     _ => (),
                 }
-                renderer::with_mut(|renderer| renderer.render());
             }
-        } else {
-            renderer::with_mut(|renderer| renderer.render());
+
+            true
+        });
+
+        if !res {
+            break 'outer;
         }
 
-        renderer::with_mut(|renderer| renderer.step_frame());
+        renderer::with_mut(|renderer| {
+            for key in keys {
+                state::game_step(&mut context, Some(key));
+                renderer.update(&context.state)
+            }
+
+            if let Some((w, h)) = resize {
+                renderer.set_viewport(w, h)
+            }
+
+            renderer.render();
+            renderer.step_frame();
+        });
     }
 
     world::serial::save_world(&mut context.state.world).unwrap();

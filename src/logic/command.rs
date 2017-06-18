@@ -1,13 +1,18 @@
 use std::fmt::Display;
 
+use calx_ecs::Entity;
+
 use GameContext;
 use data::Walkability;
 use engine::keys::{Key, KeyCode};
 use ecs::traits::*;
-use graphics::cell::{CellFeature, StairDest, StairDir};
+use graphics::cell::{CellFeature, StairDest, StairDir, StairKind};
 use logic::Action;
 use logic::entity::EntityQuery;
+use infinigen::ChunkedWorld;
 use point::{Direction, Point};
+use prefab::PrefabMarker;
+use state::GameState;
 use world::traits::*;
 use world::{self, World};
 
@@ -171,17 +176,17 @@ fn cmd_inventory(context: &mut GameContext) -> CommandResult<()> {
     ))?;
     let items = context.state.world.entities_in(player);
     let names = items.into_iter()
-                     .map(|i| {
-        context.state.world.ecs().names.get(i).unwrap().name.clone()
-    })
-                     .collect();
+        .map(|i| {
+            context.state.world.ecs().names.get(i).unwrap().name.clone()
+        })
+        .collect();
     let choose = menu_choice_indexed(context, names)?;
     mes!(context.state.world, "You chose: {}", a = choose);
     Err(CommandError::Cancel)
 }
 
-fn find_stair_dest(world: &World, pos: Point, dir: StairDir) -> CommandResult<StairDest> {
-    let cell = world.cell_const(&pos).ok_or(CommandError::Bug(
+fn find_stair_dest(state: &GameState, pos: Point, dir: StairDir) -> CommandResult<StairDest> {
+    let cell = state.world.cell_const(&pos).ok_or(CommandError::Bug(
         "World was not loaded at stair pos!",
     ))?;
 
@@ -191,7 +196,7 @@ fn find_stair_dest(world: &World, pos: Point, dir: StairDir) -> CommandResult<St
                 return Err(CommandError::Cancel);
             }
 
-            debug!(world.logger, "STAIR at {}: {:?}", pos, dest);
+            debug!(state.world.logger, "STAIR at {}: {:?}", pos, dest);
 
             Ok(dest)
         },
@@ -212,59 +217,85 @@ fn player_pos(context: &GameContext) -> CommandResult<Point> {
 
 fn cmd_use_stairs(context: &mut GameContext, dir: StairDir) -> CommandResult<()> {
     let pos = player_pos(context)?;
-    let world = &mut context.state.world;
-    let next = find_stair_dest(world, pos, dir)?;
+    let state = &mut context.state;
+    let next = find_stair_dest(state, pos, dir)?;
 
-    let (true_next, dest) = load_stair_dest(world, pos, next)?;
-    world.move_to_map(true_next, dest).unwrap();
+    let (true_next, dest) = load_stair_dest(state, pos, next)?;
+    state.world.move_to_map(true_next, dest).unwrap();
 
-    debug!(world.logger, "map id: {:?}", world.map_id());
+    debug!(state.world.logger, "map id: {:?}", state.world.map_id());
     Ok(())
 }
 
 fn load_stair_dest(
-    world: &mut World,
+    state: &mut GameState,
     stair_pos: Point,
     next: StairDest,
 ) -> CommandResult<(World, Point)> {
     match next {
         StairDest::Generated(map_id, dest) => {
+            let world = &mut state.world;
             debug!(world.logger, "Found stair leading to: {:?}", map_id);
             let world = world::serial::load_world(map_id).map_err(|_| {
                 CommandError::Bug("Failed to load already generated world!")
             })?;
             Ok((world, dest))
         },
-        StairDest::Ungenerated => {
-            debug!(world.logger, "Failed to load map, generating...");
+        StairDest::Ungenerated(stair_kind) => {
+            debug!(state.world.logger, "Failed to load map, generating...");
 
             let res = {
-                generate_stair_dest(world, stair_pos)
+                generate_stair_dest(state, stair_pos, stair_kind)
             };
             debug!(
-                world.logger,
+                state.world.logger,
                 "new stairs: {:?}",
-                world.cell_const(&stair_pos)
+                state.world.cell_const(&stair_pos)
             );
             res
         },
     }
 }
 
-fn generate_stair_dest(world: &mut World, stair_pos: Point) -> CommandResult<(World, Point)> {
-    let mut new_world = World::new()
-        .from_other_world(world)
-        .with_prefab("rogue")
-        .with_prefab_args(prefab_args!{ width: 100, height: 50, })
-        .build()
-        .map_err(|_| CommandError::Bug("Failed to generate stair!"))?;
+fn generate_dungeon_floor(state: &mut GameState, dungeon_entity: Entity) -> CommandResult<World> {
+    let dungeon = state.globals.ecs.dungeons.get_mut(dungeon_entity).expect("Invalid dungeon!");
+    debug!(state.world.logger, "Dungeon status: {:?}", dungeon);
+    let mut new_floor = dungeon.data.generate(&state.world)
+        .ok_or(CommandError::Bug("Failed to generate stair!"))?;
 
-    let prev_id = world.flags().map_id;
+    // now, connect the stairs to the next floor
+    for (pos, marker) in new_floor.terrain().markers.clone().iter() {
+        debug!(new_floor.logger, "M: {} {:?}", pos, marker);
+        if *marker == PrefabMarker::StairsOut {
+            debug!(new_floor.logger, "Connecting stairs to entity {:?}", dungeon_entity);
+            let mut stairs_mut = new_floor.cell_mut(&pos).unwrap();
+
+            if let Some(CellFeature::Stairs(_, StairDest::Ungenerated(ref mut kind))) =
+                stairs_mut.feature {
+                    *kind = StairKind::Dungeon(dungeon_entity);
+                }
+        }
+    }
+
+    Ok(new_floor)
+}
+
+fn generate_stair_dest(state: &mut GameState, stair_pos: Point, stair_kind: StairKind) -> CommandResult<(World, Point)> {
+    let mut new_world = match stair_kind {
+        StairKind::Dungeon(dungeon_entity) => {
+            generate_dungeon_floor(state, dungeon_entity)?
+        },
+        StairKind::Blank => {
+            return Err(CommandError::Bug("Stair was left in an unconnected state!"));
+        }
+    };
+
+    let prev_id = state.world.flags().map_id;
     let dest_id = new_world.flags().map_id;
 
-    let mut stairs_mut = world.cell_mut(&stair_pos).unwrap();
+    let mut stairs_mut = state.world.cell_mut(&stair_pos).unwrap();
 
-    if let Some(CellFeature::Stairs(stair_dir, ref mut dest @ StairDest::Ungenerated)) =
+    if let Some(CellFeature::Stairs(stair_dir, ref mut dest @ StairDest::Ungenerated(..))) =
         stairs_mut.feature
     {
         let new_stair_pos = new_world.find_stairs_in().ok_or(CommandError::Bug(
@@ -317,20 +348,20 @@ fn draw_line(start: Point, end: Point, world: &mut World) {
 
 /// Allow the player to choose a tile.
 pub fn select_tile<F>(context: &mut GameContext, callback: F) -> CommandResult<Point>
-where
+    where
     F: Fn(Point, &mut World),
 {
     let mut selected = false;
     let mut result = context.state.world.flags().camera;
     let player_pos = context.state
-                            .world
-                            .player()
-                            .map(|p| context.state.world.position(p))
-                            .unwrap_or(None);
+        .world
+        .player()
+        .map(|p| context.state.world.position(p))
+        .unwrap_or(None);
 
     renderer::with_mut(|rc| {
         draw_targeting_line(player_pos, &mut context.state.world);
-        rc.update(context);
+        rc.update(&context.state);
 
         rc.start_loop(|renderer, event| {
             match event {
@@ -357,7 +388,7 @@ where
                         draw_targeting_line(player_pos, world);
                     }
 
-                    renderer.update(context);
+                    renderer.update(&context.state);
 
                 },
                 _ => (),
@@ -380,7 +411,7 @@ use renderer::ui::layers::ChoiceLayer;
 
 pub fn menu_choice(context: &mut GameContext, choices: Vec<String>) -> Option<usize> {
     renderer::with_mut(|rc| {
-        rc.update(context);
+        rc.update(&context.state);
 
         rc.query(&mut ChoiceLayer::new(choices))
     })
@@ -399,7 +430,7 @@ use renderer::ui::layers::InputLayer;
 
 pub fn player_input(context: &mut GameContext, prompt: &str) -> Option<String> {
     renderer::with_mut(|rc| {
-        rc.update(context);
+        rc.update(&context.state);
 
         rc.query(&mut InputLayer::new(prompt))
     })

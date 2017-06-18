@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use calx_ecs::Entity;
+
 use toml::Value;
 
 use point::Point;
@@ -81,8 +83,15 @@ pub enum StairDir {
 }
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Copy, Clone)]
+pub enum StairKind {
+    Dungeon(Entity),
+    // DungeonBranch(Entity, usize)
+    Blank,
+}
+
+#[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum StairDest {
-    Ungenerated,
+    Ungenerated(StairKind),
     Generated(MapId, Point),
 }
 

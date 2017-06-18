@@ -2,7 +2,7 @@ use graphics::cell::{Cell, CellFeature};
 use point::Point;
 use infinigen::Index;
 use chunk::ChunkIndex;
-use world::WorldPosition;
+use world::{Bounds, WorldPosition};
 
 use chunk::*;
 
@@ -21,6 +21,7 @@ pub trait BoundedTerrain<P, I>
 pub trait TerrainQuery: BoundedTerrain<WorldPosition, ChunkIndex> {
     fn chunk(&self, index: ChunkIndex) -> Option<&Chunk>;
     fn pos_loaded(&self, pos: &WorldPosition) -> bool;
+    fn bounds(&self) -> &Bounds;
 
     fn chunk_from_world_pos(&self, pos: WorldPosition) -> Option<&Chunk> {
         let index = ChunkIndex::from_world_pos(pos);

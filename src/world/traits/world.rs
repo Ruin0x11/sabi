@@ -76,7 +76,7 @@ pub trait WorldMutate {
 impl World {
     fn autoload_chunk(&mut self, pos: &Point) {
         let idx = ChunkIndex::from(*pos);
-        debug!(self.logger, "Chunk loaded at {}: {}", idx, self.terrain().chunk_loaded(&idx));
+        // debug!(self.logger, "Chunk loaded at {}: {}", idx, self.terrain().chunk_loaded(&idx));
         if !self.terrain().chunk_loaded(&idx) {
             assert_eq!(self.flags().map_id, self.terrain().id);
             self.load_chunk(&idx).expect("Chunk load failed!");

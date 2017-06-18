@@ -1,11 +1,9 @@
 use std::collections::HashMap;
 
-use world::Bounds;
-
 use chunk::*;
 use chunk::serial::SerialChunk;
 use prefab::Markers;
-use world::WorldPosition;
+use world::{Bounds, WorldPosition};
 
 use infinigen::*;
 
@@ -65,6 +63,10 @@ impl TerrainQuery for Terrain {
 
     fn pos_loaded(&self, pos: &WorldPosition) -> bool {
         self.cell(pos).is_some() && self.bounds.in_bounds(pos)
+    }
+
+    fn bounds(&self) -> &Bounds {
+        &self.bounds
     }
 }
 

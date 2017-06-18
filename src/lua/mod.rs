@@ -22,8 +22,6 @@ pub fn log(mes: String) {
 
 pub fn run_script<'a, 'lua>(lua: &'a mut Lua<'lua>, filename: &str) -> Result<(), hlua::LuaError>
 {
-    // refresh
-    open_lua_libs(lua)?;
     let mut script = String::new();
     let full_path = format!("{}/{}.lua", SCRIPT_DIRECTORY, filename);
     File::open(full_path).expect("No such script file").read_to_string(&mut script).unwrap();

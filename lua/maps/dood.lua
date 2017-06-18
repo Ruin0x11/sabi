@@ -15,13 +15,34 @@ function put_stairs()
       end
 
       point = prefab:random_point(function(pt)
-            return prefab:get(pt) == "floor"
+            return not prefab:blocked(pt)
       end)
    until point ~= world.point(-1, -1)
 
    prefab:place_stairs_in(point)
    log.info("stairs at " .. tostring(point))
 end
+
+-- TODO: ensure there isn't already a stair there
+
+function put_stairs_b()
+   local point
+   local i = 0
+   repeat
+      i = i + 1
+      if i > 100 then
+         error("die")
+      end
+
+      point = prefab:random_point(function(pt)
+            return not prefab:blocked(pt)
+      end)
+   until point ~= world.point(-1, -1)
+
+   prefab:place_stairs_out(point)
+   log.info("stairs at " .. tostring(point))
+end
+
 
 function carve_circle(kind, dood)
    while true do
@@ -115,6 +136,7 @@ function generate()
    end
 
    put_stairs()
+   put_stairs_b()
 
    return prefab
 end

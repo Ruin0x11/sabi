@@ -166,9 +166,9 @@ impl<'a> Renderable for SpriteMap {
     }
 }
 
-use GameContext;
+use state::GameState;
 use ecs::traits::ComponentQuery;
-use renderer::interop::RenderUpdate;
+use renderer::RenderUpdate;
 use world::World;
 use world::traits::Query;
 
@@ -240,12 +240,12 @@ fn make_sprites(world: &World, viewport: &Viewport) -> Vec<(DrawSprite, (u32, u3
 }
 
 impl RenderUpdate for SpriteMap {
-    fn should_update(&self, _context: &GameContext) -> bool {
+    fn should_update(&self, _state: &GameState) -> bool {
         true
     }
 
-    fn update(&mut self, context: &GameContext, viewport: &Viewport) {
-        let world = &context.state.world;
+    fn update(&mut self, state: &GameState, viewport: &Viewport) {
+        let world = &state.world;
         self.sprites = make_sprites(world, viewport);
         self.valid = false;
     }

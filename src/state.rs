@@ -5,21 +5,29 @@ use calx_ecs::Entity;
 use GameContext;
 use ai;
 use chunk::generator::ChunkType;
+use ecs::globals::*;
 use engine::keys::Key;
+use graphics::cell::StairKind;
+use infinigen::ChunkedWorld;
 use logic::command::{self, Command, CommandError};
 use logic::{self, Action};
 use stats;
+use terrain::traits::*;
 use world::serial::SaveManifest;
 use world::traits::*;
 use world::{self, Bounds, World, WorldPosition};
 
 pub struct GameState {
     pub world: World,
+    pub globals: Globals,
+
     action_queue: VecDeque<Action>,
 }
 
 impl GameState {
     pub fn new() -> Self {
+        let mut globals = Globals::new();
+        globals.make_dungeon();
         GameState {
             world: World::new()
                 .with_bounds(Bounds::Unbounded)
@@ -27,8 +35,30 @@ impl GameState {
                 .with_randomized_seed()
                 .build()
                 .unwrap(),
+            globals: globals,
             action_queue: VecDeque::new(),
         }
+    }
+
+    /// Try various things based on the world terrain being loaded at certain places, like
+    /// inserting dungeon entrances onto the world.
+    pub fn try_world_update(&mut self) {
+        if self.is_overworld() {
+            for dungeon in self.globals.dungeons() {
+                let stair_pos = dungeon.position(&self.globals).unwrap();
+                let dungeon_compo = self.globals.ecs.dungeons.get_mut(dungeon).unwrap();
+                if !dungeon_compo.placed {
+                    if self.world.pos_loaded(&stair_pos) {
+                        self.world.place_stairs_down(stair_pos, StairKind::Dungeon(dungeon));
+                    }
+                    dungeon_compo.placed = true;
+                }
+            }
+        }
+    }
+
+    pub fn is_overworld(&self) -> bool {
+        *self.world.terrain().bounds() == Bounds::Unbounded
     }
 
     pub fn clear_actions(&mut self) {
@@ -149,9 +179,10 @@ fn process_events(_world: &mut World) {
 fn update_world(context: &mut GameContext) {
     context.state.world.update_terrain();
     context.state.world.update_camera();
+
+    context.state.try_world_update();
 }
 
-// TEMP: Just to bootstrap things dirtily.
 pub fn process(context: &mut GameContext) {
     update_world(context);
     process_actors(&mut context.state.world);
@@ -159,6 +190,8 @@ pub fn process(context: &mut GameContext) {
 
 pub fn init_headless(context: &mut GameContext) {
     context.state.world.on_load();
+
+    context.state.try_world_update();
 }
 
 pub fn load_context() -> GameContext {

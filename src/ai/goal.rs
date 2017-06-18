@@ -33,7 +33,7 @@ impl AiGoal {
     }
 
     fn get_props(&self) -> Vec<(AiProp, bool)> {
-        // NOTE: instead make the "health low" things triggers for entering the new goal of "run
+        // TODO: instead make the "health low" things triggers for entering the new goal of "run //
         // away and heal"
         match *self {
             AiGoal::FindTarget => vec![(AiProp::TargetVisible, true), (AiProp::HealthLow, false)],
