@@ -140,12 +140,12 @@ fn game_loop() {
             break 'outer;
         }
 
-        renderer::with_mut(|renderer| {
-            for key in keys {
-                state::game_step(&mut context, Some(key));
-                renderer.update(&context.state)
-            }
+        for key in keys {
+            state::game_step(&mut context, Some(key));
+            renderer::with_mut(|renderer| renderer.update(&context.state));
+        }
 
+        renderer::with_mut(|renderer| {
             if let Some((w, h)) = resize {
                 renderer.set_viewport(w, h)
             }
