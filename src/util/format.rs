@@ -7,20 +7,6 @@ use util::grammar::{self, VerbTense};
 use logic::entity::*;
 use world::World;
 
-#[cfg(never)]
-macro_rules! format_mes {
-    ($world:expr, $entity:expr, $format:expr, $( $x:ident=$y:expr ),+) => {
-        $(
-            let $x = $y;
-        )*;
-
-        let unchomped = format!($format, $($x),+);
-
-        let finished = String::new();
-        $w.message(finished);
-    };
-}
-
 #[derive(PartialEq, Eq)]
 enum FormatState {
     Normal,

@@ -9,6 +9,5 @@ pub struct SerialChunk {
 
 impl ManagedChunk for SerialChunk {
     const SECTOR_SIZE: usize = 4096;
-
     const REGION_WIDTH: i32 = 16;
 }

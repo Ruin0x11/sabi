@@ -2,6 +2,7 @@ mod action;
 pub mod command;
 pub mod entity;
 mod debug_command;
+mod stairs;
 
 pub use self::action::Action;
 pub use self::command::{Command, CommandResult};
@@ -10,13 +11,9 @@ use calx_ecs::Entity;
 use world::traits::*;
 use world::World;
 
-fn pre_tick(_world: &mut World) {
+fn pre_tick(_world: &mut World) {}
 
-}
-
-fn pre_tick_entity(_world: &mut World, _entity: Entity) {
-
-}
+fn pre_tick_entity(_world: &mut World, _entity: Entity) {}
 
 pub fn run_action(world: &mut World, entity: Entity, action: Action) {
     // Events are gathered up all at once. If an entity has already died in the
@@ -43,6 +40,4 @@ fn post_tick_entity(world: &mut World, entity: Entity) {
     }
 }
 
-fn post_tick(_world: &mut World) {
-
-}
+fn post_tick(_world: &mut World) {}

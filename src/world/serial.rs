@@ -3,8 +3,10 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 use bincode::{self, Infinite};
-
 use infinigen::*;
+
+use ecs::globals::Globals;
+use state::GameState;
 use world::{World, MapId};
 use world::traits::*;
 use world::flags::GlobalFlags;
@@ -19,12 +21,12 @@ fn get_save_directory() -> String {
     }
 }
 
-pub fn get_world_save_dir(id: u32) -> PathBuf {
+pub fn get_world_save_dir(id: MapId) -> PathBuf {
     let savedir = get_save_directory();
     PathBuf::from(format!("{}/{}/", savedir, id))
 }
 
-fn get_world_savefile(id: u32) -> PathBuf {
+fn get_world_savefile(id: MapId) -> PathBuf {
     let mut save_dir = get_world_save_dir(id);
     save_dir.push("world.bin");
     save_dir
@@ -39,13 +41,12 @@ pub fn save_world(world: &mut World) -> SerialResult<()> {
     // Unloads and saves the terrain.
     world.save()?;
 
-    debug!(world.logger,
-           "Saving entities and world data, MapId: {}",
-           world.flags().map_id);
+    debug!(world.logger, "Saving entities and world data, MapId: {}", world.flags().map_id);
     let data = bincode::serialize(&world, Infinite)?;
     let id = world.map_id();
 
-    fs::create_dir_all(get_world_save_dir(id)).map_err(SerialError::from)?;
+    fs::create_dir_all(get_world_save_dir(id))
+        .map_err(SerialError::from)?;
     let save_path = get_world_savefile(id);
 
     let mut savefile = File::create(save_path).map_err(SerialError::from)?;
@@ -54,8 +55,9 @@ pub fn save_world(world: &mut World) -> SerialResult<()> {
 }
 
 // TODO: load_world, or load_map? map_id?
-pub fn load_world(id: u32) -> SerialResult<World> {
-    fs::create_dir_all(get_world_save_dir(id)).map_err(SerialError::from)?;
+pub fn load_world(id: MapId) -> SerialResult<World> {
+    fs::create_dir_all(get_world_save_dir(id))
+        .map_err(SerialError::from)?;
 
     let save_path = get_world_savefile(id);
 
@@ -70,18 +72,14 @@ pub fn load_world(id: u32) -> SerialResult<World> {
     Ok(world)
 }
 
-pub fn save_manifest(world: &World) -> SerialResult<()> {
-    let manifest = SaveManifest {
-        globals: world.flags.get_globals(),
-        map_id: world.map_id(),
-    };
-
+pub fn save_manifest(state: GameState) -> SerialResult<()> {
+    let manifest = state.to_save_manifest();
     let data = bincode::serialize(&manifest, Infinite)?;
 
     let manifest_path = get_manifest_file();
-    println!("{:?}", manifest_path.display());
-    let mut manifest = File::create(manifest_path).map_err(SerialError::from)?;
-    manifest.write(data.as_slice()).map_err(SerialError::from)?;
+    let mut manifest_file = File::create(manifest_path).map_err(SerialError::from)?;
+    manifest_file.write(data.as_slice())
+                 .map_err(SerialError::from)?;
     Ok(())
 }
 
@@ -96,12 +94,12 @@ pub fn load_manifest() -> SerialResult<SaveManifest> {
     Ok(manifest)
 }
 
-pub fn init_paths() -> SerialResult<()> {
+pub fn init_save_paths() -> SerialResult<()> {
     fs::create_dir_all(get_save_directory()).map_err(SerialError::from)
 }
 
 
-pub fn delete_world_if_exists(id: u32) -> SerialResult<()> {
+pub fn delete_world_if_exists(id: MapId) -> SerialResult<()> {
     let savedir_buf = get_world_save_dir(id);
 
     if Path::exists(savedir_buf.as_path()) {
@@ -125,6 +123,7 @@ pub fn wipe_save() -> SerialResult<()> {
 #[derive(Serialize, Deserialize)]
 pub struct SaveManifest {
     pub globals: GlobalFlags,
+    pub globals_b: Globals, //TODO: disambiguate
     pub map_id: MapId,
 }
 
@@ -132,6 +131,7 @@ impl SaveManifest {
     pub fn new() -> Self {
         SaveManifest {
             globals: GlobalFlags::new(),
+            globals_b: Globals::new(),
             map_id: 0,
         }
     }
@@ -144,15 +144,14 @@ mod tests {
 
     #[test]
     fn test_manifest() {
-        init_paths().unwrap();
+        init_save_paths().unwrap();
 
         let mut context = test_context_bounded(100, 100);
         let globals = context.state.world.flags().get_globals();
         let map_id = 101;
         context.state.world.set_map_id(map_id);
 
-        save_manifest(&context.state.world).unwrap();
-        context.state.world.set_player(None);
+        save_manifest(context.state).unwrap();
 
         let manifest = load_manifest().unwrap();
 

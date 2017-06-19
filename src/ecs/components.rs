@@ -24,13 +24,23 @@ pub enum Gender {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Name {
     pub name: String,
+    pub proper_name: Option<String>,
     pub gender: Gender,
 }
 
 impl Name {
-    pub fn new(name: &str) -> Self {
+    pub fn new(name: String) -> Self {
         Name {
             name: name.to_string(),
+            proper_name: None,
+            gender: Gender::Unknown,
+        }
+    }
+
+    pub fn new_proper(name: String, proper_name: String) -> Self {
+        Name {
+            name: name.to_string(),
+            proper_name: Some(proper_name.to_string()),
             gender: Gender::Unknown,
         }
     }

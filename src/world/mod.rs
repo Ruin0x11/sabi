@@ -25,7 +25,6 @@ use data::spatial::{Spatial, Place};
 use data::{TurnOrder, Walkability, MessageLog};
 use ecs;
 use ecs::*;
-use ecs::components;
 use ecs::traits::*;
 use graphics::Marks;
 use graphics::cell::{CellFeature, StairDir, StairDest, StairKind};
@@ -79,20 +78,12 @@ impl World {
     }
 
     pub fn deploy_prefab(&mut self, prefab: &Prefab, offset: Point) {
-        debug!(
-            self.logger,
-            "About to deploy prefab on map {}...",
-            self.flags().map_id
-        );
+        debug!(self.logger, "About to deploy prefab on map {}...", self.flags().map_id);
 
         for (pos, cell) in prefab.iter() {
             let offset_pos = pos + offset;
             if let Some(cell_mut) = self.cell_mut(&offset_pos) {
                 *cell_mut = *cell;
-            }
-            {
-                let cellb = self.cell_const(&offset_pos);
-                // debug!(self.logger, "{}: {:?}, {:?}", offset_pos, cell.type_, cellb);
             }
         }
 
@@ -120,11 +111,8 @@ impl WorldBuilder {
         let mut prefab_opt = None;
 
         if let Some(ref prefab_name) = self.prefab_name {
-            let prefab = prefab::create(prefab_name, &self.prefab_args).map_err(
-                |e| {
-                    e.to_string()
-                },
-            )?;
+            let prefab = prefab::create(prefab_name, &self.prefab_args)
+                .map_err(|e| e.to_string())?;
             self.bounds = Bounds::Bounded(prefab.width(), prefab.height());
             prefab_opt = Some(prefab);
         }
@@ -229,14 +217,14 @@ impl World {
         self.messages.get_lines(count)
     }
 
-    #[cfg(test)]
-    pub fn message(&mut self, text: &str) {
-        println!("MESSAGE: {}", text);
-    }
-
     #[cfg(not(test))]
     pub fn message(&mut self, text: &str) {
         self.messages.append(text);
+    }
+
+    #[cfg(test)]
+    pub fn message(&mut self, text: &str) {
+        println!("MESSAGE: {}", text);
     }
 
     pub fn next_message(&mut self) {
@@ -395,7 +383,7 @@ impl Mutate for World {
         Err(())
     }
 
-    fn next_entity(&mut self) -> Option<Entity> {
+    fn next_entity_in_turn_order(&mut self) -> Option<Entity> {
         self.turn_order.next()
     }
 
@@ -454,6 +442,7 @@ impl Mutate for World {
         self.turn_order.add_delay_for(id, amount).unwrap();
     }
 }
+
 const UPDATE_RADIUS: i32 = 3;
 
 fn is_persistent(world: &World, entity: Entity) -> bool {
@@ -468,11 +457,10 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for World {
         &mut self.terrain
     }
 
-    fn load_chunk_internal(
-        &mut self,
-        chunk: SerialChunk,
-        index: &ChunkIndex,
-    ) -> Result<(), SerialError> {
+    fn load_chunk_internal(&mut self,
+                           chunk: SerialChunk,
+                           index: &ChunkIndex)
+                           -> Result<(), SerialError> {
         // debug!(self.logger, "LOAD CHUNK: {}", index);
         self.terrain.insert_chunk(*index, chunk.chunk);
 
@@ -495,10 +483,9 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for World {
         //     index,
         //     self.flags().map_id
         // );
-        let chunk = self.terrain.remove_chunk(index).expect(&format!(
-            "Expected chunk at {}!",
-            index
-        ));
+        let chunk = self.terrain
+                        .remove_chunk(index)
+                        .expect(&format!("Expected chunk at {}!", index));
 
         let entities = self.entities_in_chunk(index);
         for e in entities {
@@ -533,13 +520,8 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for World {
         //     self.terrain.id,
         //     self.flags().map_id
         // );
-        self.terrain.insert_chunk(
-            *index,
-            self.chunk_type.generate(
-                index,
-                self.flags.seed(),
-            ),
-        );
+        self.terrain
+            .insert_chunk(*index, self.chunk_type.generate(index, self.flags.seed()));
 
         Ok(())
     }
@@ -627,9 +609,7 @@ impl World {
 impl World {
     pub fn place_stairs_down(&mut self, pos: WorldPosition, kind: StairKind) {
         assert!(self.can_walk(pos, Walkability::MonstersWalkable));
-        self.terrain.cell_mut(&pos).unwrap().feature = Some(CellFeature::Stairs(
-            StairDir::Descending,
-            StairDest::Ungenerated(kind),
-        ));
+        self.terrain.cell_mut(&pos).unwrap().feature =
+            Some(CellFeature::Stairs(StairDir::Descending, StairDest::Ungenerated(kind)));
     }
 }

@@ -25,8 +25,7 @@ macro_rules! now {
 /// within systems, use log.new(o!(...)) instead.
 pub fn make_logger(system_name: &str) -> Logger {
     let path = format!("/tmp/sabi-{}.log", system_name);
-    let root_logfile = File::create(path)
-        .expect("Couldn't open log file");
+    let root_logfile = File::create(path).expect("Couldn't open log file");
 
     let logger = if DISABLE {
         Logger::root(slog::Discard, o!())
@@ -69,22 +68,31 @@ pub fn init_panic_hook() {
 
         let msg = match info.payload().downcast_ref::<&'static str>() {
             Some(s) => *s,
-            None => match info.payload().downcast_ref::<String>() {
-                Some(s) => &**s,
-                None => "Box<Any>",
-            }
+            None => {
+                match info.payload().downcast_ref::<String>() {
+                    Some(s) => &**s,
+                    None => "Box<Any>",
+                }
+            },
         };
 
         match info.location() {
             Some(location) => {
-                error!(logger, "traceback: {:?}\nthread '{}' panicked at '{}': {}:{}",
+                error!(logger,
+                       "traceback: {:?}\nthread '{}' panicked at '{}': {}:{}",
                        Shim(backtrace),
                        thread,
                        msg,
                        location.file(),
                        location.line());
-            }
-            None => error!(logger, "traceback: {:?}\nthread '{}' panicked at '{}'", Shim(backtrace), thread, msg),
+            },
+            None => {
+                error!(logger,
+                       "traceback: {:?}\nthread '{}' panicked at '{}'",
+                       Shim(backtrace),
+                       thread,
+                       msg)
+            },
         }
     }));
 }
@@ -92,18 +100,18 @@ pub fn init_panic_hook() {
 struct SabiLogFormat;
 
 impl slog_stream::Format for SabiLogFormat {
-    fn format(&self,
-              io: &mut io::Write,
-              rinfo: &slog::Record,
-              logger_values: &slog::OwnedKeyValueList)
-              -> io::Result<()> {
+    fn format(
+        &self,
+        io: &mut io::Write,
+        rinfo: &slog::Record,
+        logger_values: &slog::OwnedKeyValueList,
+    ) -> io::Result<()> {
         let mut serializer = Serializer::new();
         for (k, v) in logger_values.iter() {
             try!(v.serialize(rinfo, k, &mut serializer));
         }
         let pairs = serializer.fields.join(", ");
-        let msg = format!("{} {} - {} ({})\n",
-                          now!(), rinfo.level(), rinfo.msg(), pairs);
+        let msg = format!("{} {} - {} ({})\n", now!(), rinfo.level(), rinfo.msg(), pairs);
         io.write_all(msg.as_bytes())?;
 
         Ok(())

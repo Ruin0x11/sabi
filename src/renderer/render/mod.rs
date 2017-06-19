@@ -39,20 +39,18 @@ pub const QUAD: [Vertex; 4] = [
     Vertex { position: [1, 0] },
 ];
 
-pub fn load_program<F: Facade>(
-    display: &F,
-    vert: &str,
-    frag: &str,
-) -> Result<glium::Program, glium::ProgramCreationError> {
+pub fn load_program<F: Facade>(display: &F,
+                               vert: &str,
+                               frag: &str)
+                               -> Result<glium::Program, glium::ProgramCreationError> {
     let vertex_shader = util::read_string(&format!("data/shaders/{}", vert));
     let fragment_shader = util::read_string(&format!("data/shaders/{}", frag));
 
     glium::Program::from_source(display, &vertex_shader, &fragment_shader, None)
 }
 
-pub fn make_quad_buffers<F: Facade>(
-    display: &F,
-) -> (glium::VertexBuffer<Vertex>, glium::IndexBuffer<u16>) {
+pub fn make_quad_buffers<F: Facade>(display: &F)
+                                    -> (glium::VertexBuffer<Vertex>, glium::IndexBuffer<u16>) {
     let vertices = glium::VertexBuffer::immutable(display, &QUAD).unwrap();
     let indices =
         glium::IndexBuffer::immutable(display, PrimitiveType::TrianglesList, &QUAD_INDICES)
@@ -130,6 +128,7 @@ impl RenderContext {
         F: FnMut(&mut RenderContext, glutin::Event) -> Option<Action>,
     {
         let mut closure = |renderer: &mut RenderContext| {
+            // TODO: Push events into keycodes and use Key instead of glutin::Event
             let events: Vec<glutin::Event> = renderer.poll_events().collect();
             if !events.is_empty() {
                 for event in events {

@@ -1,4 +1,3 @@
-use std::ascii::AsciiExt;
 use regex::Regex;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -106,7 +105,7 @@ pub fn capitalize(s: &str) -> String {
     }
 }
 
-macro_rules! rule {
+macro_rules! try_rule {
     ($name:ident, $from:expr, $to: expr) => {
         if let Some(result) = apply_rule($name, $from, $to) {
             return result;
@@ -125,12 +124,12 @@ fn apply_rule(base: &str, matching: &str, to: &str) -> Option<String> {
 }
 
 pub fn make_plural(name: &str) -> String {
-    rule!(name, "(?P<a>[cs])h$", "${a}hes");
-    rule!(name, "(?P<a>[cs]h|[zx])$", "${a}es");
-    rule!(name, "(?P<a>us)$", "${a}es");
-    rule!(name, "ss$", "sses");
-    rule!(name, "s$", "ses");
-    rule!(name, "$", "s");
+    try_rule!(name, "(?P<a>[cs])h$", "${a}hes");
+    try_rule!(name, "(?P<a>[cs]h|[zx])$", "${a}es");
+    try_rule!(name, "(?P<a>us)$", "${a}es");
+    try_rule!(name, "ss$", "sses");
+    try_rule!(name, "s$", "ses");
+    try_rule!(name, "$", "s");
 
     name.to_string()
 }
@@ -195,26 +194,25 @@ pub fn make_possessive(s: &str) -> String {
     }
 }
 
-// staight ripoff of Jeff Lait's conjugation algorithm
-pub fn conjugate(verb: &str, person: VerbPerson, tense: VerbTense) -> String {
+fn try_conjugate_preposition(verb: &str, person: VerbPerson, tense: VerbTense) -> Option<String> {
     let re = Regex::new(r"(\w+)\s(.*)$").unwrap();
     let caps_opt = re.captures(verb);
 
-    // Step 1: Check for preposition (spit at -> spits at)
-    if let Some(caps) = caps_opt {
+    caps_opt.map(|caps| {
         let verb = caps.get(1).unwrap().as_str();
         let rest = caps.get(2).unwrap().as_str();
         let conj = format!("{} {}", conjugate(verb, person, tense), rest);
-        return conj;
-    }
+        conj
+    })
+}
 
-    // Step 2: Check for nonstandard verbs (be, have)
+fn try_conjugate_special_verb(verb: &str, person: VerbPerson, tense: VerbTense) -> Option<String> {
     if verb == "be" {
         let s = match tense {
             VerbTense::Past => person.was(),
             VerbTense::Present => person.is(),
         };
-        return s.to_string();
+        return Some(s.to_string());
     }
 
     if verb == "have" {
@@ -227,13 +225,18 @@ pub fn conjugate(verb: &str, person: VerbPerson, tense: VerbTense) -> String {
                 }
             },
         };
-        return s.to_string();
+        return Some(s.to_string());
     }
 
-    let ending = last_two_chars(verb).expect(&format!("Not enough chars in verb \"{}\"!", verb));
-    let ending = ending.chars().collect::<Vec<char>>();
+    None
+}
 
-    // Step 3: Build from infinitive
+fn conjugate_from_infinitive(verb: &str, person: VerbPerson, tense: VerbTense) -> String {
+    let ending = match last_two_chars(verb) {
+        Some(e) => e.chars().collect::<Vec<char>>(),
+        None => return verb.to_string(),
+    };
+
     match tense {
         VerbTense::Past => verb.to_string(),
         VerbTense::Present => {
@@ -264,6 +267,22 @@ pub fn conjugate(verb: &str, person: VerbPerson, tense: VerbTense) -> String {
             }
         },
     }
+}
+
+// staight ripoff of Jeff Lait's conjugation algorithm
+pub fn conjugate(verb: &str, person: VerbPerson, tense: VerbTense) -> String {
+    // Step 1: Check for preposition (spit at -> spits at)
+    if let Some(conj) = try_conjugate_preposition(verb, person, tense) {
+        return conj;
+    }
+
+    // Step 2: Check for nonstandard verbs (be, have)
+    if let Some(conj) = try_conjugate_special_verb(verb, person, tense) {
+        return conj;
+    }
+
+    // Step 3: Build from infinitive
+    conjugate_from_infinitive(verb, person, tense)
 }
 
 #[cfg(test)]

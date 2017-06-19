@@ -37,16 +37,20 @@ impl EntityQuery for Entity {
     }
 
     fn name(&self, world: &World) -> String {
-        let basename = world.ecs()
-                            .names
-                            .get(*self)
-                            .map_or("something".to_string(), |n| n.name.clone());
-
         if world.is_player(*self) {
             return "you".to_string();
         }
 
-        format!("the {}", basename)
+        let name_compo = match world.ecs().names.get(*self) {
+            Some(n) => n,
+            None => return "something".to_string(),
+        };
+
+        if let Some(ref proper) = name_compo.proper_name {
+            return format!("{} the {}", proper, name_compo.name);
+        }
+
+        format!("the {}", name_compo.name)
     }
 
     fn verb_person(&self, world: &World) -> VerbPerson {
@@ -74,7 +78,7 @@ impl EntityQuery for Entity {
             if !world.is_player(*self) {
                 if world.is_player(target) {
                     // enemies can always see the player
-                    return true
+                    return true;
                 } else {
                     return self.has_los(target_pos, world);
                 }

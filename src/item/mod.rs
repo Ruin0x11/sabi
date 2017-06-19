@@ -33,7 +33,7 @@ pub struct ItemDesc {
     pub sprite: String,
 }
 
-/// An collection of items inside a container, like a chest or actor's inventory.
+/// A collection of items inside a container, like a chest or actor's inventory.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ItemContainer {
     pub capacity: usize,

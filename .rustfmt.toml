@@ -1,0 +1,6 @@
+match_block_trailing_comma = true
+chain_indent = "Visual"
+fn_args_layout = "Visual"
+fn_call_width = 80
+fn_call_style = "Visual"
+closure_block_indent_threshold = -1

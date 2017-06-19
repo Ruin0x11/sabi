@@ -6,10 +6,14 @@ use std::path::Path;
 use rand::{self, Rng};
 
 fn lines_from_file<P>(filename: P) -> Vec<String>
-    where P: AsRef<Path> {
+where
+    P: AsRef<Path>,
+{
     let file = File::open(filename).expect("no such file");
     let buf = BufReader::new(file);
-    buf.lines().map(|l| l.expect("Could not parse line")).collect()
+    buf.lines()
+       .map(|l| l.expect("Could not parse line"))
+       .collect()
 }
 
 const NAME_FILE: &'static str = "names.txt";
@@ -19,7 +23,6 @@ lazy_static!(
 );
 
 pub fn gen() -> String {
-    // NOTE: rng inside NameGen is probably overkill.
     let mut rng = rand::thread_rng();
     rng.choose(NAMES.as_slice()).unwrap().clone()
 }

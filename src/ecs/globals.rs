@@ -18,6 +18,7 @@ Ecs! {
 
 pub type GlobalEcs = self::Ecs;
 
+#[derive(Serialize, Deserialize)]
 pub struct Globals {
     pub ecs: GlobalEcs,
 }
@@ -34,23 +35,18 @@ impl GlobalEntityQuery for Entity {
 
 impl Globals {
     pub fn new() -> Self {
-        Globals {
-            ecs: GlobalEcs::new(),
-        }
+        Globals { ecs: GlobalEcs::new() }
     }
 
     fn find_objects<F>(&self, condition: F) -> Vec<Entity>
-        where
+    where
         F: FnMut(&&Entity) -> bool,
     {
-        self.ecs.iter()
-            .filter(condition)
-            .cloned()
-            .collect()
+        self.ecs.iter().filter(condition).cloned().collect()
     }
 
     fn find_object<F>(&self, condition: F) -> Option<Entity>
-        where
+    where
         F: FnMut(&&Entity) -> bool,
     {
         self.find_objects(condition).first().cloned()
@@ -64,11 +60,13 @@ impl Globals {
     }
 
     pub fn dungeon_at_mut(&mut self, pos: Point) -> Option<&mut Dungeon> {
-        let entity = self.dungeons().into_iter().find(|&e| e.position(self).map_or(false, |p| p == pos));
+        let entity = self.dungeons()
+                         .into_iter()
+                         .find(|&e| e.position(self).map_or(false, |p| p == pos));
 
         match entity {
             Some(e) => self.ecs.dungeons.get_mut(e),
-            None    => None,
+            None => None,
         }
     }
 
@@ -76,7 +74,7 @@ impl Globals {
         for dungeon in self.dungeons().into_iter() {
             let dungeon_compo = self.ecs.dungeons.get(dungeon).unwrap();
             if dungeon_compo.data.has_floor(id) {
-                return Some(dungeon)
+                return Some(dungeon);
             }
         }
 

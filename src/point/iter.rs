@@ -6,7 +6,7 @@ pub struct CircleIter {
     center: Point,
     radius: i32,
     initial_x: i32,
-    max: Point
+    max: Point,
 }
 
 impl CircleIter {
@@ -37,7 +37,7 @@ impl Iterator for CircleIter {
                 self.pos.y += 1;
             }
             if self.center.distance(current_point) < self.radius as f32 {
-                return Some(current_point)
+                return Some(current_point);
             } else {
                 // Keep looping for another point
             }
@@ -74,13 +74,13 @@ impl Iterator for SquareIter {
 
     fn next(&mut self) -> Option<Point> {
         if self.pos.y > self.max.y {
-            return None
+            return None;
         }
 
         if self.radius == 0 {
             let res = self.pos;
             self.pos.y += 1;
-            return Some(res)
+            return Some(res);
         }
 
         let current_point = self.pos;
@@ -159,19 +159,18 @@ impl Iterator for BorderIter {
             self.done = true;
         }
 
-        if current_point.y == self.top_left.y ||
-           current_point.y == self.bottom_right.y {
-                self.pos.x += 1;
-                if self.pos.x > self.bottom_right.x {
-                    self.pos.y += 1;
-                    self.pos.x = self.top_left.x;
-                }
-            } else if self.pos.x == self.top_left.x {
-                self.pos.x = self.bottom_right.x;
-            } else {
+        if current_point.y == self.top_left.y || current_point.y == self.bottom_right.y {
+            self.pos.x += 1;
+            if self.pos.x > self.bottom_right.x {
                 self.pos.y += 1;
                 self.pos.x = self.top_left.x;
             }
+        } else if self.pos.x == self.top_left.x {
+            self.pos.x = self.bottom_right.x;
+        } else {
+            self.pos.y += 1;
+            self.pos.x = self.top_left.x;
+        }
 
         Some(current_point)
     }
@@ -317,20 +316,38 @@ mod test {
     #[test]
     fn test_rectangle() {
         let actual: Vec<Point> = FromIterator::from_iter(RectangleIter::new((-1, -1), (2, 3)));
-        let expected = [(-1, -1), (0, -1), (1, -1),
-                        (-1,  0), (0,  0), (1,  0),
-                        (-1,  1), (0,  1), (1,  1),
-                        (-1,  2), (0,  2), (1,  2)];
+        let expected = [
+            (-1, -1),
+            (0, -1),
+            (1, -1),
+            (-1, 0),
+            (0, 0),
+            (1, 0),
+            (-1, 1),
+            (0, 1),
+            (1, 1),
+            (-1, 2),
+            (0, 2),
+            (1, 2),
+        ];
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn test_border() {
         let actual: Vec<Point> = FromIterator::from_iter(BorderIter::new((-1, -1), (1, 2)));
-        let expected = [(-1, -1), (0, -1), (1, -1),
-                        (-1,  0),          (1,  0),
-                        (-1,  1),          (1,  1),
-                        (-1,  2), (0,  2), (1,  2)];
+        let expected = [
+            (-1, -1),
+            (0, -1),
+            (1, -1),
+            (-1, 0),
+            (1, 0),
+            (-1, 1),
+            (1, 1),
+            (-1, 2),
+            (0, 2),
+            (1, 2),
+        ];
         assert_eq!(actual, expected);
     }
 
@@ -343,9 +360,17 @@ mod test {
     #[test]
     fn test_points_within_radius_of_one() {
         let actual: Vec<Point> = FromIterator::from_iter(SquareIter::new((0, 0), 1));
-        let expected = [(-1, -1), (0, -1), (1, -1),
-                        (-1,  0), (0,  0), (1,  0),
-                        (-1,  1), (0,  1), (1,  1)];
+        let expected = [
+            (-1, -1),
+            (0, -1),
+            (1, -1),
+            (-1, 0),
+            (0, 0),
+            (1, 0),
+            (-1, 1),
+            (0, 1),
+            (1, 1),
+        ];
         assert_eq!(actual, expected);
     }
 
@@ -356,7 +381,7 @@ mod test {
         let mut expected = Vec::new();
         for y in -5..6 {
             for x in -5..6 {
-                expected.push(Point{x: x, y: y});
+                expected.push(Point { x: x, y: y });
             }
         }
         assert_eq!(actual, expected);

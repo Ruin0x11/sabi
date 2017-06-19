@@ -38,9 +38,9 @@ fn target_dead(world: &World, _entity: Entity, ai: &Ai) -> bool {
 
 fn next_to_target(world: &World, entity: Entity, ai: &Ai) -> bool {
     ai.target.borrow().map_or(false, |t| {
-        world.position(entity).unwrap().is_next_to(
-            world.position(t).unwrap(),
-        )
+        world.position(entity)
+             .unwrap()
+             .is_next_to(world.position(t).unwrap())
     })
 }
 
@@ -49,18 +49,16 @@ fn has_target(_world: &World, _entity: Entity, ai: &Ai) -> bool {
 }
 
 fn health_low(world: &World, entity: Entity, _ai: &Ai) -> bool {
-    world.ecs().healths.map_or(
-        false,
-        |h| h.percent() < 0.2,
-        entity,
-    )
+    world.ecs()
+         .healths
+         .map_or(false, |h| h.percent() < 0.2, entity)
 }
 
-fn always_true(world: &World, entity: Entity, _ai: &Ai) -> bool {
+fn always_true(_world: &World, _entity: Entity, _ai: &Ai) -> bool {
     true
 }
 
-fn always_false(world: &World, entity: Entity, _ai: &Ai) -> bool {
+fn always_false(_world: &World, _entity: Entity, _ai: &Ai) -> bool {
     false
 }
 

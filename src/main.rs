@@ -84,15 +84,7 @@ impl GameContext {
 }
 
 fn main() {
-    run();
-}
-
-fn init() {
     log::init_panic_hook();
-}
-
-pub fn run() {
-    init();
 
     game_loop();
 
@@ -100,7 +92,7 @@ pub fn run() {
 }
 
 fn game_loop() {
-    world::serial::init_paths().unwrap();
+    world::serial::init_save_paths().unwrap();
 
     let mut context = state::load_context();
     renderer::with_mut(|rc| rc.update(&context.state));
@@ -108,10 +100,10 @@ fn game_loop() {
     'outer: loop {
         let mut keys = Vec::new();
         let mut resize = None;
-        let res = renderer::with(|rc| {
+        let quit = renderer::with(|rc| {
             for event in rc.poll_events() {
                 match event {
-                    glutin::Event::Closed => return false,
+                    glutin::Event::Closed => return true,
                     glutin::Event::Resized(w, h) => {
                         resize = Some((w, h));
                         continue;
@@ -122,7 +114,7 @@ fn game_loop() {
                 match event {
                     glutin::Event::KeyboardInput(ElementState::Pressed, _, Some(code)) => {
                         match code {
-                            VirtualKeyCode::Escape => return false,
+                            VirtualKeyCode::Escape => return true,
                             _ => {
                                 let key = Key::from(KeyCode::from(code));
                                 keys.push(key);
@@ -133,15 +125,18 @@ fn game_loop() {
                 }
             }
 
-            true
+            false
         });
 
-        if !res {
+        if quit {
             break 'outer;
         }
 
         for key in keys {
+            // Ensure that the renderer isn't borrowed during the game step, so it can be used in
+            // the middle of any game routine (like querying the player for input)
             state::game_step(&mut context, Some(key));
+
             renderer::with_mut(|renderer| renderer.update(&context.state));
         }
 
@@ -156,5 +151,5 @@ fn game_loop() {
     }
 
     world::serial::save_world(&mut context.state.world).unwrap();
-    world::serial::save_manifest(&context.state.world).unwrap();
+    world::serial::save_manifest(context.state).unwrap();
 }

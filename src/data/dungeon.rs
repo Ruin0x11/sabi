@@ -15,18 +15,18 @@ pub struct Dungeon {
 impl Dungeon {
     /// Generate the next floor of this dungeon, given the world representing the current dungeon
     /// floor.
-    pub fn generate(&mut self, current: &World) -> Option<World> {
-        let section = self.section_for_map_id_mut(current.flags().map_id);
-        section.generate(current)
+    pub fn generate_next_floor(&mut self, current_floor: &World) -> Option<World> {
+        let section = self.section_for_map_id_mut(current_floor.flags().map_id);
+        section.generate_next_floor(current_floor)
     }
 
-    pub fn generate_branch(&mut self, current: &World, branch: usize) -> Option<World> {
-        assert!(self.is_branch_point(current.flags().map_id));
+    pub fn generate_branch(&mut self, current_floor: &World, branch: usize) -> Option<World> {
+        assert!(self.is_branch_point(current_floor.flags().map_id));
         assert!(branch < self.sections.len());
         assert!(!self.sections[branch].exists());
 
         let section = &mut self.sections[branch];
-        section.generate(current)
+        section.generate_next_floor(current_floor)
     }
 
     pub fn has_floor(&self, id: MapId) -> bool {
@@ -38,9 +38,7 @@ impl Dungeon {
     }
 
     fn section_for_map_id(&self, id: MapId) -> &DungeonSection {
-        let found_section = self.sections
-            .iter()
-            .find(|section| section.has_floor(id));
+        let found_section = self.sections.iter().find(|section| section.has_floor(id));
         if !found_section.is_some() {
             if !self.exists() {
                 // Dungeon hasn't been entered before, so start off in the first section.
@@ -56,9 +54,9 @@ impl Dungeon {
     fn section_for_map_id_mut(&mut self, id: MapId) -> &mut DungeonSection {
         // to get around borrowing
         let found_section = self.sections
-            .iter_mut()
-            .find(|section| section.has_floor(id))
-            .is_some();
+                                .iter_mut()
+                                .find(|section| section.has_floor(id))
+                                .is_some();
         if !found_section {
             if !self.exists() {
                 // Dungeon hasn't been entered before, so start off in the first section.
@@ -74,7 +72,8 @@ impl Dungeon {
     }
 
     pub fn is_leaf(&self, id: MapId) -> bool {
-        self.map_id_to_section_index(id).map_or(true, |i| self.adjacencies[i].is_empty())
+        self.map_id_to_section_index(id)
+            .map_or(true, |i| self.adjacencies[i].is_empty())
     }
 
     pub fn is_branch_point(&self, id: MapId) -> bool {
@@ -82,7 +81,8 @@ impl Dungeon {
     }
 
     pub fn branches(&self, id: MapId) -> Option<&HashSet<usize>> {
-        self.map_id_to_section_index(id).map(|i| &self.adjacencies[i])
+        self.map_id_to_section_index(id)
+            .map(|i| &self.adjacencies[i])
     }
 
     pub fn exists(&self) -> bool {
@@ -94,20 +94,18 @@ impl Dungeon {
     }
 }
 
-fn prune_adjacencies(
-    adjacencies: &mut Vec<HashSet<usize>>,
-    current: usize,
-    visited: &mut HashSet<usize>) {
-    for a in adjacencies[current].clone().iter() {
-        if !visited.contains(a) {
+fn prune_adjacencies(adjacencies: &mut Vec<HashSet<usize>>,
+                     current_section: usize,
+                     visited: &mut HashSet<usize>) {
+    for section in adjacencies[current_section].clone() {
+        if !visited.contains(&section) {
             {
-                let next = &mut adjacencies[*a];
-                next.remove(&current);
+                let next = &mut adjacencies[section];
+                next.remove(&current_section);
             }
-            {
-                visited.insert(*a);
-                prune_adjacencies(adjacencies, *a, visited);
-            }
+
+            visited.insert(section);
+            prune_adjacencies(adjacencies, section, visited);
         }
     }
 }
@@ -162,7 +160,9 @@ impl DungeonPlan {
 
         let mut sections = Vec::with_capacity(vertex_count);
         for _ in 0..vertex_count {
-            sections.push(generate_section(self.min_section_length, self.max_section_length, &self.kind));
+            sections.push(generate_section(self.min_section_length,
+                                           self.max_section_length,
+                                           &self.kind));
         }
 
         let edges = prufer_to_edges(&self.prufer_code);
@@ -202,10 +202,10 @@ impl DungeonSection {
         self.floor_ids.first().unwrap().is_some()
     }
 
-    pub fn generate(&mut self, current: &World) -> Option<World> {
-        self.frontier().map(|idx| {
+    pub fn generate_next_floor(&mut self, current_floor: &World) -> Option<World> {
+        self.next_ungenerated_floor_idx().map_or(None, |idx| {
             let world = World::new()
-                .from_other_world(current)
+                .from_other_world(current_floor)
                 .with_prefab(&self.kind)
                 .build()
                 .unwrap();
@@ -213,13 +213,15 @@ impl DungeonSection {
             if self.exists() {
                 // Do a sanity check to ensure we're directly a floor above the world to be
                 // generated
-                let floor_before_frontier = &self.floor_ids[idx - 1].unwrap();
-                assert!(*floor_before_frontier == current.flags().map_id);
+                let floor_above_ungenerated = self.floor_ids[idx - 1].unwrap();
+                if floor_above_ungenerated != current_floor.flags().map_id {
+                    return None;
+                }
             };
 
             self.floor_ids[idx] = Some(world.flags().map_id);
 
-            world
+            Some(world)
         })
     }
 
@@ -230,11 +232,13 @@ impl DungeonSection {
     }
 
     fn is_branch_point(&self, target: MapId) -> bool {
-        self.floor_ids.last().unwrap().map_or(false, |i| i == target)
+        self.floor_ids
+            .last()
+            .unwrap()
+            .map_or(false, |i| i == target)
     }
 
-    /// Gets the position of the next ungenerated dungeon floor in this section.
-    fn frontier(&self) -> Option<usize> {
+    fn next_ungenerated_floor_idx(&self) -> Option<usize> {
         self.floor_ids.iter().position(|&id| id.is_none())
     }
 }
@@ -259,14 +263,14 @@ fn generate_prufer_code(min_len: usize, max_len: usize, weight: u32, step: u32) 
 fn choose_prufer_digit(weights: &mut Vec<u32>, step: u32) -> usize {
     let mut choices: Vec<Weighted<usize>> =
         weights.iter()
-        .enumerate()
-        .map(|(i, &w)| {
+               .enumerate()
+               .map(|(i, &w)| {
             Weighted {
                 weight: w,
                 item: i + 1,
             }
         })
-    .collect();
+               .collect();
 
     let wc = WeightedChoice::new(&mut choices);
     let mut rng = rand::thread_rng();
@@ -372,16 +376,15 @@ mod tests {
             sections: vec![section],
         };
 
-        let floor_a = dungeon.generate(world);
+        let floor_a = dungeon.generate_next_floor(world);
         assert!(floor_a.is_some());
         world.move_to_map(floor_a.unwrap(), POINT_ZERO).unwrap();
 
-        let floor_b = dungeon.generate(world);
+        let floor_b = dungeon.generate_next_floor(world);
         assert!(floor_b.is_some());
         world.move_to_map(floor_b.unwrap(), POINT_ZERO).unwrap();
 
-        let floor_c = dungeon.generate(world);
+        let floor_c = dungeon.generate_next_floor(world);
         assert!(floor_c.is_none());
     }
 }
-

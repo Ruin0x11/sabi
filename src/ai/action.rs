@@ -27,8 +27,7 @@ fn direction_towards(entity: Entity, target: Entity, world: &World) -> Option<Di
     let my_pos = world.position(entity).unwrap();
     let target_pos = world.position(target).unwrap();
 
-    assert!(entity.has_los(target_pos, world),
-            "Entity can't see target!");
+    assert!(entity.has_los(target_pos, world), "Entity can't see target!");
 
     if my_pos.is_next_to(target_pos) {
         return Direction::from_neighbors(my_pos, target_pos);
@@ -45,10 +44,6 @@ fn direction_towards(entity: Entity, target: Entity, world: &World) -> Option<Di
     }
 
     let next_pos = path.next().unwrap();
-
-    // for pt in path {
-    // world.draw_calls.push(Draw::Point(pt.x, pt.y));
-    // }
 
     Some(Direction::from_neighbors(my_pos, next_pos).unwrap())
 }

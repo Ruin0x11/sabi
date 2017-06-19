@@ -25,7 +25,23 @@ macro_rules! mes {
     };
 }
 
-// format_mes!(world, entity, "<u> <kill> {}! ({})", a = other.name(world), b = damage);
+/// A macro to send a message to the game message log with formatting for the given entity. Certain
+/// format specifiers can be used in the format string.
+///
+/// Available format specifiers:
+/// - `%u`: Pronoun, "I/it/they"
+/// - `%U`: Full name, "the putit"
+/// - `%r`: Possessive, "my/its/their"
+/// - `%R`: Named possessive, "the putit's"
+/// - `%A`: Accusative, "me/it/them"
+/// - `%%`: Literal '%'
+/// - `<<`: Literal '<'
+///
+/// You can also conjugate verbs by surrounding the infinitive with angle brackets ("<>").
+///
+/// ```no_run
+// format_mes!(world, entity, "%u <kill> {}! ({})", a = other.name(world), b = damage);
+/// ```
 macro_rules! format_mes {
     ($world:expr, $entity:expr, $format:expr) => {
         use util::format;
@@ -83,7 +99,7 @@ macro_rules! menu {
     }
 }
 
-/// A macro to pass variable assignments to Lua maps, to be run after the init() portion of the
+/// A macro to pass variable assignments to Lua maps, to be run after the init() portion of map
 /// generation.
 ///
 /// ```no_run

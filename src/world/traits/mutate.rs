@@ -35,7 +35,7 @@ pub trait Mutate: Query + Sized {
 
     fn move_entity(&mut self, e: Entity, dir: Direction) -> Result<(), ()>;
 
-    fn next_entity(&mut self) -> Option<Entity>;
+    fn next_entity_in_turn_order(&mut self) -> Option<Entity>;
 
     fn after_entity_moved(&mut self, e: Entity) {
         self.do_fov(e);
@@ -57,11 +57,12 @@ pub trait Mutate: Query + Sized {
     /// Marks entities as dead based on health. Does not remove the entities
     /// from the system.
     fn update_killed(&mut self) {
-        let kill_list: Vec<Entity> =
-            self.entities().filter(|&&e| {
-                self.is_mob(e) &&
-                self.ecs().healths.map_or(false, |h| h.is_dead(), e)
-            }).cloned().collect();
+        let kill_list: Vec<Entity> = self.entities()
+                                         .filter(|&&e| {
+            self.is_mob(e) && self.ecs().healths.map_or(false, |h| h.is_dead(), e)
+        })
+                                         .cloned()
+                                         .collect();
 
         for e in kill_list.into_iter() {
             self.kill_entity(e);
@@ -73,10 +74,10 @@ pub trait Mutate: Query + Sized {
     /// items and other entities without health do not count. For now, it is if the entity is a
     /// "mob".
     fn purge_dead(&mut self) {
-        let kill_list: Vec<Entity> =
-            self.entities().filter(|&&e|
-                                    self.is_mob(e) &&
-                                   !self.is_alive(e)).cloned().collect();
+        let kill_list: Vec<Entity> = self.entities()
+                                         .filter(|&&e| self.is_mob(e) && !self.is_alive(e))
+                                         .cloned()
+                                         .collect();
 
         for e in kill_list.into_iter() {
             self.remove_entity(e);

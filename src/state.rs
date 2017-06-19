@@ -42,14 +42,16 @@ impl GameState {
 
     /// Try various things based on the world terrain being loaded at certain places, like
     /// inserting dungeon entrances onto the world.
-    pub fn try_world_update(&mut self) {
+    pub fn try_globals_update(&mut self) {
         if self.is_overworld() {
+            debug!(self.world.logger, "This is apparently the overworld, updating globals...");
             for dungeon in self.globals.dungeons() {
                 let stair_pos = dungeon.position(&self.globals).unwrap();
                 let dungeon_compo = self.globals.ecs.dungeons.get_mut(dungeon).unwrap();
                 if !dungeon_compo.placed {
                     if self.world.pos_loaded(&stair_pos) {
-                        self.world.place_stairs_down(stair_pos, StairKind::Dungeon(dungeon));
+                        self.world
+                            .place_stairs_down(stair_pos, StairKind::Dungeon(dungeon));
                     }
                     dungeon_compo.placed = true;
                 }
@@ -74,11 +76,19 @@ impl GameState {
             process_action(&mut self.world, player, action);
         }
     }
+
+    pub fn to_save_manifest(self) -> SaveManifest {
+        SaveManifest {
+            globals: self.world.flags().globals.clone(),
+            globals_b: self.globals,
+            map_id: self.world.map_id(),
+        }
+    }
 }
 
 pub fn game_step(context: &mut GameContext, input: Option<Key>) {
-    let dead = check_player_dead(&mut context.state.world);
-    if dead {
+
+    if player_is_dead(&mut context.state.world) {
         restart_game(context);
         return;
     }
@@ -109,7 +119,7 @@ pub fn run_command(context: &mut GameContext, command: Command) {
 }
 
 
-fn check_player_dead(world: &mut World) -> bool {
+fn player_is_dead(world: &mut World) -> bool {
     let res = world.player().is_none();
     if res {
         info!(world.logger, "Player has died.");
@@ -134,7 +144,7 @@ fn process_action(world: &mut World, entity: Entity, action: Action) {
 }
 
 fn process_actors(world: &mut World) {
-    while let Some(entity) = world.next_entity() {
+    while let Some(entity) = world.next_entity_in_turn_order() {
         if !world.is_alive(entity) {
             panic!("Killed actor remained in turn order!");
         }
@@ -146,7 +156,6 @@ fn process_actors(world: &mut World) {
 
         if world.is_player(entity) {
             world.next_message();
-
             break;
         }
 
@@ -155,7 +164,7 @@ fn process_actors(world: &mut World) {
             process_events(world);
         }
 
-        if check_player_dead(world) {
+        if player_is_dead(world) {
             break;
         }
     }
@@ -180,7 +189,7 @@ fn update_world(context: &mut GameContext) {
     context.state.world.update_terrain();
     context.state.world.update_camera();
 
-    context.state.try_world_update();
+    context.state.try_globals_update();
 }
 
 pub fn process(context: &mut GameContext) {
@@ -188,10 +197,15 @@ pub fn process(context: &mut GameContext) {
     process_actors(&mut context.state.world);
 }
 
-pub fn init_headless(context: &mut GameContext) {
+pub fn init_game_context(context: &mut GameContext) {
     context.state.world.on_load();
+    context.state.try_globals_update();
+}
 
-    context.state.try_world_update();
+fn apply_save_manifest(context: &mut GameContext, mut world: World, manifest: SaveManifest) {
+    world.flags_mut().globals = manifest.globals;
+    context.state.world = world;
+    context.state.globals = manifest.globals_b;
 }
 
 pub fn load_context() -> GameContext {
@@ -203,26 +217,22 @@ pub fn load_context() -> GameContext {
     let mut context = GameContext::new();
 
     if let Ok(world) = world::serial::load_world(manifest.map_id) {
-        context.state.world = world;
+        apply_save_manifest(&mut context, world, manifest);
     } else {
-        let e = context.state.world.create(
-            ::ecs::prefab::mob("player", 10000, "player"),
-            WorldPosition::new(1, 1),
-        );
-        context.state.world.set_player(Some(e));
+        let player = context.state
+                            .world
+                            .create(::ecs::prefab::mob("player", 10000, "player"),
+                                    WorldPosition::new(0, 0));
+        context.state.world.set_player(Some(player));
     }
 
-    init(&mut context);
+    init_game_context(&mut context);
     context
 }
 
 pub fn restart_game(context: &mut GameContext) {
     world::serial::wipe_save();
     *context = load_context();
-}
-
-pub fn init(context: &mut GameContext) {
-    init_headless(context);
 }
 
 #[cfg(test)]

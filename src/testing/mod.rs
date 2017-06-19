@@ -32,7 +32,7 @@ pub fn test_context() -> GameContext {
 pub fn test_context_bounded(w: i32, h: i32) -> GameContext {
     let mut context = GameContext::new();
     context.state.world = get_world_bounded(w, h);
-    state::init_headless(&mut context);
+    state::init_game_context(&mut context);
     context
 }
 

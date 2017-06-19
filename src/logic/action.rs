@@ -84,7 +84,7 @@ fn action_swing_at(world: &mut World, attacker: Entity, other: Entity) -> Action
 
 fn action_pickup(world: &mut World, parent: Entity, target: Entity) -> ActionResult {
     world.place_entity_in(parent, target);
-    mes!(world, "{} picks up {}.", a = parent.name(world), b = target.name(world));
+    format_mes!(world, parent, "%U <pick up> {}.", a = target.name(world));
     Ok(())
 }
 

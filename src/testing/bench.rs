@@ -56,11 +56,11 @@ fn bench_fov(b: &mut Bencher) {
     let world = &mut context.state.world;
 
     b.iter(|| {
-        let entities: Vec<Entity> = world.entities().cloned().collect();
-        for e in entities.iter() {
-            world.do_fov(*e);
-        }
-    });
+               let entities: Vec<Entity> = world.entities().cloned().collect();
+               for e in entities.iter() {
+                   world.do_fov(*e);
+               }
+           });
 }
 
 use renderer::RenderContext;
@@ -72,9 +72,9 @@ fn bench_renderer_update(b: &mut Bencher) {
     let mut renderer = RenderContext::new();
 
     b.iter(|| {
-        renderer.update(&context);
-        renderer.render();
-    });
+               renderer.update(&context.state);
+               renderer.render();
+           });
 }
 
 #[bench]
@@ -83,6 +83,6 @@ fn bench_renderer_idle(b: &mut Bencher) {
     let context = many_entities();
     let mut renderer = RenderContext::new();
 
-    renderer.update(&context);
+    renderer.update(&context.state);
     b.iter(|| { renderer.render(); });
 }
