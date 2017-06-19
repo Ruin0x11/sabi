@@ -2,7 +2,9 @@ mod action;
 mod goal;
 mod sensors;
 
+use self::action::*;
 use self::goal::*;
+use self::sensors::*;
 pub use self::goal::AiKind;
 
 use std::cell::RefCell;
@@ -37,23 +39,12 @@ pub struct Ai {
     goal: RefCell<AiMemory>,
     next_action: RefCell<Option<AiAction>>,
 
+    // TODO: Keep track of other entities turned enemies, such as due to too much friendly fire
     pub disposition: Disposition,
 }
 
 pub type AiMemory = GoapState<AiProp, bool>;
 pub type AiFacts = GoapFacts<AiProp, bool>;
-
-fn default_ai_facts() -> AiFacts {
-    let mut facts = AiFacts::new();
-    facts.insert(AiProp::Exists, true);
-    facts.insert(AiProp::Moving, false);
-    facts.insert(AiProp::HealthLow, false);
-    facts.insert(AiProp::HasTarget, false);
-    facts.insert(AiProp::TargetVisible, false);
-    facts.insert(AiProp::TargetDead, false);
-    facts.insert(AiProp::NextToTarget, false);
-    facts
-}
 
 impl Ai {
     pub fn new(kind: AiKind) -> Self {
@@ -85,25 +76,6 @@ impl Ai {
     pub fn goal_finished(&self) -> bool {
         self.next_action.borrow().is_none()
     }
-}
-
-#[derive(Serialize, Deserialize, Hash, Ord, PartialOrd, Eq, PartialEq, Debug, Clone)]
-pub enum AiProp {
-    HealthLow,
-    HasTarget,
-    TargetVisible,
-    TargetDead,
-    NextToTarget,
-    Exists,
-    Moving,
-}
-
-#[derive(Serialize, Deserialize, Hash, Ord, PartialOrd, Eq, PartialEq, Debug, Clone)]
-pub enum AiAction {
-    Wander,
-    MoveCloser,
-    SwingAt,
-    Run,
 }
 
 thread_local! {
@@ -158,18 +130,6 @@ fn update_goal(entity: Entity, world: &World) {
     }
 }
 
-fn all_props() -> Vec<AiProp> {
-    vec![
-        AiProp::HasTarget,
-        AiProp::TargetVisible,
-        AiProp::TargetDead,
-        AiProp::NextToTarget,
-        AiProp::HealthLow,
-        AiProp::Exists,
-        AiProp::Moving,
-    ]
-}
-
 fn update_memory(entity: Entity, world: &World) {
     let ai = world.ecs().ais.get_or_err(entity);
     let wants_to_know = all_props();
@@ -177,7 +137,10 @@ fn update_memory(entity: Entity, world: &World) {
 
     for fact in wants_to_know.iter() {
         SENSORS.with(|s| {
-            let sensor = s.get(fact).unwrap();
+            let sensor = match s.get(fact) {
+                Some(f) => f,
+                None    => return,
+            };
             let result = (sensor.callback)(world, entity, ai);
             // debug_ecs!(world, entity, "{:?}, {}", fact, result);
             new_memory.facts.insert(fact.clone(), result);
@@ -196,51 +159,6 @@ fn update_memory(entity: Entity, world: &World) {
 
         let next_action = ai.get_next_action();
         *ai.next_action.borrow_mut() = next_action;
-    }
-}
-
-fn choose_action(entity: Entity, world: &World) -> Action {
-    // TEMP: Just save the whole plan and only update when something interesting
-    // happens
-    let ai = world.ecs().ais.get_or_err(entity);
-
-    match *ai.next_action.borrow() {
-        Some(ref action) => {
-            match *action {
-                AiAction::Wander => action::ai_wander(entity, world),
-                AiAction::MoveCloser => action::ai_move_closer(entity, world),
-                AiAction::SwingAt => action::ai_swing_at(entity, world),
-                AiAction::Run => action::ai_run_away(entity, world),
-            }
-        },
-        None => {
-            warn_of_unreachable_states(entity, world, &ai);
-            Action::Wait
-        },
-    }
-}
-
-fn warn_of_unreachable_states(entity: Entity, world: &World, ai: &Ai) {
-    warn_ecs!(world, entity, "I can't figure out what to do! \nfrom: {:?}\nto:{:?}",
-              ai.memory.borrow(), ai.goal.borrow());
-    if let Err(failed_state) = ai.get_plan() {
-        let mut needed: Vec<AiProp> = ai.goal.borrow().facts.iter().filter(|&(cond, val)| {
-            failed_state.facts.get(cond).map_or(false, |f| f != val)
-        }).map(|(cond, _)| cond.clone()).collect();
-
-        for action in ai.planner.get_actions().into_iter() {
-            let effects = ai.planner.actions(action);
-            let satisfied: Vec<AiProp> = effects.postconditions.iter().filter(|&(cond, val)| {
-                failed_state.facts.get(cond).map_or(true, |f| f == val)
-            }).map(|(cond, _)| cond.clone()).collect();
-
-            for s in satisfied {
-                needed.retain(|u| *u != s);
-            }
-        }
-
-        warn_ecs!(world, entity, "No actions could be found to make these properties true:");
-        warn_ecs!(world, entity, "{:?}", needed);
     }
 }
 

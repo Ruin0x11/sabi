@@ -1,27 +1,71 @@
 use calx_ecs::Entity;
+use goap::*;
 
 use ecs::traits::*;
 use point::Direction;
 use logic::Action;
-use logic::entity::EntityQuery;
 use data::Walkability;
 use point::Path;
 use world::traits::*;
 use world::World;
 
-// TODO: Allow variable arguments, since we have no need to follow a consistent
-// API?
+use super::{Ai, AiProp};
 
-pub fn ai_wander(_entity: Entity, _world: &World) -> Action {
+#[derive(Serialize, Deserialize, Hash, Ord, PartialOrd, Eq, PartialEq, Debug, Clone)]
+pub enum AiAction {
+    Wander,
+    MoveCloser,
+    SwingAt,
+    Run,
+}
+
+pub(super) fn choose_action(entity: Entity, world: &World) -> Action {
+    // TEMP: Just save the whole plan and only update when something interesting
+    // happens
+    let ai = world.ecs().ais.get_or_err(entity);
+
+    match *ai.next_action.borrow() {
+        Some(ref action) => {
+            match *action {
+                AiAction::Wander => ai_wander(entity, world),
+                AiAction::MoveCloser => ai_move_closer(entity, world),
+                AiAction::SwingAt => ai_swing_at(entity, world),
+                AiAction::Run => ai_run_away(entity, world),
+            }
+        },
+        None => {
+            warn_of_unreachable_states(entity, world, &ai);
+            Action::Wait
+        },
+    }
+}
+
+
+fn ai_wander(_entity: Entity, _world: &World) -> Action {
     Action::Move(Direction::choose8())
 }
 
-pub fn ai_swing_at(entity: Entity, world: &World) -> Action {
+fn ai_move_closer(entity: Entity, world: &World) -> Action {
+    match direction_towards_target(entity, world) {
+        Some(dir) => Action::Move(dir),
+        None => Action::Wait,
+    }
+}
+
+fn ai_swing_at(entity: Entity, world: &World) -> Action {
     let ais = &world.ecs().ais;
     let ai = ais.get_or_err(entity);
 
     Action::SwingAt(ai.target.borrow().unwrap())
 }
+
+fn ai_run_away(entity: Entity, world: &World) -> Action {
+    match direction_towards_target(entity, world) {
+        Some(dir) => Action::Move(dir.reverse()),
+        None => Action::Wait,
+    }
+}
+
 
 fn direction_towards(entity: Entity, target: Entity, world: &World) -> Option<Direction> {
     let my_pos = world.position(entity).unwrap();
@@ -57,16 +101,27 @@ fn direction_towards_target(entity: Entity, world: &World) -> Option<Direction> 
     direction_towards(entity, target, world)
 }
 
-pub fn ai_move_closer(entity: Entity, world: &World) -> Action {
-    match direction_towards_target(entity, world) {
-        Some(dir) => Action::Move(dir),
-        None => Action::Wait,
-    }
-}
 
-pub fn ai_run_away(entity: Entity, world: &World) -> Action {
-    match direction_towards_target(entity, world) {
-        Some(dir) => Action::Move(dir.reverse()),
-        None => Action::Wait,
+fn warn_of_unreachable_states(entity: Entity, world: &World, ai: &Ai) {
+    warn_ecs!(world, entity, "I can't figure out what to do! \nfrom: {:?}\nto:{:?}",
+              ai.memory.borrow(), ai.goal.borrow());
+    if let Err(failed_state) = ai.get_plan() {
+        let mut needed: Vec<AiProp> = ai.goal.borrow().facts.iter().filter(|&(cond, val)| {
+            failed_state.facts.get(cond).map_or(false, |f| f != val)
+        }).map(|(cond, _)| cond.clone()).collect();
+
+        for action in ai.planner.get_actions().into_iter() {
+            let effects = ai.planner.actions(action);
+            let satisfied: Vec<AiProp> = effects.postconditions.iter().filter(|&(cond, val)| {
+                failed_state.facts.get(cond).map_or(true, |f| f == val)
+            }).map(|(cond, _)| cond.clone()).collect();
+
+            for s in satisfied {
+                needed.retain(|u| *u != s);
+            }
+        }
+
+        warn_ecs!(world, entity, "No actions could be found to make these properties true:");
+        warn_ecs!(world, entity, "{:?}", needed);
     }
 }
