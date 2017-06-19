@@ -76,7 +76,7 @@ fn action_swing_at(world: &mut World, attacker: Entity, other: Entity) -> Action
     format_mes!(world, attacker, "%U <hit> {}! ({})", a = other.name(world), b = damage);
 
     if other.is_dead(world) {
-        format_mes!(world, attacker, "%U <kill> {}! ({})", a = other.name(world), b = damage);
+        format_mes!(world, attacker, "%U <kill> {}!", a = other.name(world));
     }
 
     Ok(())

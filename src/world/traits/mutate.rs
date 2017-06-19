@@ -38,6 +38,8 @@ pub trait Mutate: Query + Sized {
     fn next_entity_in_turn_order(&mut self) -> Option<Entity>;
 
     fn after_entity_moved(&mut self, e: Entity) {
+        debug_ecs!(self, e, "Entity moved");
+        self.ecs_mut().healths.map_mut(|h| h.heal(1), e);
         self.do_fov(e);
     }
 

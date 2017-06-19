@@ -76,6 +76,13 @@ impl Health {
         self.hit_points -= amount as i32;
     }
 
+    pub fn heal(&mut self, amount: u32) {
+        self.hit_points += amount as i32;
+        if self.hit_points >= self.max_hit_points {
+            self.hit_points = self.max_hit_points;
+        }
+    }
+
     pub fn kill(&mut self) {
         self.hit_points = 0;
     }

@@ -36,6 +36,10 @@ fn find_stair_dest(state: &GameState, pos: Point, dir: StairDir) -> CommandResul
                 return Err(CommandError::Cancel);
             }
 
+            if let StairDest::Ungenerated(StairKind::Unconnected) = dest {
+                return Err(CommandError::Invalid("This stair doesn't lead anywhere..."));
+            }
+
             debug!(state.world.logger, "STAIR at {}: {:?}", pos, dest);
 
             Ok(dest)
