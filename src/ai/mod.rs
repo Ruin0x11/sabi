@@ -6,8 +6,10 @@ use self::goal::*;
 pub use self::goal::AiKind;
 
 use std::cell::RefCell;
+use std::collections::HashMap;
 
 use calx_ecs::Entity;
+use goap::*;
 
 use logic::Action;
 use ai::sensors::Sensor;
@@ -69,7 +71,7 @@ impl Ai {
         }
     }
 
-    pub fn get_plan(&self) -> Vec<AiAction> {
+    pub fn get_plan(&self) -> Result<Vec<AiAction>, AiMemory> {
         self.planner.get_plan(
             &self.memory.borrow(),
             &self.goal.borrow(),
@@ -77,7 +79,7 @@ impl Ai {
     }
 
     pub fn get_next_action(&self) -> Option<AiAction> {
-        self.get_plan().first().cloned()
+        self.get_plan().unwrap_or(Vec::new()).first().cloned()
     }
 
     pub fn goal_finished(&self) -> bool {
@@ -156,9 +158,8 @@ fn update_goal(entity: Entity, world: &World) {
     }
 }
 
-fn update_memory(entity: Entity, world: &World) {
-    let ai = world.ecs().ais.get_or_err(entity);
-    let wants_to_know = vec![
+fn all_props() -> Vec<AiProp> {
+    vec![
         AiProp::HasTarget,
         AiProp::TargetVisible,
         AiProp::TargetDead,
@@ -166,8 +167,12 @@ fn update_memory(entity: Entity, world: &World) {
         AiProp::HealthLow,
         AiProp::Exists,
         AiProp::Moving,
-    ];
+    ]
+}
 
+fn update_memory(entity: Entity, world: &World) {
+    let ai = world.ecs().ais.get_or_err(entity);
+    let wants_to_know = all_props();
     let mut new_memory = AiMemory { facts: GoapFacts::new() };
 
     for fact in wants_to_know.iter() {
@@ -209,14 +214,35 @@ fn choose_action(entity: Entity, world: &World) -> Action {
             }
         },
         None => {
-            warn_ecs!(world, entity, "I can't figure out what to do!");
+            warn_of_unreachable_states(entity, world, &ai);
             Action::Wait
         },
     }
 }
 
-use std::collections::HashMap;
-use goap::*;
+fn warn_of_unreachable_states(entity: Entity, world: &World, ai: &Ai) {
+    warn_ecs!(world, entity, "I can't figure out what to do! \nfrom: {:?}\nto:{:?}",
+              ai.memory.borrow(), ai.goal.borrow());
+    if let Err(failed_state) = ai.get_plan() {
+        let mut needed: Vec<AiProp> = ai.goal.borrow().facts.iter().filter(|&(cond, val)| {
+            failed_state.facts.get(cond).map_or(false, |f| f != val)
+        }).map(|(cond, _)| cond.clone()).collect();
+
+        for action in ai.planner.get_actions().into_iter() {
+            let effects = ai.planner.actions(action);
+            let satisfied: Vec<AiProp> = effects.postconditions.iter().filter(|&(cond, val)| {
+                failed_state.facts.get(cond).map_or(true, |f| f == val)
+            }).map(|(cond, _)| cond.clone()).collect();
+
+            for s in satisfied {
+                needed.retain(|u| *u != s);
+            }
+        }
+
+        warn_ecs!(world, entity, "No actions could be found to make these properties true:");
+        warn_ecs!(world, entity, "{:?}", needed);
+    }
+}
 
 type AiPlanner = GoapPlanner<AiProp, bool, AiAction>;
 
@@ -231,10 +257,10 @@ pub fn make_planner() -> AiPlanner {
 
     let mut effects = GoapEffects::new(10);
     effects.set_precondition(AiProp::HasTarget, true);
-    effects.set_precondition(AiProp::TargetVisible, true);
     effects.set_precondition(AiProp::NextToTarget, false);
     effects.set_precondition(AiProp::TargetDead, false);
     effects.set_postcondition(AiProp::NextToTarget, true);
+    effects.set_postcondition(AiProp::TargetVisible, true);
     actions.insert(AiAction::MoveCloser, effects);
 
     let mut effects = GoapEffects::new(9);
