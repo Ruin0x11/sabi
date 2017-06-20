@@ -106,9 +106,7 @@ macro_rules! menu {
 /// map_args! { width: 80, height: 40 }
 /// ```
 macro_rules! prefab_args {
-    {
-        $($var:ident: $value:expr,)+
-    } => {
+    ( $($var:ident: $value:expr,)+ $(,)*)=> {
         {
 
             use std::collections::HashMap;

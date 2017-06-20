@@ -193,7 +193,7 @@ fn maybe_examine_tile(pos: Point, world: &mut World) {
     if let Some(mob) = world.mob_at(pos) {
         if let Some(player) = world.player() {
             if player.can_see_other(mob, world) {
-                format_mes!(world, player, "%u <see> here {}.", a = mob.name(world));
+                format_mes!(world, player, "%u <see> here {}.", a = mob.name_with_article(world));
             }
         }
     }

@@ -1,7 +1,9 @@
+use calx_ecs::Entity;
 use infinigen::*;
 
 use chunk::ChunkIndex;
 use data::Walkability;
+use ecs::Loadout;
 use graphics::cell::Cell;
 use graphics::cell::{CellFeature, StairDest, StairDir};
 use prefab::PrefabMarker;
@@ -141,6 +143,14 @@ impl World {
         if let Some(cell_mut) = self.cell_mut(&pos) {
             let dest = StairDest::Generated(leading_to, dest_pos);
             cell_mut.feature = Some(CellFeature::Stairs(dir, dest));
+        }
+    }
+
+    pub fn create(&mut self, loadout: Loadout, pos: Point) -> Option<Entity> {
+        if self.pos_loaded(&pos) {
+            Some(self.spawn(&loadout, pos))
+        } else {
+            None
         }
     }
 }

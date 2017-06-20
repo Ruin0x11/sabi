@@ -1,7 +1,12 @@
+use rand::{self, Rng};
+
 use GameContext;
+use ai::{Ai, AiKind};
 use ecs;
+use ecs::traits::*;
+use logic::entity::*;
 use point::{Point, RectangleIter, POINT_ZERO};
-use prefab;
+use prefab::{self, PrefabArgs};
 use renderer;
 use state;
 use world::traits::*;
@@ -13,6 +18,8 @@ const TEST_WORLD_ID: u32 = 10000000;
 
 pub(super) fn cmd_debug_menu(context: &mut GameContext) -> CommandResult<()> {
     menu!(context,
+          "scav"           => debug_scav(context),
+          "print entity info" => debug_print_entity_info(context),
           "Item test"      => debug_item_test(context),
           "List entities"  => debug_list_entities(context),
           "Place enemies"  => debug_place_enemies(context),
@@ -22,6 +29,49 @@ pub(super) fn cmd_debug_menu(context: &mut GameContext) -> CommandResult<()> {
           "Reload shaders" => debug_reload_shaders(),
           "Restart game"   => debug_restart_game(context)
     )
+}
+
+fn debug_print_entity_info(context: &mut GameContext) -> CommandResult<()> {
+    mes!(context.state.world, "Which?");
+    let pos = select_tile(context, |_, _| ())?;
+    if let Some(mob) = context.state.world.mob_at(pos) {
+        let ai = context.state.world.ecs().ais.get_or_err(mob).debug_info();
+        mes!(context.state.world, "{:?} inv: {:?}  Ai: {}",
+             a = mob.name(&context.state.world),
+             b = context.state.world.entities_in(mob),
+             c = ai);
+    }
+
+    Ok(())
+}
+
+fn debug_scav(context: &mut GameContext) -> CommandResult<()> {
+    goto_new_world(context, get_debug_world("blank", Some(prefab_args! { width: 100, height: 100, })).unwrap());
+
+    for pos in RectangleIter::new(Point::new(0, 0), Point::new(100, 100)) {
+        if rand::thread_rng().next_f32() < 0.1 {
+            context.state.world.create(ecs::prefab::item("cola", "cola"), pos);
+        }
+    }
+
+    context.state.world.create(ecs::prefab::mob("putit", 100, "putit").c(Ai::new(AiKind::Scavenge)), Point::new(1, 1));
+    context.state.world.create(ecs::prefab::mob("putit", 100, "putit").c(Ai::new(AiKind::Scavenge)), Point::new(1, 2));
+    context.state.world.create(ecs::prefab::mob("putit", 100, "putit").c(Ai::new(AiKind::Scavenge)), Point::new(2, 1));
+    context.state.world.create(ecs::prefab::mob("putit", 100, "putit").c(Ai::new(AiKind::Scavenge)), Point::new(2, 2));
+
+    Ok(())
+}
+
+fn debug_item_test(context: &mut GameContext) -> CommandResult<()> {
+    goto_new_world(context, get_debug_world("blank", None).unwrap());
+
+    for pos in RectangleIter::new(Point::new(0, 0), Point::new(3, 3)) {
+        context.state.world.create(ecs::prefab::item("cola", "cola"), pos);
+    }
+
+    context.state.world.create(ecs::prefab::mob("putit", 100, "putit"), Point::new(5, 5));
+
+    Ok(())
 }
 
 fn debug_prefab(context: &mut GameContext) -> CommandResult<()> {
@@ -81,16 +131,28 @@ fn debug_place_enemies(context: &mut GameContext) -> CommandResult<()> {
     Ok(())
 }
 
-fn get_debug_world(prefab: &str) -> Result<World, String> {
-    World::new()
-        .with_prefab(prefab)
-        .with_randomized_seed()
-        .with_id(TEST_WORLD_ID)
-        .build()
+fn get_debug_world(prefab: &str, args: Option<PrefabArgs>) -> Result<World, String> {
+    match args {
+        Some(a) => {
+            World::new()
+                .with_prefab(prefab)
+                .with_randomized_seed()
+                .with_id(TEST_WORLD_ID)
+                .with_prefab_args(a)
+                .build()
+        }
+        None => {
+            World::new()
+                .with_prefab(prefab)
+                .with_randomized_seed()
+                .with_id(TEST_WORLD_ID)
+                .build()
+        }
+    }
 }
 
 fn debug_regen_prefab(context: &mut GameContext, prefab_name: &str) -> CommandResult<()> {
-    let world = get_debug_world(prefab_name)
+    let world = get_debug_world(prefab_name, None)
         .map_err(|e| CommandError::Debug(format!("Failed to make world: {}", e)))?;
     goto_new_world(context, world);
     Ok(())
@@ -100,26 +162,12 @@ fn debug_goto_world(context: &mut GameContext) -> CommandResult<()> {
     let input = player_input(context, "Which id?").ok_or(CommandError::Cancel)?;
 
     let id = input.parse::<u32>()
-                  .map_err(|_| CommandError::Invalid("That's not a valid id."))?;
+        .map_err(|_| CommandError::Invalid("That's not a valid id."))?;
 
     let new_world = world::serial::load_world(id)
         .map_err(|_| CommandError::Invalid("That world doesn't exist."))?;
 
     goto_new_world(context, new_world);
-    Ok(())
-}
-
-fn debug_item_test(context: &mut GameContext) -> CommandResult<()> {
-    goto_new_world(context, get_debug_world("blank").unwrap());
-
-    for pos in RectangleIter::new(Point::new(0, 0), Point::new(3, 3)) {
-        if context.state.world.pos_loaded(&pos) {
-            context.state.world.create(ecs::prefab::item("cola", "cola"), pos);
-        }
-    }
-
-    context.state.world.create(ecs::prefab::mob("putit", 100, "putit"), Point::new(5, 5));
-
     Ok(())
 }
 

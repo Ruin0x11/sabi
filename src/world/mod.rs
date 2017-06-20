@@ -29,7 +29,7 @@ use ecs::traits::*;
 use graphics::Marks;
 use graphics::cell::{CellFeature, StairDir, StairDest, StairKind};
 use log;
-use logic::entity::EntityQuery;
+use logic::entity::*;
 use point::{Direction, Point, POINT_ZERO};
 use prefab::{self, Prefab, PrefabArgs, PrefabMarker};
 use terrain::Terrain;
@@ -346,6 +346,7 @@ impl Mutate for World {
     fn kill_entity(&mut self, e: Entity) {
         debug!(self.logger, "Marking entity {:?} as killed.", e);
         self.spatial.remove(e);
+
         let result = self.turn_order.remove(e);
         if let Err(err) = result {
             warn!(self.logger, "{:?} wasn't in world turn order! {:?}", e, err);
@@ -399,7 +400,7 @@ impl Mutate for World {
         }
 
         if let Some(center) = self.position(e) {
-            const FOV_RADIUS: i32 = 7;
+            const FOV_RADIUS: i32 = 12;
 
             let visible = fov::bresenham_fast(self, center, FOV_RADIUS);
 
@@ -469,7 +470,9 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for World {
             self.spatial.unfreeze(e);
             let result = self.turn_order.resume(e);
             if let Err(err) = result {
-                warn_ecs!(self, e, "{:?} wasn't in turn order! {:?}", e, err);
+                if self.is_mob(e) {
+                    warn_ecs!(self, e, "{:?} is mob, but wasn't in turn order! {:?}", e, err);
+                }
             }
         }
 
@@ -496,7 +499,9 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for World {
             self.spatial.freeze(e);
             let result = self.turn_order.pause(e);
             if let Err(err) = result {
-                warn_ecs!(self, e, "{:?} wasn't in turn order! {:?}", e, err);
+                if self.is_mob(e) {
+                    warn_ecs!(self, e, "{:?} is mob, but wasn't in turn order! {:?}", e, err);
+                }
             }
 
         }

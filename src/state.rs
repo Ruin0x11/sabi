@@ -144,6 +144,8 @@ fn process_action(world: &mut World, entity: Entity, action: Action) {
 }
 
 fn process_actors(world: &mut World) {
+    // TODO: Allow events to also register themselves in the turn order, to allow them to execute
+    // on time
     while let Some(entity) = world.next_entity_in_turn_order() {
         if !world.is_alive(entity) {
             panic!("Killed actor remained in turn order!");
@@ -155,12 +157,14 @@ fn process_actors(world: &mut World) {
         }
 
         if world.is_player(entity) {
+            // TODO: Check if any timed effects on the player need handling
             world.next_message();
             break;
         }
 
         if let Some(action) = ai::run(entity, world) {
             process_action(world, entity, action);
+            // TODO: Check if any timed effects on this entity need handling
             process_events(world);
         }
 
@@ -221,7 +225,7 @@ pub fn load_context() -> GameContext {
     } else {
         let player = context.state
                             .world
-                            .create(::ecs::prefab::mob("player", 10000, "player"),
+                            .spawn(&::ecs::prefab::mob("player", 10000000, "player"),
                                     WorldPosition::new(0, 0));
         context.state.world.set_player(Some(player));
     }

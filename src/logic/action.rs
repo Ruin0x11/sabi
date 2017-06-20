@@ -1,7 +1,9 @@
 use calx_ecs::Entity;
+
+use ai::AiTrigger;
 use data::Walkability;
 use ecs::traits::*;
-use logic::entity::EntityQuery;
+use logic::entity::*;
 use point::{Direction, Point};
 use stats;
 use world::traits::*;
@@ -15,6 +17,7 @@ pub enum Action {
     MoveOrAttack(Direction),
     Wait,
     SwingAt(Entity),
+    ShootAt(Entity),
     Pickup(Entity),
     Drop(Entity),
 
@@ -31,6 +34,7 @@ pub fn run_entity_action(world: &mut World, entity: Entity, action: Action) -> A
         Action::Teleport(pos) => action_try_teleport(world, entity, pos),
         Action::TeleportUnchecked(pos) => action_teleport_unchecked(world, entity, pos),
         Action::SwingAt(target) => action_swing_at(world, entity, target),
+        Action::ShootAt(target) => action_shoot_at(world, entity, target),
         _ => Err(()),
     }
 }
@@ -50,7 +54,29 @@ fn action_move_or_attack(world: &mut World, entity: Entity, dir: Direction) -> A
 }
 
 fn action_move_entity(world: &mut World, entity: Entity, dir: Direction) -> ActionResult {
-    world.move_entity(entity, dir).map_err(|_| ())
+    world.move_entity(entity, dir).map_err(|_| ())?;
+
+    if world.is_player(entity) {
+        if let Some(on_ground) = world.entities_below(entity).first() {
+            // NOTE: Duplicate from looking code
+            format_mes!(world, entity, "%u <see> here {}.", a = on_ground.name_with_article(world));
+        }
+    }
+
+    Ok(())
+}
+
+fn action_pickup(world: &mut World, parent: Entity, target: Entity) -> ActionResult {
+    world.place_entity_in(parent, target);
+    format_mes!(world, parent, "%U <pick up> {}.", a = target.name(world));
+    Ok(())
+}
+
+fn action_drop(world: &mut World, entity: Entity, target: Entity) -> ActionResult {
+    let pos = world.position(entity).unwrap();
+    world.place_entity(target, pos);
+    format_mes!(world, entity, "%U <drop> {}.", a = target.name(world));
+    Ok(())
 }
 
 fn action_swing_at(world: &mut World, attacker: Entity, other: Entity) -> ActionResult {
@@ -71,28 +97,39 @@ fn action_swing_at(world: &mut World, attacker: Entity, other: Entity) -> Action
 
         damage = stats::formulas::calculate_damage(world, attacker, other);
     }
-    world.ecs_mut().healths.map_mut(|h| h.hurt(damage), other);
 
     format_mes!(world, attacker, "%U <hit> {}! ({})", a = other.name(world), b = damage);
+    hurt(world, other, attacker, damage);
 
-    if other.is_dead(world) {
-        format_mes!(world, attacker, "%U <kill> {}!", a = other.name(world));
+    Ok(())
+}
+
+fn action_shoot_at(world: &mut World, attacker: Entity, other: Entity) -> ActionResult {
+    let damage;
+    {
+        let missed = stats::formulas::check_evasion(world, attacker, other);
+        if missed {
+            mes!(world, "Miss.");
+            return Ok(());
+        }
+
+        damage = stats::formulas::calculate_damage(world, attacker, other);
     }
 
+    format_mes!(world, attacker, "%U <shoot at> {}! ({})", a = other.name(world), b = damage);
+    hurt(world, other, attacker, damage);
+
     Ok(())
 }
 
-fn action_pickup(world: &mut World, parent: Entity, target: Entity) -> ActionResult {
-    world.place_entity_in(parent, target);
-    format_mes!(world, parent, "%U <pick up> {}.", a = target.name(world));
-    Ok(())
-}
+fn hurt(world: &mut World, target: Entity, attacker: Entity, damage: u32) {
+    world.ecs_mut().healths.map_mut(|h| h.hurt(damage), target);
+    target.add_memory(AiTrigger::AttackedBy(attacker), world);
 
-fn action_drop(world: &mut World, entity: Entity, target: Entity) -> ActionResult {
-    let pos = world.position(entity).unwrap();
-    world.place_entity(target, pos);
-    format_mes!(world, entity, "%U <drop> {}.", a = target.name(world));
-    Ok(())
+    if target.is_dead(world) {
+        format_mes!(world, attacker, "%U <kill> {}!", a = target.name(world));
+        target.on_death(world);
+    }
 }
 
 fn action_try_teleport(world: &mut World, entity: Entity, pos: WorldPosition) -> ActionResult {

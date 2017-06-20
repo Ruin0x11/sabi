@@ -50,7 +50,6 @@ function generate()
       return false
    end
 
-   -- TODO: Run until all are connected
    function connect_randomly()
       local connected_cells = {}
       local room, other_room

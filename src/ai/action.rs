@@ -6,40 +6,52 @@ use point::Direction;
 use logic::Action;
 use data::Walkability;
 use point::Path;
+use rand::{self, Rng};
 use world::traits::*;
 use world::World;
 
 use super::{Ai, AiProp};
 
-#[derive(Serialize, Deserialize, Hash, Ord, PartialOrd, Eq, PartialEq, Debug, Clone)]
-pub enum AiAction {
-    Wander,
-    MoveCloser,
-    SwingAt,
-    Run,
-}
+macro_rules! generate_ai_actions {
+    ( $( $action:ident, $func:ident );+ $(;)*) => {
+        #[derive(Serialize, Deserialize, Hash, Ord, PartialOrd, Eq, PartialEq, Debug, Clone)]
+        pub enum AiAction {
+            $(
+                $action,
+            )*
+        }
 
-pub(super) fn choose_action(entity: Entity, world: &World) -> Action {
-    // TEMP: Just save the whole plan and only update when something interesting
-    // happens
-    let ai = world.ecs().ais.get_or_err(entity);
+        pub(super) fn choose_action(entity: Entity, world: &World) -> Action {
+            // TEMP: Just save the whole plan and only update when something interesting
+            // happens
+            let ai = world.ecs().ais.get_or_err(entity);
 
-    match *ai.next_action.borrow() {
-        Some(ref action) => {
-            match *action {
-                AiAction::Wander => ai_wander(entity, world),
-                AiAction::MoveCloser => ai_move_closer(entity, world),
-                AiAction::SwingAt => ai_swing_at(entity, world),
-                AiAction::Run => ai_run_away(entity, world),
+            match *ai.next_action.borrow() {
+                Some(ref action) => {
+                    match *action {
+                        $(
+                            AiAction::$action => $func(entity, world),
+                        )*
+                    }
+                },
+                None => {
+                    warn_of_unreachable_states(entity, world, &ai);
+                    Action::Wait
+                },
             }
-        },
-        None => {
-            warn_of_unreachable_states(entity, world, &ai);
-            Action::Wait
-        },
+        }
+
     }
 }
 
+generate_ai_actions! {
+    Wander, ai_wander;
+    MoveCloser, ai_move_closer;
+    PickupItem, ai_pickup_item;
+    SwingAt, ai_swing_at;
+    ShootAt, ai_shoot_at;
+    RunAway, ai_run_away;
+}
 
 fn ai_wander(_entity: Entity, _world: &World) -> Action {
     Action::Move(Direction::choose8())
@@ -52,11 +64,29 @@ fn ai_move_closer(entity: Entity, world: &World) -> Action {
     }
 }
 
+fn ai_pickup_item(entity: Entity, world: &World) -> Action {
+    let ai = &world.ecs().ais.get_or_err(entity);
+    let target = ai.target.borrow().unwrap();
+    let items = world.entities_below(entity);
+    assert!(items.contains(&target));
+    assert!(world.is_item(target));
+    Action::Pickup(target)
+}
+
 fn ai_swing_at(entity: Entity, world: &World) -> Action {
-    let ais = &world.ecs().ais;
-    let ai = ais.get_or_err(entity);
+    let ai = &world.ecs().ais.get_or_err(entity);
 
     Action::SwingAt(ai.target.borrow().unwrap())
+}
+
+fn ai_shoot_at(entity: Entity, world: &World) -> Action {
+    // TODO: box rng in RefCell
+    if rand::thread_rng().gen() {
+        return ai_wander(entity, world);
+    }
+
+    let ai = &world.ecs().ais.get_or_err(entity);
+    Action::ShootAt(ai.target.borrow().unwrap())
 }
 
 fn ai_run_away(entity: Entity, world: &World) -> Action {
@@ -97,14 +127,12 @@ fn direction_towards_target(entity: Entity, world: &World) -> Option<Direction> 
     let ai = ais.get_or_err(entity);
 
     let target = ai.target.borrow().unwrap();
-    assert!(world.is_alive(target), "Target is already dead!");
     direction_towards(entity, target, world)
 }
 
 
 fn warn_of_unreachable_states(entity: Entity, world: &World, ai: &Ai) {
-    warn_ecs!(world, entity, "I can't figure out what to do! \nfrom: {:?}\nto:{:?}",
-              ai.memory.borrow(), ai.goal.borrow());
+    warn_ecs!(world, entity, "I can't figure out what to do! {}", ai.debug_info());
     if let Err(failed_state) = ai.get_plan() {
         let mut needed: Vec<AiProp> = ai.goal.borrow().facts.iter().filter(|&(cond, val)| {
             failed_state.facts.get(cond).map_or(false, |f| f != val)

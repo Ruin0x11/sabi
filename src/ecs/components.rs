@@ -14,6 +14,13 @@ use stats::properties::Properties;
 // For persistence between worlds, because the entity ID may change.
 pub struct Uuid {}
 
+/// Interesting flags for mob entities.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct Flags {
+    is_invulnerable: bool,
+    reflects_ranged: bool,
+}
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Gender {
     Male,

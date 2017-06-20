@@ -82,6 +82,7 @@ fn generate_dungeon_floor(state: &mut GameState, dungeon_entity: Entity) -> Comm
     let mut new_floor =
         dungeon.data
                .generate_next_floor(&state.world)
+        //TODO: Don't crash, just report error
                .ok_or(CommandError::Bug("Failed to generate stair!"))?;
 
     integrate_world_with_dungeon(&mut new_floor, dungeon, dungeon_entity)?;
@@ -103,6 +104,7 @@ fn generate_dungeon_branch(state: &mut GameState,
     let mut new_floor =
         dungeon.data
                .generate_branch(&state.world, branch)
+        //TODO: Don't crash, just report error
                .ok_or(CommandError::Bug("Failed to generate stair!"))?;
 
     integrate_world_with_dungeon(&mut new_floor, dungeon, dungeon_entity)?;
