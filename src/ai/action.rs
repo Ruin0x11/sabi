@@ -5,7 +5,7 @@ use ecs::traits::*;
 use point::Direction;
 use logic::Action;
 use data::Walkability;
-use point::Path;
+use point::{Path, Point};
 use rand::{self, Rng};
 use world::traits::*;
 use world::World;
@@ -51,6 +51,12 @@ generate_ai_actions! {
     SwingAt, ai_swing_at;
     ShootAt, ai_shoot_at;
     RunAway, ai_run_away;
+    ReturnToPosition, ai_return_to_position;
+    Wait, ai_wait;
+}
+
+fn ai_wait(_entity: Entity, _world: &World) -> Action {
+    Action::Wait
 }
 
 fn ai_wander(_entity: Entity, _world: &World) -> Action {
@@ -61,6 +67,19 @@ fn ai_move_closer(entity: Entity, world: &World) -> Action {
     match direction_towards_target(entity, world) {
         Some(dir) => Action::Move(dir),
         None => Action::Wait,
+    }
+}
+
+fn ai_return_to_position(entity: Entity, world: &World) -> Action {
+    let ai = &world.ecs().ais.get_or_err(entity);
+
+    if let Some(pos) = *ai.important_pos.borrow() {
+        match direction_towards(entity, pos, world) {
+            Some(dir) => Action::Move(dir),
+            None => Action::Wait,
+        }
+    } else {
+        Action::Wait
     }
 }
 
@@ -96,10 +115,8 @@ fn ai_run_away(entity: Entity, world: &World) -> Action {
     }
 }
 
-
-fn direction_towards(entity: Entity, target: Entity, world: &World) -> Option<Direction> {
+fn direction_towards(entity: Entity, target_pos: Point, world: &World) -> Option<Direction> {
     let my_pos = world.position(entity).unwrap();
-    let target_pos = world.position(target).unwrap();
 
     // assert!(entity.can_see_other(target, world), "Entity can't see target!");
 
@@ -127,7 +144,8 @@ fn direction_towards_target(entity: Entity, world: &World) -> Option<Direction> 
     let ai = ais.get_or_err(entity);
 
     let target = ai.target.borrow().unwrap();
-    direction_towards(entity, target, world)
+    let target_pos = world.position(target).unwrap();
+    direction_towards(entity, target_pos, world)
 }
 
 

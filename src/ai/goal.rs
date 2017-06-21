@@ -2,10 +2,11 @@ use calx_ecs::Entity;
 use rand::{self, Rng};
 
 use ai::*;
-use logic::entity::EntityQuery;
 use ecs::traits::ComponentQuery;
-use world::traits::Query;
+use logic::entity::EntityQuery;
+use point::Point;
 use world::World;
+use world::traits::Query;
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum AiKind {
@@ -14,6 +15,7 @@ pub enum AiKind {
     Follow,
     Wander,
     Scavenge,
+    Guard,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -23,6 +25,7 @@ pub enum AiGoal {
     Follow,
     Wander,
     EscapeDanger,
+    Guard,
 
     FindItem,
     GetItem,
@@ -47,6 +50,7 @@ impl AiGoal {
             AiGoal::KillTarget => vec![(AiProp::TargetDead, true), (AiProp::HealthLow, false)],
             AiGoal::Follow => vec![(AiProp::NextToTarget, true)],
             AiGoal::Wander => vec![(AiProp::Moving, true)],
+            AiGoal::Guard => vec![(AiProp::AtPosition, true), (AiProp::Moving, false)],
 
             AiGoal::EscapeDanger => vec![(AiProp::Exists, false)],
 
@@ -80,6 +84,15 @@ fn get_default_goal(entity: Entity, world: &World) -> (AiGoal, Option<Entity>) {
             let chosen = entity.closest_entity(items, world);
 
             (AiGoal::GetItem, chosen)
+        }
+        AiKind::Guard => {
+            for seen in world.seen_entities(entity) {
+                if !world.is_player(seen) {
+                    return (AiGoal::KillTarget, Some(seen))
+                }
+            }
+
+            (AiGoal::Guard, None)
         }
         AiKind::Scavenge => (AiGoal::FindItem, None),
         AiKind::SeekTarget => {

@@ -310,7 +310,7 @@ function generate()
       end
 
       prefab:set(door_pos, "floor")
-      prefab:place_door(door_pos)
+      prefab:place_marker(door_pos, "door")
 
       return pos
    end
@@ -406,7 +406,7 @@ function generate()
          end)
       until point ~= world.point(-1, -1)
 
-      prefab:place_stairs_in(point)
+      prefab:place_marker(point, "stairs_in")
       log.info("stairs at " .. tostring(point))
    end
 

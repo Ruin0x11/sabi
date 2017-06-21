@@ -55,7 +55,7 @@ generate_sensors! {
 
     CanDoRanged, false, sense_always_true;
     CanDoMelee, false, sense_always_true;
-    OutsidePatrol, false, sense_always_false;
+    AtPosition, false, sense_at_position;
     TargetInInventory, false, sense_target_in_inventory;
     OnTopOfTarget, false, sense_on_top_of_target;
     HasHealing, false, sense_always_false;
@@ -63,7 +63,7 @@ generate_sensors! {
     HealingItemNearby, false, sense_always_false;
 
     TargetClose, false, sense_always_false;
-    TargetInRange, false, sense_always_false;
+    TargetInRange, false, sense_target_in_range;
 
     Exists, true, sense_always_true;
     Moving, false, sense_always_false;
@@ -104,7 +104,18 @@ fn sense_on_top_of_target(world: &World, entity: Entity, ai: &Ai) -> bool {
             None => return false,
         };
 
-        world.position(entity).unwrap() == pos
+        world.position(entity).map_or(false, |ep| ep == pos)
+    })
+}
+
+fn sense_target_in_range(world: &World, entity: Entity, ai: &Ai) -> bool {
+    ai.target.borrow().map_or(false, |t| {
+        let pos = match world.position(t) {
+            Some(p) => p,
+            None => return false,
+        };
+
+        pos.distance(world.position(entity).unwrap()) < 6.0
     })
 }
 
@@ -113,6 +124,12 @@ fn sense_target_in_inventory(world: &World, entity: Entity, ai: &Ai) -> bool {
         let e = world.entities_in(entity);
         debug_ecs!(world, entity, "CONT: {:?} {:?}", t, e);
         e.contains(&t)
+    })
+}
+
+fn sense_at_position(world: &World, entity: Entity, ai: &Ai) -> bool {
+    ai.important_pos.borrow().map_or(false, |pos| {
+        world.position(entity).map_or(false, |ep| ep == pos)
     })
 }
 

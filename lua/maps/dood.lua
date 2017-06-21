@@ -19,7 +19,7 @@ function put_stairs()
       end)
    until point ~= world.point(-1, -1)
 
-   prefab:place_stairs_in(point)
+   prefab:place_marker(point, "stairs_in")
    log.info("stairs at " .. tostring(point))
 end
 
@@ -39,7 +39,7 @@ function put_stairs_b()
       end)
    until point ~= world.point(-1, -1)
 
-   prefab:place_stairs_out(point)
+   prefab:place_marker(point, "stairs_out")
    log.info("stairs at " .. tostring(point))
 end
 

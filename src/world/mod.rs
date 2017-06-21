@@ -31,7 +31,7 @@ use graphics::cell::{CellFeature, StairDir, StairDest, StairKind};
 use log;
 use logic::entity::*;
 use point::{Direction, Point, POINT_ZERO};
-use prefab::{self, Prefab, PrefabArgs, PrefabMarker};
+use prefab::{self, Prefab, PrefabArgs};
 use terrain::Terrain;
 use terrain::regions::Regions;
 use terrain::traits::*;
@@ -77,7 +77,7 @@ impl World {
         }
     }
 
-    pub fn deploy_prefab(&mut self, prefab: &Prefab, offset: Point) {
+    pub fn deploy_prefab(&mut self, prefab: Prefab, offset: Point) {
         debug!(self.logger, "About to deploy prefab on map {}...", self.flags().map_id);
 
         for (pos, cell) in prefab.iter() {
@@ -88,21 +88,58 @@ impl World {
         }
 
         for (pos, marker) in prefab.markers.iter() {
-            let offset_pos = *pos + offset;
-            debug!(self.logger, "Marker: {:?} {}", marker, offset_pos);
-            match *marker {
-                PrefabMarker::Npc => {
-                    self.create(ecs::prefab::npc("dude"), offset_pos);
+            self.terrain.markers.insert(*pos + offset, marker.clone());
+        }
+
+        debug!(self.logger, "Finished deploying prefab");
+    }
+
+    pub fn reify_markers(&mut self) {
+        for (pos, marker) in self.terrain.markers.clone().iter() {
+            debug!(self.logger, "Marker: {:?} {}", marker, pos);
+            match marker.as_ref() {
+                "npc" => {
+                    self.create(ecs::prefab::npc("dude"), *pos);
                 },
                 // TODO: Allow both stair directions
-                PrefabMarker::StairsOut => self.place_stairs_down(*pos, StairKind::Unconnected),
+                "stairs_out" => self.place_stairs_down(*pos, StairKind::Unconnected),
                 _ => (),
             }
         }
+    }
 
-        self.terrain.markers = prefab.markers.clone();
+    pub fn find_marker(&mut self, kind: &str) -> Option<WorldPosition> {
+        let markers = self.terrain.markers.clone();
 
-        debug!(self.logger, "Finished deploying prefab");
+        for (pos, marker) in markers.iter() {
+            if *marker == kind {
+                if self.cell(pos).is_some() {
+                    return Some(*pos)
+                }
+            }
+        }
+
+        None
+    }
+
+    pub fn find_stairs_in(&mut self) -> Option<WorldPosition> {
+        self.find_marker("stairs_in")
+    }
+
+    pub fn add_marker_overlays(&mut self) {
+        for (pos, marker) in self.terrain.markers.iter() {
+            self.debug_overlay.add(*pos, prefab::mark_to_color(marker));
+        }
+    }
+
+    pub fn place_stairs(&mut self, dir: StairDir,
+                        pos: WorldPosition,
+                        leading_to: MapId,
+                        dest_pos: WorldPosition) {
+        if let Some(cell_mut) = self.cell_mut(&pos) {
+            let dest = StairDest::Generated(leading_to, dest_pos);
+            cell_mut.feature = Some(CellFeature::Stairs(dir, dest));
+        }
     }
 }
 
@@ -136,7 +173,8 @@ impl WorldBuilder {
         }
 
         if let Some(prefab) = prefab_opt {
-            world.deploy_prefab(&prefab, POINT_ZERO);
+            world.deploy_prefab(prefab, POINT_ZERO);
+            world.reify_markers();
         }
 
         Ok(world)
@@ -606,12 +644,19 @@ impl World {
 
     pub fn on_load(&mut self) {
         self.update_terrain();
-        self.recalc_entity_fovs();
         self.update_camera();
     }
 }
 
 impl World {
+    pub fn create(&mut self, loadout: Loadout, pos: Point) -> Option<Entity> {
+        if self.pos_loaded(&pos) {
+            Some(self.spawn(&loadout, pos))
+        } else {
+            None
+        }
+    }
+
     pub fn place_stairs_down(&mut self, pos: WorldPosition, kind: StairKind) {
         assert!(self.can_walk(pos, Walkability::MonstersWalkable));
         self.terrain.cell_mut(&pos).unwrap().feature =

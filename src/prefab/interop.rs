@@ -3,6 +3,7 @@ use hlua::{self, Lua};
 
 use point::Point;
 use graphics::cell::Cell;
+use prefab;
 use prefab::*;
 use lua;
 
@@ -29,7 +30,7 @@ pub fn create(name: &str, args: &Option<PrefabArgs>) -> PrefabResult<Prefab> {
 pub fn build_prefab_args(args: &PrefabArgs) -> String {
     let mut res = String::new();
     for (k, v) in args.iter() {
-        res.push_str(&format!("{} = {}", k, v));
+        res.push_str(&format!("{} = {}\n", k, v));
     }
     res
 }
@@ -46,6 +47,7 @@ pub fn map_from_prefab<'a>(lua: &'a mut Lua, name: &str, args: &Option<PrefabArg
 
     if let Some(ref args) = *args {
         let args_script = build_prefab_args(&args);
+        println!("args_script: {:?}", args_script);
         lua.execute::<()>(&args_script)?;
     }
 
@@ -96,31 +98,54 @@ fn lua_print(prefab: &Prefab) {
     lua::lua_log_info(format!("{}", prefab));
 }
 
-fn lua_place_door(prefab: &mut Prefab, x: i32, y: i32) {
+fn lua_place_marker(prefab: &mut Prefab, x: i32, y: i32, marker: String) {
     let pt = Point::new(x, y);
-    prefab.set_marker(&pt, PrefabMarker::Door);
+    prefab.set_marker(&pt, marker);
 }
 
-fn lua_place_stairs_in(prefab: &mut Prefab, x: i32, y: i32) {
-    let pt = Point::new(x, y);
-    prefab.set_marker(&pt, PrefabMarker::StairsIn);
+fn lua_deploy_prefab(prefab: &mut Prefab, x: i32, y: i32, kind: String, args: PrefabArgsLua) -> Result<(), PrefabError> {
+    let other = map_from_prefab(&mut lua::init(), &kind, &Some(args.0))?;
+    prefab.merge(other, Point::new(x, y));
+
+    Ok(())
 }
 
-fn lua_place_stairs_out(prefab: &mut Prefab, x: i32, y: i32) {
-    let pt = Point::new(x, y);
-    prefab.set_marker(&pt, PrefabMarker::StairsOut);
+#[derive(Clone)]
+struct PrefabArgsLua(PrefabArgs);
+
+impl<'lua, L> hlua::LuaRead<L> for PrefabArgsLua
+    where L: hlua::AsMutLua<'lua>
+{
+    fn lua_read_at_position(lua: L, index: i32) -> Result<PrefabArgsLua, L> {
+        let val: Result<hlua::UserdataOnStack<PrefabArgsLua, _>, _> =
+            hlua::LuaRead::lua_read_at_position(lua, index);
+        val.map(|d| d.clone())
+    }
 }
 
-fn lua_place_npc(prefab: &mut Prefab, x: i32, y: i32) {
-    let pt = Point::new(x, y);
-    prefab.set_marker(&pt, PrefabMarker::Npc);
+fn lua_prefab_args_new() -> PrefabArgsLua {
+    PrefabArgsLua(PrefabArgs::new())
 }
+
+fn lua_prefab_args_set(prefab_args: &mut PrefabArgsLua, key: String, val: String) {
+    prefab_args.0.insert(key, val);
+}
+
+fn lua_prefab_args_set_num(prefab_args: &mut PrefabArgsLua, key: String, val: i32) {
+    prefab_args.0.insert(key, val.to_string());
+}
+
 
 pub fn add_lua_interop(lua: &mut Lua) {
-    let mut prefab_namespace = lua.empty_array("Prefab");
+    {
+        let mut prefab_namespace = lua.empty_array("Prefab");
+        prefab_namespace.set("new_raw", hlua::function3(lua_new));
+    }
 
-    prefab_namespace.set("new_raw", hlua::function3(lua_new));
+    let mut prefab_args_namespace = lua.empty_array("PrefabArgs");
+    prefab_args_namespace.set("new", hlua::function0(lua_prefab_args_new));
 }
+
 
 implement_lua_push!(Prefab, |mut metatable| {
     let mut index = metatable.empty_array("__index");
@@ -129,10 +154,8 @@ implement_lua_push!(Prefab, |mut metatable| {
     index.set("get_raw", hlua::function3(lua_get));
     index.set("blocked_raw", hlua::function3(lua_blocked));
     index.set("in_bounds_raw", hlua::function3(lua_in_bounds));
-    index.set("place_door_raw", hlua::function3(lua_place_door));
-    index.set("place_stairs_in_raw", hlua::function3(lua_place_stairs_in));
-    index.set("place_stairs_out_raw", hlua::function3(lua_place_stairs_out));
-    index.set("place_npc_raw", hlua::function3(lua_place_npc));
+    index.set("place_marker_raw", hlua::function4(lua_place_marker));
+    index.set("deploy_prefab_raw", hlua::function5(lua_deploy_prefab));
 
     index.set("width", hlua::function1(lua_width));
     index.set("height", hlua::function1(lua_height));
@@ -141,6 +164,17 @@ implement_lua_push!(Prefab, |mut metatable| {
 });
 
 implement_lua_read!(Prefab);
+
+
+implement_lua_push!(PrefabArgsLua, |mut metatable| {
+    let mut index = metatable.empty_array("__index");
+
+    index.set("set", hlua::function3(lua_prefab_args_set));
+    index.set("set_num", hlua::function3(lua_prefab_args_set_num));
+});
+
+implement_lua_read!(PrefabArgsLua);
+
 
 #[cfg(test)]
 mod tests {

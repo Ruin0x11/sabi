@@ -113,7 +113,7 @@ macro_rules! prefab_args {
             let mut res = HashMap::new();
 
             $(
-                res.insert(stringify!($var).to_string(), stringify!($value).to_string());
+                res.insert(stringify!($var).to_string(), $value.to_string());
             )*;
 
             res

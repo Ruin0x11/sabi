@@ -25,7 +25,7 @@ function generate()
         center = world.point(opening, (rect:height() / 2))
 
         log.debug(tostring(center))
-        prefab:place_npc(center)
+        prefab:place_marker(center, "npc")
     end
 
     main_room = world.rect(0, 0, room_width, room_height)
@@ -45,6 +45,5 @@ function generate()
         place_room(next_room)
     end
 
-    prefab:place_stairs_in(world.point(1, 1))
     return prefab
 end

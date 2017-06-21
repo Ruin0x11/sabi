@@ -132,10 +132,18 @@ fn game_loop() {
             break 'outer;
         }
 
-        for key in keys {
+        if let Some((w, h)) = resize {
+            renderer::with_mut(|renderer| {
+                renderer.set_viewport(w, h);
+                renderer.update(&context.state);
+                renderer.render();
+            });
+        }
+
+        if let Some(key) = keys.first() {
             // Ensure that the renderer isn't borrowed during the game step, so it can be used in
             // the middle of any game routine (like querying the player for input)
-            state::game_step(&mut context, Some(key));
+            state::game_step(&mut context, Some(*key));
 
             renderer::with_mut(|renderer| renderer.update(&context.state));
         }

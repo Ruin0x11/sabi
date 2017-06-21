@@ -43,7 +43,7 @@ function generate()
       end
    end
 
-   prefab:place_stairs_in(world.point(2, 2))
+   prefab:place_marker(world.point(2, 2), "stairs_in")
 
    return prefab
 end

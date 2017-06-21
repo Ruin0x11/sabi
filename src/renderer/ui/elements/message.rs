@@ -1,6 +1,7 @@
 use renderer::ui::elements::UiElement;
 use renderer::ui::renderer::{TexDir, UiRenderer};
 use renderer::render::{SCREEN_WIDTH, SCREEN_HEIGHT};
+use renderer::render::Viewport;
 
 const LINE_HEIGHT: usize =  16;
 
@@ -12,10 +13,10 @@ pub struct UiMessageLog {
 }
 
 impl UiMessageLog {
-    pub fn new() -> Self {
+    pub fn new(viewport: &Viewport) -> Self {
         UiMessageLog {
-            pos: (0, SCREEN_HEIGHT - 120),
-            size: (SCREEN_WIDTH, 120),
+            pos: (0, viewport.height() - 120),
+            size: (viewport.width(), 120),
             messages: Vec::new(),
         }
     }

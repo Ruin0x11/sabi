@@ -280,7 +280,7 @@ fn make_map(world: &World, viewport: &Viewport) -> Vec<(DrawTile, Point)> {
     let mut res = Vec::new();
     let camera = world.flags().camera;
     let start_corner = viewport.min_tile_pos(camera).into();
-    world.with_cells(start_corner, Viewport::renderable_area().into(), |pos, &cell| {
+    world.with_cells(start_corner, viewport.renderable_area().into(), |pos, &cell| {
         let tile = DrawTile {
             kind: cell.glyph(),
             edges: get_neighboring_edges(world, pos, cell.type_),

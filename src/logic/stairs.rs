@@ -5,7 +5,6 @@ use ecs::globals;
 use graphics::cell::{CellFeature, StairDest, StairDir, StairKind};
 use infinigen::ChunkedWorld;
 use point::Point;
-use prefab::PrefabMarker;
 use state::GameState;
 use world::traits::*;
 use world::{self, World};
@@ -142,7 +141,7 @@ fn integrate_world_with_dungeon(new_floor: &mut World,
 
     // Now, connect the stairs to the next floor
     for (pos, marker) in new_floor.terrain().markers.clone().iter() {
-        if *marker == PrefabMarker::StairsOut {
+        if marker == "stairs_out" {
             debug!(new_floor.logger, "Connecting stairs to entity {:?}", dungeon_entity);
             let mut stairs_mut = new_floor.cell_mut(&pos).unwrap();
 

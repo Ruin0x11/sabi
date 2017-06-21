@@ -18,7 +18,7 @@ const TEST_WORLD_ID: u32 = 10000000;
 
 pub(super) fn cmd_debug_menu(context: &mut GameContext) -> CommandResult<()> {
     menu!(context,
-          "scav"           => debug_scav(context),
+          "ai"             => debug_ai_menu(context),
           "print entity info" => debug_print_entity_info(context),
           "Item test"      => debug_item_test(context),
           "List entities"  => debug_list_entities(context),
@@ -28,6 +28,13 @@ pub(super) fn cmd_debug_menu(context: &mut GameContext) -> CommandResult<()> {
           "Deploy prefab"  => debug_deploy_prefab(context),
           "Reload shaders" => debug_reload_shaders(),
           "Restart game"   => debug_restart_game(context)
+    )
+}
+
+fn debug_ai_menu(context: &mut GameContext) -> CommandResult<()> {
+    menu!(context,
+          "scav"           => debug_scav(context),
+          "guard"          => debug_guard(context)
     )
 }
 
@@ -61,6 +68,16 @@ fn debug_scav(context: &mut GameContext) -> CommandResult<()> {
 
     Ok(())
 }
+
+fn debug_guard(context: &mut GameContext) -> CommandResult<()> {
+    goto_new_world(context, get_debug_world("blank", Some(prefab_args! { width: 10, height: 30, })).unwrap());
+
+    context.state.world.create(ecs::prefab::mob("putit", 100, "putit").c(Ai::new(AiKind::SeekTarget)), Point::new(5, 20));
+    context.state.world.create(ecs::prefab::mob("guard", 1000, "npc").c(Ai::new(AiKind::Guard)), Point::new(1, 1));
+
+    Ok(())
+}
+
 
 fn debug_item_test(context: &mut GameContext) -> CommandResult<()> {
     goto_new_world(context, get_debug_world("blank", None).unwrap());
@@ -96,7 +113,8 @@ fn debug_deploy_prefab(context: &mut GameContext) -> CommandResult<()> {
     mes!(context.state.world, "Where to deploy?");
     let pos = select_tile(context, |_, _| ())?;
 
-    context.state.world.deploy_prefab(&prefab, pos);
+    context.state.world.deploy_prefab(prefab, pos);
+    context.state.world.add_marker_overlays();
     Ok(())
 }
 
@@ -180,6 +198,7 @@ fn goto_new_world(context: &mut GameContext, mut new_world: World) {
     };
 
     world.move_to_map(new_world, start_pos).unwrap();
+    world.add_marker_overlays();
 }
 
 fn debug_restart_game(context: &mut GameContext) -> CommandResult<()> {

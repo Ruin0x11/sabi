@@ -106,7 +106,7 @@ use renderer::RenderUpdate;
 fn make_shadows(world: &World, viewport: &Viewport) -> Vec<Shadow> {
     let camera = world.flags().camera;
     let start_corner = viewport.min_tile_pos(camera);
-    let area = RectangleIter::new(start_corner, Viewport::renderable_area().into());
+    let area = RectangleIter::new(start_corner, viewport.renderable_area().into());
 
     let mut visible = HashSet::new();
     let points: Vec<Point> = match world.player() {

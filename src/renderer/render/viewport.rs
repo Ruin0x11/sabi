@@ -13,6 +13,14 @@ pub struct Viewport {
 pub type RendererSubarea = ([[f32; 4]; 4], glium::Rect);
 
 impl Viewport {
+    pub fn width(&self) -> u32 {
+        self.scaled_size().0
+    }
+
+    pub fn height(&self) -> u32 {
+        self.scaled_size().1
+    }
+
     pub fn main_window(&self) -> RendererSubarea {
         let (w, h) = self.scaled_size();
         self.make_subarea((0, 0, w, h - 120))
@@ -26,8 +34,8 @@ impl Viewport {
         (self.size.0 / 48, (self.size.1 - 120) / 48)
     }
 
-    pub fn renderable_area() -> (i32, i32) {
-        (SCREEN_WIDTH as i32 / 48, SCREEN_HEIGHT as i32 / 48)
+    pub fn renderable_area(&self) -> (i32, i32) {
+        (self.width() as i32 / 48, self.height() as i32 / 48)
     }
 
 
@@ -43,7 +51,7 @@ impl Viewport {
     /// with the given camera coordinates.
     pub fn max_tile_pos<I: Into<(i32, i32)>>(&self, camera: I) -> (i32, i32) {
         let c = self.min_tile_pos(camera);
-        let v = Viewport::renderable_area();
+        let v = self.renderable_area();
 
         (c.0 + v.0, c.1 + v.1)
     }

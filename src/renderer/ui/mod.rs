@@ -22,10 +22,10 @@ pub struct MainLayer {
 }
 
 impl MainLayer {
-    pub fn new() -> Self {
+    pub fn new(viewport: &Viewport) -> Self {
         MainLayer {
-            log: UiMessageLog::new(),
-            bar: UiBar::new((100, SCREEN_HEIGHT as i32 - 140), 100, (255, 64, 64, 255)),
+            log: UiMessageLog::new(viewport),
+            bar: UiBar::new((100, viewport.height() as i32 - 140), 100, (255, 64, 64, 255)),
         }
     }
 }
@@ -51,12 +51,12 @@ pub struct Ui {
 }
 
 impl Ui {
-    pub fn new<F: Facade>(display: &F) -> Self {
+    pub fn new<F: Facade>(display: &F, viewport: &Viewport) -> Self {
         Ui {
             renderer: UiRenderer::new(display),
             valid: false,
             layers: Vec::new(),
-            main_layer: MainLayer::new(),
+            main_layer: MainLayer::new(viewport),
         }
     }
 

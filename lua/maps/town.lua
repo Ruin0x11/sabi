@@ -11,20 +11,24 @@ function generate()
 
    total_width = (streets_width * (blocks_horiz + 1)) + block_width * blocks_horiz
    total_height = (streets_width * (blocks_vert + 1)) + block_height * blocks_vert
-   prefab = Prefab.new(total_width, total_height, "sand")
+   prefab = Prefab.new(total_width, total_height, "floor")
 
-   local i
-   for i = 0, blocks_horiz + 1, 1 do
-      local skip_height = (streets_width + block_height) * i
-      for pos in iter.rect_iterator(world.point(0, skip_height), world.point(total_width, skip_height + streets_width - 1)) do
-         prefab:set(pos, "floor")
-      end
-   end
+   local i, j
+   local size = world.point(block_width, block_height)
 
-   for i = 0, blocks_vert + 1, 1 do
-      local skip_width = (streets_width + block_width) * i
-      for pos in iter.rect_iterator(world.point(skip_width, 0), world.point(skip_width + streets_width - 1, total_height)) do
-         prefab:set(pos, "floor")
+   for j = 0, blocks_vert, 1 do
+      for i = 0, blocks_horiz, 1 do
+         local start_corner = world.point((i + 1) * streets_width + i * block_width,
+            (j + 1) * streets_width + j * block_height)
+
+         for pos in iter.rect_iterator(start_corner, start_corner + size) do
+            prefab:set(pos, "sand")
+         end
+
+         args = PrefabArgs.new()
+         args:set_num("width", block_width - 1)
+         args:set_num("height", block_height - 1)
+         prefab:deploy_prefab(start_corner + world.point(1, 1), "house", args)
       end
    end
 

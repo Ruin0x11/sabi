@@ -28,6 +28,7 @@ impl GameState {
     pub fn new() -> Self {
         let mut globals = Globals::new();
         globals.make_dungeon();
+        globals.make_town();
         GameState {
             world: World::new()
                 .with_bounds(Bounds::Unbounded)
@@ -54,6 +55,28 @@ impl GameState {
                             .place_stairs_down(stair_pos, StairKind::Dungeon(dungeon));
                     }
                     dungeon_compo.placed = true;
+                }
+            }
+
+            for town in self.globals.towns() {
+                let mut place = false;
+                let town_pos = town.position(&self.globals).unwrap();
+                {
+                    let town_compo = self.globals.ecs.towns.get(town).unwrap();
+                    if !town_compo.placed {
+                        if town_compo.spanning_chunks(town_pos).iter().any(|ci| self.world.chunk_loaded(ci)) {
+                            place = true;
+                        }
+                    }
+                }
+
+                if place {
+                    let mut town_compo_mut = self.globals.ecs.towns.get_mut(town).unwrap();
+                    let prefab = town_compo_mut.generate(town_pos);
+                    town_compo_mut.size = prefab.size();
+                    self.world.deploy_prefab(prefab, town_pos);
+                    self.world.reify_markers();
+                    town_compo_mut.placed = true;
                 }
             }
         }
@@ -87,7 +110,6 @@ impl GameState {
 }
 
 pub fn game_step(context: &mut GameContext, input: Option<Key>) {
-
     if player_is_dead(&mut context.state.world) {
         restart_game(context);
         return;
@@ -204,6 +226,7 @@ pub fn process(context: &mut GameContext) {
 pub fn init_game_context(context: &mut GameContext) {
     context.state.world.on_load();
     context.state.try_globals_update();
+    context.state.world.recalc_entity_fovs();
 }
 
 fn apply_save_manifest(context: &mut GameContext, mut world: World, manifest: SaveManifest) {
@@ -224,9 +247,9 @@ pub fn load_context() -> GameContext {
         apply_save_manifest(&mut context, world, manifest);
     } else {
         let player = context.state
-                            .world
-                            .spawn(&::ecs::prefab::mob("player", 10000000, "player"),
-                                    WorldPosition::new(0, 0));
+            .world
+            .spawn(&::ecs::prefab::mob("player", 10000000, "player"),
+                   WorldPosition::new(0, 0));
         context.state.world.set_player(Some(player));
     }
 

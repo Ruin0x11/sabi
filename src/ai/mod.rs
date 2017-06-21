@@ -15,11 +15,12 @@ use std::collections::HashMap;
 use calx_ecs::Entity;
 use goap::*;
 
-use logic::Action;
 use ai::sensors::Sensor;
 use ecs::traits::ComponentQuery;
-use world::traits::Query;
+use logic::Action;
+use point::Point;
 use world::World;
+use world::traits::Query;
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum Disposition {
@@ -36,6 +37,7 @@ pub struct Ai {
 
     kind: AiKind,
 
+    important_pos: RefCell<Option<Point>>,
     target: RefCell<Option<Entity>>,
     memory: RefCell<AiMemory>,
     goal: RefCell<AiMemory>,
@@ -56,6 +58,8 @@ impl Ai {
         let facts = default_ai_facts();
         Ai {
             planner: make_planner(),
+
+            important_pos: RefCell::new(None),
             target: RefCell::new(None),
             goal: RefCell::new(AiMemory { facts: facts.clone() }),
             memory: RefCell::new(AiMemory { facts: facts }),
@@ -146,6 +150,10 @@ fn check_target(entity: Entity, world: &World) {
     if target.is_some() && (dead || removed) && !in_inventory {
         *target = None;
     }
+
+    if ai.important_pos.borrow().is_none() {
+        *ai.important_pos.borrow_mut() = world.position(entity)
+    }
 }
 
 fn update_goal(entity: Entity, world: &World) {
@@ -209,6 +217,11 @@ pub fn make_planner() -> AiPlanner {
     effects.set_postcondition(AiProp::TargetVisible, true);
     actions.insert(AiAction::Wander, effects);
 
+    let mut effects = GoapEffects::new(1000);
+    effects.set_postcondition(AiProp::HealthLow, false);
+    effects.set_postcondition(AiProp::Moving, false);
+    actions.insert(AiAction::Wait, effects);
+
     let mut effects = GoapEffects::new(12);
     effects.set_precondition(AiProp::HasTarget, true);
     effects.set_precondition(AiProp::OnTopOfTarget, true);
@@ -222,8 +235,14 @@ pub fn make_planner() -> AiPlanner {
     effects.set_precondition(AiProp::OnTopOfTarget, false);
     effects.set_postcondition(AiProp::NextToTarget, true);
     effects.set_postcondition(AiProp::OnTopOfTarget, true);
+    effects.set_postcondition(AiProp::TargetInRange, true);
     effects.set_postcondition(AiProp::TargetVisible, true);
     actions.insert(AiAction::MoveCloser, effects);
+
+    let mut effects = GoapEffects::new(10);
+    effects.set_precondition(AiProp::AtPosition, false);
+    effects.set_postcondition(AiProp::AtPosition, true);
+    actions.insert(AiAction::ReturnToPosition, effects);
 
     let mut effects = GoapEffects::new(9);
     effects.set_precondition(AiProp::HasTarget, true);
@@ -239,6 +258,7 @@ pub fn make_planner() -> AiPlanner {
     effects.set_precondition(AiProp::TargetVisible, true);
     effects.set_precondition(AiProp::NextToTarget, false);
     effects.set_precondition(AiProp::CanDoRanged, true);
+    effects.set_precondition(AiProp::TargetInRange, true);
     effects.set_precondition(AiProp::TargetDead, false);
     effects.set_postcondition(AiProp::TargetDead, true);
     actions.insert(AiAction::ShootAt, effects);
