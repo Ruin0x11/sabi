@@ -109,7 +109,7 @@ fn cmd_player_move(context: &mut GameContext, dir: Direction) -> CommandResult<(
                          .world
                          .find_entity(new_pos, |e| context.state.world.is_npc(*e));
     if let Some(npc) = npc_opt {
-        mes!(context.state.world, "{}: Hello!", a = npc.name(&context.state.world));
+        mes!(context.state.world, "{}: Hello!", npc.name(&context.state.world));
         return Ok(());
     }
 
@@ -176,7 +176,7 @@ fn cmd_inventory(context: &mut GameContext) -> CommandResult<()> {
 
     let choose = menu_choice_indexed(context, names)?;
 
-    mes!(context.state.world, "You chose: {}", a = choose);
+    mes!(context.state.world, "You chose: {}", choose);
     Err(CommandError::Cancel)
 }
 
@@ -193,7 +193,7 @@ fn maybe_examine_tile(pos: Point, world: &mut World) {
     if let Some(mob) = world.mob_at(pos) {
         if let Some(player) = world.player() {
             if player.can_see_other(mob, world) {
-                format_mes!(world, player, "%u <see> here {}.", a = mob.name_with_article(world));
+                format_mes!(world, player, "%u <see> here {}.", mob.name_with_article(world));
             }
         }
     }

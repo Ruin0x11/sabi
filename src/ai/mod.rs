@@ -42,6 +42,7 @@ pub struct Ai {
     memory: RefCell<AiMemory>,
     goal: RefCell<AiMemory>,
     next_action: RefCell<Option<AiAction>>,
+    triggers: RefCell<Vec<AiTrigger>>,
 
     // TODO: Keep track of other entities turned enemies, such as due to too much friendly fire
     pub disposition: Disposition,
@@ -67,6 +68,7 @@ impl Ai {
             kind: kind,
 
             next_action: RefCell::new(None),
+            triggers: RefCell::new(Vec::new()),
             last_goal: RefCell::new(AiGoal::DoNothing),
         }
     }
@@ -99,10 +101,17 @@ impl Ai {
             }
         }
 
+        if self.last_goal.borrow().requires_position() {
+            if self.important_pos.borrow().is_none() {
+                return true
+            }
+        }
+
         false
     }
 
-    pub fn add_memory(&mut self, trigger: AiTrigger) {
+    pub fn add_memory(&self, trigger: AiTrigger) {
+        self.triggers.borrow_mut().push(trigger);
     }
 
     pub fn debug_info(&self) -> String {
@@ -129,6 +138,7 @@ pub fn run(entity: Entity, world: &World) -> Option<Action> {
     }
 
     check_target(entity, world);
+    check_triggers(entity, world);
     update_goal(entity, world);
     update_memory(entity, world);
     let action = choose_action(entity, world);
@@ -156,6 +166,16 @@ fn check_target(entity: Entity, world: &World) {
     }
 }
 
+fn check_triggers(entity: Entity, world: &World) {
+    let ai = world.ecs().ais.get_or_err(entity);
+
+    if let Some((goal, target)) = ai.kind.check_triggers(entity, world) {
+        set_goal(entity, world, goal.get_end_state(), target, goal);
+    }
+
+    ai.triggers.borrow_mut().clear();
+}
+
 fn update_goal(entity: Entity, world: &World) {
     let ai = world.ecs().ais.get_or_err(entity);
 
@@ -163,11 +183,19 @@ fn update_goal(entity: Entity, world: &World) {
         debug_ecs!(world, entity, "Last goal finished.");
         let (desired, target, goal_kind) = make_new_plan(entity, world);
 
-        let goal = GoapState { facts: desired };
-        *ai.last_goal.borrow_mut() = goal_kind;
-        *ai.goal.borrow_mut() = goal;
-        *ai.target.borrow_mut() = target;
+        set_goal(entity, world, desired, target, goal_kind);
     }
+}
+
+fn set_goal(entity: Entity, world: &World, desired: AiFacts, target: Option<Entity>, goal_kind: AiGoal) {
+    let ai = world.ecs().ais.get_or_err(entity);
+
+    let goal = GoapState { facts: desired };
+    *ai.last_goal.borrow_mut() = goal_kind;
+    *ai.goal.borrow_mut() = goal;
+    *ai.target.borrow_mut() = target;
+
+    // ai.kind.on_goal(goal_kind, entity, world);
 }
 
 fn update_memory(entity: Entity, world: &World) {

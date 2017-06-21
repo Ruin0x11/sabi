@@ -59,7 +59,7 @@ fn action_move_entity(world: &mut World, entity: Entity, dir: Direction) -> Acti
     if world.is_player(entity) {
         if let Some(on_ground) = world.entities_below(entity).first() {
             // NOTE: Duplicate from looking code
-            format_mes!(world, entity, "%u <see> here {}.", a = on_ground.name_with_article(world));
+            format_mes!(world, entity, "%u <see> here {}.", on_ground.name_with_article(world));
         }
     }
 
@@ -68,23 +68,23 @@ fn action_move_entity(world: &mut World, entity: Entity, dir: Direction) -> Acti
 
 fn action_pickup(world: &mut World, parent: Entity, target: Entity) -> ActionResult {
     world.place_entity_in(parent, target);
-    format_mes!(world, parent, "%U <pick up> {}.", a = target.name(world));
+    format_mes!(world, parent, "%U <pick up> {}.", target.name(world));
     Ok(())
 }
 
 fn action_drop(world: &mut World, entity: Entity, target: Entity) -> ActionResult {
     let pos = world.position(entity).unwrap();
     world.place_entity(target, pos);
-    format_mes!(world, entity, "%U <drop> {}.", a = target.name(world));
+    format_mes!(world, entity, "%U <drop> {}.", target.name(world));
     Ok(())
 }
 
 fn action_swing_at(world: &mut World, attacker: Entity, other: Entity) -> ActionResult {
-    let damage;
+    let mut damage;
     {
         if !world.position(attacker)
-                 .unwrap()
-                 .is_next_to(world.position(other).unwrap())
+            .unwrap()
+            .is_next_to(world.position(other).unwrap())
         {
             return Err(());
         }
@@ -96,9 +96,16 @@ fn action_swing_at(world: &mut World, attacker: Entity, other: Entity) -> Action
         }
 
         damage = stats::formulas::calculate_damage(world, attacker, other);
+
+        if world.ecs().healths.get_or_err(attacker).tp_full() {
+            mes!(world, "Charge attack!");
+            damage *= 4;
+
+            world.ecs_mut().healths.get_mut_or_err(attacker).reset_tp();
+        }
     }
 
-    format_mes!(world, attacker, "%U <hit> {}! ({})", a = other.name(world), b = damage);
+    format_mes!(world, attacker, "%U <hit> {}! ({})", other.name(world), damage);
     hurt(world, other, attacker, damage);
 
     Ok(())
@@ -116,18 +123,25 @@ fn action_shoot_at(world: &mut World, attacker: Entity, other: Entity) -> Action
         damage = stats::formulas::calculate_damage(world, attacker, other);
     }
 
-    format_mes!(world, attacker, "%U <shoot at> {}! ({})", a = other.name(world), b = damage);
+    format_mes!(world, attacker, "%U <shoot at> {}! ({})", other.name(world), damage);
     hurt(world, other, attacker, damage);
 
     Ok(())
 }
 
 fn hurt(world: &mut World, target: Entity, attacker: Entity, damage: u32) {
-    world.ecs_mut().healths.map_mut(|h| h.hurt(damage), target);
+    world.ecs_mut().healths.map_mut(|h| {
+        h.hurt(damage);
+        h.adjust_tp(2);
+    }, target);
     target.add_memory(AiTrigger::AttackedBy(attacker), world);
 
+    world.ecs_mut().healths.map_mut(|h| {
+        h.adjust_tp(1);
+    }, attacker);
+
     if target.is_dead(world) {
-        format_mes!(world, attacker, "%U <kill> {}!", a = target.name(world));
+        format_mes!(world, attacker, "%U <kill> {}!", target.name(world));
         target.on_death(world);
     }
 }

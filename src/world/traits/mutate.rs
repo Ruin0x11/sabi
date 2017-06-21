@@ -1,7 +1,9 @@
 pub use infinigen::*;
 
 use calx_ecs::Entity;
+use rand::Rng;
 
+use ai::AiTrigger;
 use ecs::*;
 use ecs::traits::*;
 use point::Direction;
@@ -38,8 +40,18 @@ pub trait Mutate: Query + Sized {
     fn next_entity_in_turn_order(&mut self) -> Option<Entity>;
 
     fn after_entity_moved(&mut self, e: Entity) {
-        self.ecs_mut().healths.map_mut(|h| h.heal(1), e);
         self.do_fov(e);
+
+        self.ecs_mut().healths.map_mut(|h| h.heal(1), e);
+        if self.flags_mut().rng().gen() {
+            self.ecs_mut().healths.map_mut(|h| h.adjust_tp(-1), e);
+        }
+
+        self.ecs().ais.map(|ai| {
+            for e in self.seen_entities(e) {
+                ai.add_memory(AiTrigger::SawEntity(e));
+            }
+        }, e);
     }
 
     fn do_fov(&mut self, e: Entity);

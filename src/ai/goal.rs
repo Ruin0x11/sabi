@@ -8,7 +8,7 @@ use point::Point;
 use world::World;
 use world::traits::Query;
 
-#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[derive(Eq, PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum AiKind {
     Wait,
     SeekTarget,
@@ -18,7 +18,21 @@ pub enum AiKind {
     Guard,
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
+impl AiKind {
+    pub fn on_goal(&self, goal: AiGoal, entity: Entity, world: &mut World) {
+        match *self {
+            AiKind::Guard => match goal {
+                AiGoal::KillTarget => {
+                    format_mes!(world, entity, "%u: Scum!");
+                },
+                _ => ()
+            },
+            _ => ()
+        }
+    }
+}
+
+#[derive(Eq, PartialEq, Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum AiGoal {
     FindTarget,
     KillTarget,
@@ -64,6 +78,13 @@ impl AiGoal {
     pub fn requires_target(&self) -> bool {
         match *self {
             AiGoal::GetItem | AiGoal::FindTarget | AiGoal::KillTarget | AiGoal::Follow => true,
+            _ => false
+        }
+    }
+
+    pub fn requires_position(&self) -> bool {
+        match *self {
+              AiGoal::Guard => true,
             _ => false
         }
     }

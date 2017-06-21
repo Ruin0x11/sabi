@@ -5,13 +5,14 @@ pub mod prefab;
 pub mod traits;
 
 use ai;
+use data::Properties;
 
 Ecs! {
     healths: components::Health,
     names: components::Name,
     appearances: components::Appearance,
     turns: components::Turn,
-    props: components::Props,
+    props: Properties,
     items: components::Item,
     invs: components::Inventory,
     ais: ai::Ai,

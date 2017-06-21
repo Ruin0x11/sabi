@@ -8,6 +8,7 @@ use std::cmp::Ordering::Equal;
 use calx_ecs::Entity;
 
 use ai::AiTrigger;
+use data::{Properties, GetProp};
 use ecs::components::Gender;
 use ecs::traits::*;
 use point::{Point, LineIter};
@@ -24,6 +25,8 @@ pub trait EntityQuery {
     fn can_see_other(&self, target: Entity, world: &World) -> bool;
     fn inventory(&self, world: &World) -> Vec<Entity>;
     fn closest_entity(&self, entities: Vec<Entity>, world: &World) -> Option<Entity>;
+    fn get_prop<T: Clone>(&self, prop: &str, world: &World) -> Option<T> where Properties: GetProp<T>;
+    fn prop_equals<T: Clone + Eq>(&self, key: &str, val: T, world: &World) -> bool where Properties: GetProp<T>;
 }
 
 impl EntityQuery for Entity {
@@ -130,16 +133,32 @@ impl EntityQuery for Entity {
 
         dists.first().map(|&(e, _)| e)
     }
+
+    fn get_prop<T: Clone>(&self, key: &str, world: &World) -> Option<T>
+        where Properties: GetProp<T> {
+        world.ecs().props.map_or(None, |props| props.get::<T>(key).ok().cloned(), *self)
+    }
+
+    fn prop_equals<T: Clone + Eq>(&self, key: &str, val: T, world: &World) -> bool
+        where Properties: GetProp<T>  {
+        self.get_prop(key, world).map_or(false, |p| p == val)
+    }
 }
 
 pub trait EntityMutate {
     fn add_memory(&self, trigger: AiTrigger, world: &mut World);
     fn on_death(&self, world: &mut World);
+    fn set_prop<T>(&self, key: &str, val: T, world: &mut World) where Properties: GetProp<T>;
 }
 
 impl EntityMutate for Entity {
     fn add_memory(&self, trigger: AiTrigger, world: &mut World) {
         world.ecs_mut().ais.map_mut(|ai| ai.add_memory(trigger), *self);
+    }
+
+    fn set_prop<T>(&self, key: &str, val: T, world: &mut World)
+        where Properties: GetProp<T> {
+        world.ecs_mut().props.map_mut(|props| props.set::<T>(key, val).unwrap(), *self);
     }
 
     fn on_death(&self, world: &mut World) {
@@ -148,7 +167,7 @@ impl EntityMutate for Entity {
         let inv = self.inventory(world);
         if inv.len() == 1 {
             let first = inv.first().unwrap();
-            mes!(world, "{} falls to the ground.", a=first.name(world));
+            mes!(world, "{} falls to the ground.", first.name(world));
         } else if !inv.is_empty() {
             mes!(world, "Several items fall to the ground.");
         }

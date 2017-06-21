@@ -10,6 +10,7 @@ pub use self::bounds::Bounds;
 use self::flags::Flags;
 use self::traits::*;
 
+use std::cell::RefCell;
 use std::collections::HashSet;
 use std::slice;
 
@@ -163,7 +164,7 @@ impl WorldBuilder {
             chunk_type: self.chunk_type.clone(),
 
             logger: get_world_log(),
-            messages: MessageLog::new(),
+            messages: get_message_log(),
             marks: Marks::new(),
             debug_overlay: Marks::new(),
         };
@@ -219,6 +220,10 @@ impl WorldBuilder {
     }
 }
 
+fn get_message_log() -> RefCell<MessageLog> {
+    RefCell::new(MessageLog::new())
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct World {
     ecs_: Ecs,
@@ -236,8 +241,8 @@ pub struct World {
 
     #[serde(skip_serializing)]
     #[serde(skip_deserializing)]
-    #[serde(default = "MessageLog::new")]
-    messages: MessageLog,
+    #[serde(default = "get_message_log")]
+    messages: RefCell<MessageLog>,
 
     #[serde(skip_serializing)]
     #[serde(skip_deserializing)]
@@ -252,21 +257,21 @@ pub struct World {
 
 impl World {
     pub fn get_messages(&self, count: usize) -> Vec<String> {
-        self.messages.get_lines(count)
+        self.messages.borrow_mut().get_lines(count)
     }
 
     #[cfg(not(test))]
-    pub fn message(&mut self, text: &str) {
-        self.messages.append(text);
+    pub fn message(&self, text: &str) {
+        self.messages.borrow_mut().append(text);
     }
 
     #[cfg(test)]
-    pub fn message(&mut self, text: &str) {
+    pub fn message(&self, text: &str) {
         println!("MESSAGE: {}", text);
     }
 
     pub fn next_message(&mut self) {
-        self.messages.next_line();
+        self.messages.borrow_mut().next_line();
     }
 }
 

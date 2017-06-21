@@ -14,7 +14,8 @@ use calx_ecs::Entity;
 pub enum PropType {
     Bool(bool),
     Num(i64),
-    Id(Entity),
+    Entity(Entity),
+    String(String),
 }
 
 // This can be refactored to have type checking later.
@@ -25,17 +26,6 @@ pub enum PropType {
 // There is a tradeoff here between in-memory size/performance and convienience.
 // The properties that are most important can be moved into the respective
 // struct, and everything less important can live here.
-macro_attr! {
-    #[derive(Serialize, Deserialize, Eq, PartialEq, Hash, Clone, Debug, EnumFromStr!)]
-    pub enum Prop {
-        Explosive,
-
-        // Test use only.
-        TestNum,
-        TestBool,
-    }
-}
-
 #[derive(Debug)]
 pub enum PropErr {
     NoSuchKey,
@@ -47,7 +37,7 @@ pub enum PropErr {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Properties {
     // poor-man's polymorphism
-    props: HashMap<Prop, PropType>,
+    props: HashMap<String, PropType>,
 }
 
 // The issues with this system are twofold:
@@ -61,25 +51,25 @@ impl Properties {
         }
     }
 
-    pub fn get<T>(&self, key: Prop) -> Result<T, PropErr>
-        where Properties: GetProp<T, PropKey=Prop> {
+    pub fn get<'a, T>(&'a self, key: &str) -> Result<&'a T, PropErr>
+        where Properties: GetProp<T> {
         self.get_prop(key)
     }
 
-    pub fn set<T>(&mut self, key: Prop, val: T) -> Result<(), PropErr>
-        where Properties: GetProp<T, PropKey=Prop> {
+    pub fn set<T>(&mut self, key: &str, val: T) -> Result<(), PropErr>
+        where Properties: GetProp<T > {
         self.set_prop(key, val)
     }
 
-    pub fn remove(&mut self, key: Prop) -> () {
-        self.props.remove(&key);
+    pub fn remove(&mut self, key: &str) {
+        self.props.remove(key);
     }
 
     /// Convenience function to either get the value of a boolean property or
     /// return `false` if it doesn't exist.
-    pub fn check_bool(&self, key: Prop) -> bool {
+    pub fn check_bool(&self, key: &str) -> bool {
         match self.get::<bool>(key) {
-            Ok(val) => val,
+            Ok(val) => *val,
             Err(..) => false,
         }
     }
@@ -92,21 +82,18 @@ impl Properties {
 // comparison operations harder, as opposed to unwrapping the value. The
 // primitives inside each enum variant are inexpensive to copy, so hopefully it
 // won't be an issue.
-// TEMP: This is just a dirty hack.
 pub trait GetProp<T> {
-    type PropKey;
-    fn get_prop(&self, key: Self::PropKey) -> Result<T, PropErr>;
-    fn set_prop(&mut self, key: Self::PropKey, val: T) -> Result<(), PropErr>;
-    fn remove_prop(&mut self, key: Self::PropKey) -> Result<(), PropErr>;
+    fn get_prop<'a>(&'a self, key: &str) -> Result<&'a T, PropErr>;
+    fn set_prop(&mut self, key: &str, val: T) -> Result<(), PropErr>;
+    fn remove_prop(&mut self, key: &str) -> Result<(), PropErr>;
 }
 
 macro_rules! make_get_set {
     ($ty:ty, $path:path) => {
         impl GetProp<$ty> for Properties {
-            type PropKey = Prop;
-            fn get_prop(&self, key: Prop) -> Result<$ty, PropErr> {
-                if let Some(prop) = self.props.get(&key) {
-                    if let $path(val) = *prop {
+            fn get_prop<'a>(&'a self, key: &str) -> Result<&'a $ty, PropErr> {
+                if let Some(prop) = self.props.get(key) {
+                    if let $path(ref val) = *prop {
                         Ok(val)
                     } else {
                         Err(WrongType)
@@ -116,8 +103,8 @@ macro_rules! make_get_set {
                 }
             }
 
-            fn set_prop(&mut self, key: Prop, val: $ty) -> Result<(), PropErr> {
-                match self.props.entry(key) {
+            fn set_prop(&mut self, key: &str, val: $ty) -> Result<(), PropErr> {
+                match self.props.entry(key.to_string()) {
                     Occupied(mut v) => {
                         if let $path(..) = *v.get() {
                             *v.get_mut() = $path(val);
@@ -134,10 +121,10 @@ macro_rules! make_get_set {
             }
 
             // This could return T in the future, given a type annotation.
-            fn remove_prop(&mut self, key: Prop) -> Result<(), PropErr> {
-                match self.props.remove(&key) {
+            fn remove_prop(&mut self, key: &str) -> Result<(), PropErr> {
+                match self.props.remove(key) {
                     Some(_) => Ok(()),
-                    None      => Err(NoSuchKey)
+                    None    => Err(NoSuchKey)
                 }
             }
         }
@@ -145,32 +132,33 @@ macro_rules! make_get_set {
 }
 
 make_get_set!(bool, PropType::Bool);
-make_get_set!(i64,  PropType::Num);
+make_get_set!(i64, PropType::Num);
+make_get_set!(Entity, PropType::Entity);
+make_get_set!(String, PropType::String);
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::Prop::*;
 
     #[test]
     fn test_set() {
         let mut props = Properties::new();
-        let res = props.set(TestNum, 32);
+        let res = props.set("Test", 32);
         assert!(res.is_ok());
-        let hp = props.get::<i64>(TestNum).unwrap();
-        assert_eq!(hp, 32);
-        let res = props.set(TestNum, 128);
+        let hp = props.get::<i64>("Test").unwrap();
+        assert_eq!(*hp, 32);
+        let res = props.set("Test", 128);
         assert!(res.is_ok());
-        let hp = props.get::<i64>(TestNum).unwrap();
-        assert_eq!(hp, 128);
+        let hp = props.get::<i64>("Test").unwrap();
+        assert_eq!(*hp, 128);
 
-        let res = props.get::<i64>(TestBool);
+        let res = props.get::<i64>("TestBool");
         assert!(res.is_err());
 
-        let res = props.set(TestNum, false);
+        let res = props.set("Test", false);
         assert!(res.is_err());
 
-        let res = props.get::<bool>(TestNum);
+        let res = props.get::<bool>("Test");
         assert!(res.is_err());
 
     }
@@ -178,12 +166,12 @@ mod tests {
     #[test]
     fn test_remove() {
         let mut props = Properties::new();
-        let res = props.set(TestNum, 128);
+        let res = props.set("Test", 128);
         assert!(res.is_ok());
 
-        props.remove(TestNum);
+        props.remove("Test");
 
-        let res = props.get::<i64>(TestNum);
+        let res = props.get::<i64>("Test");
         assert!(res.is_err());
     }
 
@@ -192,7 +180,7 @@ mod tests {
     fn bench_set(b: &mut Bencher) {
         let props = Properties::new();
         for i in 0..10000 {
-            props.set(TestNum, i);
+            props.set("Test", i);
         }
     }
 

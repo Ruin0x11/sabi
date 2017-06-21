@@ -53,7 +53,7 @@ generate_sensors! {
 
     HealthLow, false, sense_health_low;
 
-    CanDoRanged, false, sense_always_true;
+    CanDoRanged, false, sense_always_false;
     CanDoMelee, false, sense_always_true;
     AtPosition, false, sense_at_position;
     TargetInInventory, false, sense_target_in_inventory;

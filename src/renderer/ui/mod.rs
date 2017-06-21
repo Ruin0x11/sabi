@@ -18,14 +18,16 @@ use renderer::render::SCREEN_HEIGHT;
 
 pub struct MainLayer {
     pub log: UiMessageLog,
-    pub bar: UiBar,
+    pub hp_bar: UiBar,
+    pub tp_bar: UiBar,
 }
 
 impl MainLayer {
     pub fn new(viewport: &Viewport) -> Self {
         MainLayer {
             log: UiMessageLog::new(viewport),
-            bar: UiBar::new((100, viewport.height() as i32 - 140), 100, (255, 64, 64, 255)),
+            hp_bar: UiBar::new((100, viewport.height() as i32 - 140), 100, (255, 64, 64, 255)),
+            tp_bar: UiBar::new((400, viewport.height() as i32 - 140), 100, (255, 151, 64, 255)),
         }
     }
 }
@@ -33,7 +35,8 @@ impl MainLayer {
 impl UiElement for MainLayer {
     fn draw(&self, renderer: &mut UiRenderer) {
         self.log.draw(renderer);
-        self.bar.draw(renderer);
+        self.hp_bar.draw(renderer);
+        self.tp_bar.draw(renderer);
     }
 }
 
@@ -157,8 +160,11 @@ impl RenderUpdate for Ui {
 
         if let Some(player) = world.player() {
             if let Some(health) = world.ecs().healths.get(player) {
-                self.main_layer.bar.set_max(health.max_hit_points);
-                self.main_layer.bar.set(health.hit_points);
+                self.main_layer.hp_bar.set_max(health.max_hit_points);
+                self.main_layer.hp_bar.set(health.hit_points);
+
+                self.main_layer.tp_bar.set_max(health.max_tp);
+                self.main_layer.tp_bar.set(health.tp);
             }
         }
 

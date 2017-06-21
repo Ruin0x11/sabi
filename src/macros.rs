@@ -1,6 +1,6 @@
-/// A macro to send a message to the game message log. Gets around borrowing by
-/// automatically binding the provided arguments ahead of time. The syntax is
-/// similar to format!, but with an ident and '=' before the expression, like:
+/// A macro to send a message to the game message log. The syntax is
+/// similar to format!, but with an ident and '=' before the
+/// expression, like:
 ///
 /// ```no_run
 /// mes!(world, "{}: {}", a=world.some_immut_fn(), b=world.some_mut_fn());
@@ -15,13 +15,10 @@ macro_rules! mes {
     ($w:expr, $e:expr) => {
         $w.message($e);
     };
-    ($w:expr, $e:expr, $( $x:ident=$y:expr ),+) => {
+    ($w:expr, $e:expr, $( $y:expr ),+) => {
         use util::grammar;
-        $(
-            let $x = $y;
-        )*;
 
-        $w.message(&grammar::capitalize(&format!($e, $($x),+)));
+        $w.message(&grammar::capitalize(&format!($e, $($y),+)));
     };
 }
 
@@ -40,7 +37,7 @@ macro_rules! mes {
 /// You can also conjugate verbs by surrounding the infinitive with angle brackets ("<>").
 ///
 /// ```no_run
-// format_mes!(world, entity, "%u <kill> {}! ({})", a = other.name(world), b = damage);
+// format_mes!(world, entity, "%u <kill> {}! ({})", other.name(world), damage);
 /// ```
 macro_rules! format_mes {
     ($world:expr, $entity:expr, $format:expr) => {
@@ -48,13 +45,10 @@ macro_rules! format_mes {
         let formatted = format::format_message($format, $entity, $world);
         $world.message(&formatted);
     };
-    ($world:expr, $entity:expr, $format:expr, $( $x:ident=$y:expr ),+) => {
+    ($world:expr, $entity:expr, $format:expr, $( $y:expr ),+) => {
         use util::format;
-        $(
-            let $x = $y;
-        )*;
 
-        let raw = format!($format, $($x),+);
+        let raw = format!($format, $($y),+);
 
         let formatted = format::format_message(&raw, $entity, $world);
         $world.message(&formatted);

@@ -26,3 +26,13 @@ pub fn get_duration_millis(duration: &Duration) -> u64 {
     let nanos = duration.subsec_nanos() as u64;
     (1000 * 1000 * 1000 * duration.as_secs() + nanos) / (1000 * 1000)
 }
+
+pub fn clamp(input: i32, min: i32, max: i32) -> i32 {
+    if input > max {
+        max
+    } else if input < min {
+        min
+    } else {
+        input
+    }
+}

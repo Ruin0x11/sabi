@@ -47,7 +47,6 @@ pub fn map_from_prefab<'a>(lua: &'a mut Lua, name: &str, args: &Option<PrefabArg
 
     if let Some(ref args) = *args {
         let args_script = build_prefab_args(&args);
-        println!("args_script: {:?}", args_script);
         lua.execute::<()>(&args_script)?;
     }
 

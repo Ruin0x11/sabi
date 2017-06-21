@@ -3,13 +3,13 @@ use std::fmt;
 
 use serde::de::{self, Deserialize, Deserializer, Visitor};
 use serde::ser::{Serialize, Serializer};
-
 use slog::Logger;
 
+use data::Properties;
 use item::{ItemContainer, ItemEffect};
 use log;
 use point::Point;
-use stats::properties::Properties;
+use util::clamp;
 
 // For persistence between worlds, because the entity ID may change.
 pub struct Uuid {}
@@ -64,6 +64,8 @@ pub struct Position {
 pub struct Health {
     pub hit_points: i32,
     pub max_hit_points: i32,
+    pub tp: i32,
+    pub max_tp: i32,
 }
 
 impl Health {
@@ -72,6 +74,8 @@ impl Health {
         Health {
             hit_points: max,
             max_hit_points: max,
+            tp: 0,
+            max_tp: 100,
         }
     }
 
@@ -88,6 +92,18 @@ impl Health {
         if self.hit_points >= self.max_hit_points {
             self.hit_points = self.max_hit_points;
         }
+    }
+
+    pub fn tp_full(&self) -> bool {
+        self.tp == self.max_tp
+    }
+
+    pub fn adjust_tp(&mut self, amount: i32) {
+        self.tp = clamp(self.tp + amount, 0, self.max_tp);
+    }
+
+    pub fn reset_tp(&mut self) {
+        self.tp = 0;
     }
 
     pub fn kill(&mut self) {
@@ -108,11 +124,6 @@ impl Appearance {
     pub fn new(kind: &str) -> Self {
         Appearance { kind: kind.to_string() }
     }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Props {
-    pub props: Properties,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

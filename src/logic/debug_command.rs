@@ -44,9 +44,9 @@ fn debug_print_entity_info(context: &mut GameContext) -> CommandResult<()> {
     if let Some(mob) = context.state.world.mob_at(pos) {
         let ai = context.state.world.ecs().ais.get_or_err(mob).debug_info();
         mes!(context.state.world, "{:?} inv: {:?}  Ai: {}",
-             a = mob.name(&context.state.world),
-             b = context.state.world.entities_in(mob),
-             c = ai);
+             mob.name(&context.state.world),
+             context.state.world.entities_in(mob),
+             ai);
     }
 
     Ok(())
@@ -94,7 +94,6 @@ fn debug_item_test(context: &mut GameContext) -> CommandResult<()> {
 fn debug_prefab(context: &mut GameContext) -> CommandResult<()> {
     let selected = choose_prefab(context)?;
 
-    // Whip up a new testing world and port us there
     debug_regen_prefab(context, &selected)
 }
 
@@ -132,18 +131,20 @@ fn debug_list_entities(context: &mut GameContext) -> CommandResult<()> {
             mes.push_str(&format!("[name: {}, pos: {}] ", name, pos));
         }
     }
-    mes!(context.state.world, "{}", a = mes);
+    mes!(context.state.world, "{}", mes);
     Ok(())
 }
 
 fn debug_place_enemies(context: &mut GameContext) -> CommandResult<()> {
-    mes!(context.state.world, "Where to place?");
-    let pos = select_tile(context, |_, _| ())?;
+    mes!(context.state.world, "First corner?");
+    let upper_left = select_tile(context, |_, _| ())?;
 
-    for i in 0..4 {
-        for j in 0..4 {
-            context.state.world.create(ecs::prefab::mob("putit", 50, "putit"), pos + Point::new(i, j));
-        }
+    mes!(context.state.world, "Second corner?");
+    let lower_right = select_tile(context, |_, _| ())?;
+    let size = lower_right - upper_left;
+
+    for pos in RectangleIter::new(upper_left, size) {
+        context.state.world.create(ecs::prefab::mob("putit", 50, "putit"), pos);
     }
 
     Ok(())

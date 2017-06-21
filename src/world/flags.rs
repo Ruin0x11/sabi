@@ -46,7 +46,7 @@ impl Flags {
     }
 
     pub fn seed(&self) -> u32 { self.seed }
-    pub fn rng(&mut self) -> &mut Rng { &mut self.rng }
+    pub fn rng(&mut self) -> &mut EncodeRng<XorShiftRng> { &mut self.rng }
 
     pub fn get_globals(&self) -> GlobalFlags {
         self.globals.clone()
