@@ -139,28 +139,35 @@ make_get_set!(String, PropType::String);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use test::Bencher;
 
     #[test]
     fn test_set() {
         let mut props = Properties::new();
         let res = props.set("Test", 32);
         assert!(res.is_ok());
-        let hp = props.get::<i64>("Test").unwrap();
-        assert_eq!(*hp, 32);
+        {
+            let hp = props.get::<i64>("Test").unwrap();
+            assert_eq!(*hp, 32);
+        }
         let res = props.set("Test", 128);
         assert!(res.is_ok());
-        let hp = props.get::<i64>("Test").unwrap();
-        assert_eq!(*hp, 128);
 
-        let res = props.get::<i64>("TestBool");
-        assert!(res.is_err());
+        {
+            let hp = props.get::<i64>("Test").unwrap();
+            assert_eq!(*hp, 128);
+
+            let res = props.get::<i64>("TestBool");
+            assert!(res.is_err());
+        }
 
         let res = props.set("Test", false);
         assert!(res.is_err());
 
-        let res = props.get::<bool>("Test");
-        assert!(res.is_err());
-
+        {
+            let res = props.get::<bool>("Test");
+            assert!(res.is_err());
+        }
     }
 
     #[test]
@@ -175,19 +182,17 @@ mod tests {
         assert!(res.is_err());
     }
 
-    #[cfg(never)]
     #[bench]
     fn bench_set(b: &mut Bencher) {
-        let props = Properties::new();
+        let mut props = Properties::new();
         for i in 0..10000 {
             props.set("Test", i);
         }
     }
 
-    #[cfg(never)]
     #[bench]
     fn bench_hashmap_set(b: &mut Bencher) {
-        let map = HashMap::new();
+        let mut map = HashMap::new();
         map.insert("happiness", 0);
         for i in 0..10000 {
             map.insert("happiness", i);

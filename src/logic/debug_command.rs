@@ -34,19 +34,29 @@ pub(super) fn cmd_debug_menu(context: &mut GameContext) -> CommandResult<()> {
 fn debug_ai_menu(context: &mut GameContext) -> CommandResult<()> {
     menu!(context,
           "scav"           => debug_scav(context),
-          "guard"          => debug_guard(context)
+          "guard"          => debug_guard(context),
+          "loadout"        => debug_loadout(context)
     )
 }
+
+fn debug_loadout(context: &mut GameContext) -> CommandResult<()> {
+    goto_new_world(context, get_debug_world("blank", Some(prefab_args! { width: 100, height: 100, })).unwrap());
+
+    context.state.world.create(ecs::loadout_from_toml_file("data/monster/putit.toml").unwrap(), Point::new(1, 1));
+
+    Ok(())
+}
+
 
 fn debug_print_entity_info(context: &mut GameContext) -> CommandResult<()> {
     mes!(context.state.world, "Which?");
     let pos = select_tile(context, |_, _| ())?;
     if let Some(mob) = context.state.world.mob_at(pos) {
-        let ai = context.state.world.ecs().ais.get_or_err(mob).debug_info();
-        mes!(context.state.world, "{:?} inv: {:?}  Ai: {}",
-             mob.name(&context.state.world),
-             context.state.world.entities_in(mob),
-             ai);
+        // let ai = context.state.world.ecs().ais.get_or_err(mob).debug_info();
+        // mes!(context.state.world, "{:?} inv: {:?}  Ai: {}",
+        //      mob.name(&context.state.world),
+        //      context.state.world.entities_in(mob),
+        //      ai);
     }
 
     Ok(())

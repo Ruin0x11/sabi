@@ -35,7 +35,7 @@ is_autotile=false
 [[tiles]]
 name="player"
 atlas="chara.png"
-offset=[1, 0]
+offset=[0, 1]
 is_autotile=false
 
 [[tiles]]

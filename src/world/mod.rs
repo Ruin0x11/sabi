@@ -436,20 +436,17 @@ impl Mutate for World {
             return;
         }
 
-        // because FOV is so expensive, monster detection is done
-        // through checking for LOS only.
-        if !self.is_player(e) {
-            return;
-        }
+        // if !self.is_player(e) {
+        //     return;
+        // }
 
         if let Some(center) = self.position(e) {
-            const FOV_RADIUS: i32 = 12;
+            const FOV_RADIUS: i32 = 8;
 
             let visible = fov::bresenham_fast(self, center, FOV_RADIUS);
 
             let mut fov = &mut self.ecs_.fovs[e];
             fov.visible = visible;
-
         }
     }
 

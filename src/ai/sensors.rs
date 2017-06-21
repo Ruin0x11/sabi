@@ -7,7 +7,7 @@ use logic::entity::EntityQuery;
 use world::traits::Query;
 use world::World;
 
-use super::{Ai, AiFacts};
+use super::{Ai, AiData, AiFacts};
 
 macro_rules! generate_sensors {
     ( $( $prop:ident, $default:expr, $sensor:ident );+ $(;)*) => {
@@ -70,22 +70,22 @@ generate_sensors! {
 }
 
 fn sense_target_visible(world: &World, entity: Entity, ai: &Ai) -> bool {
-    ai.target.borrow().map_or(false, |t| {
+    ai.data.target.borrow().map_or(false, |t| {
         let pos = match world.position(t) {
             Some(t) => t,
             None => return false,
         };
 
-        entity.has_los(pos, world)
+        entity.has_los(pos, world, Some(6))
     })
 }
 
 fn sense_target_dead(world: &World, _entity: Entity, ai: &Ai) -> bool {
-    ai.target.borrow().map_or(false, |t| !world.is_alive(t))
+    ai.data.target.borrow().map_or(false, |t| !world.is_alive(t))
 }
 
 fn sense_next_to_target(world: &World, entity: Entity, ai: &Ai) -> bool {
-    ai.target.borrow().map_or(false, |t| {
+    ai.data.target.borrow().map_or(false, |t| {
         let pos = match world.position(t) {
             Some(p) => p,
             None => return false,
@@ -98,7 +98,7 @@ fn sense_next_to_target(world: &World, entity: Entity, ai: &Ai) -> bool {
 }
 
 fn sense_on_top_of_target(world: &World, entity: Entity, ai: &Ai) -> bool {
-    ai.target.borrow().map_or(false, |t| {
+    ai.data.target.borrow().map_or(false, |t| {
         let pos = match world.position(t) {
             Some(p) => p,
             None => return false,
@@ -109,7 +109,7 @@ fn sense_on_top_of_target(world: &World, entity: Entity, ai: &Ai) -> bool {
 }
 
 fn sense_target_in_range(world: &World, entity: Entity, ai: &Ai) -> bool {
-    ai.target.borrow().map_or(false, |t| {
+    ai.data.target.borrow().map_or(false, |t| {
         let pos = match world.position(t) {
             Some(p) => p,
             None => return false,
@@ -120,7 +120,7 @@ fn sense_target_in_range(world: &World, entity: Entity, ai: &Ai) -> bool {
 }
 
 fn sense_target_in_inventory(world: &World, entity: Entity, ai: &Ai) -> bool {
-    ai.target.borrow().map_or(false, |t| {
+    ai.data.target.borrow().map_or(false, |t| {
         let e = world.entities_in(entity);
         debug_ecs!(world, entity, "CONT: {:?} {:?}", t, e);
         e.contains(&t)
@@ -128,13 +128,13 @@ fn sense_target_in_inventory(world: &World, entity: Entity, ai: &Ai) -> bool {
 }
 
 fn sense_at_position(world: &World, entity: Entity, ai: &Ai) -> bool {
-    ai.important_pos.borrow().map_or(false, |pos| {
+    ai.data.important_pos.borrow().map_or(false, |pos| {
         world.position(entity).map_or(false, |ep| ep == pos)
     })
 }
 
 fn sense_has_target(_world: &World, _entity: Entity, ai: &Ai) -> bool {
-    ai.target.borrow().is_some()
+    ai.data.target.borrow().is_some()
 }
 
 fn sense_health_low(world: &World, entity: Entity, _ai: &Ai) -> bool {

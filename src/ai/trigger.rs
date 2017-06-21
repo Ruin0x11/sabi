@@ -28,12 +28,14 @@ pub enum AiTrigger {
 impl AiKind {
     pub fn check_triggers(&self, entity: Entity, world: &World) -> Option<(AiGoal, Option<Entity>)> {
         let ai = world.ecs().ais.get_or_err(entity);
-        let ai_goal = ai.last_goal.borrow();
-        let triggers = ai.triggers.borrow();
+        let ai_goal = ai.data.last_goal.borrow();
+        let triggers = ai.data.triggers.borrow();
         let mut res = None;
 
         for trigger in triggers.iter() {
+            debug_ecs!(world, entity, "attempt: {:?} {:?} {:?}", trigger, ai_goal, ai.kind);
             if let Some(r) = self.check_trigger(entity, world, *ai_goal, *trigger) {
+                debug_ecs!(world, entity, "TRIGGER: {:?} {:?}", trigger, ai_goal);
                 res = Some(r);
             }
         }
@@ -45,6 +47,8 @@ impl AiKind {
         match *self {
             AiKind::Guard => match goal {
                 AiGoal::Guard => match trigger {
+                    // TODO: More detailed enemy/friend anger management
+                    AiTrigger::AttackedBy(attacker) => Some((AiGoal::KillTarget, Some(attacker))),
                     AiTrigger::SawEntity(seen) => {
                         if !world.is_player(seen) {
                             Some((AiGoal::KillTarget, Some(seen)))

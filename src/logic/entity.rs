@@ -17,7 +17,7 @@ use world::traits::*;
 use world::World;
 
 pub trait EntityQuery {
-    fn has_los(&self, target_pos: Point, world: &World) -> bool;
+    fn has_los(&self, target_pos: Point, world: &World, limit: Option<usize>) -> bool;
     fn name(&self, world: &World) -> String;
     fn name_with_article(&self, world: &World) -> String;
     fn verb_person(&self, world: &World) -> VerbPerson;
@@ -30,14 +30,19 @@ pub trait EntityQuery {
 }
 
 impl EntityQuery for Entity {
-    fn has_los(&self, target_pos: Point, world: &World) -> bool {
+    fn has_los(&self, target_pos: Point, world: &World, limit: Option<usize>) -> bool {
         let my_pos = match world.position(*self) {
             Some(p) => p,
             None => return false,
         };
 
+        let mut length = 0;
         for pos in LineIter::new(my_pos, target_pos) {
             if !world.light_passes_through(&pos) {
+                return false;
+            }
+            length += 1;
+            if limit.map_or(false, |l| length > l) {
                 return false;
             }
         }
@@ -105,13 +110,10 @@ impl EntityQuery for Entity {
                 if world.is_player(target) {
                     // enemies can always see the player
                     return true;
-                } else {
-                    return self.has_los(target_pos, world);
                 }
             }
 
             let fov = world.ecs().fovs.get(*self);
-
             fov.map_or(false, |v| v.is_visible(&target_pos))
         } else {
             false
@@ -136,7 +138,7 @@ impl EntityQuery for Entity {
 
     fn get_prop<T: Clone>(&self, key: &str, world: &World) -> Option<T>
         where Properties: GetProp<T> {
-        world.ecs().props.map_or(None, |props| props.get::<T>(key).ok().cloned(), *self)
+        world.ecs().props.map_or(None, |props| props.props.get::<T>(key).ok().cloned(), *self)
     }
 
     fn prop_equals<T: Clone + Eq>(&self, key: &str, val: T, world: &World) -> bool
@@ -153,12 +155,12 @@ pub trait EntityMutate {
 
 impl EntityMutate for Entity {
     fn add_memory(&self, trigger: AiTrigger, world: &mut World) {
-        world.ecs_mut().ais.map_mut(|ai| ai.add_memory(trigger), *self);
+        world.ecs_mut().ais.map_mut(|ai| ai.data.add_memory(trigger), *self);
     }
 
     fn set_prop<T>(&self, key: &str, val: T, world: &mut World)
         where Properties: GetProp<T> {
-        world.ecs_mut().props.map_mut(|props| props.set::<T>(key, val).unwrap(), *self);
+        world.ecs_mut().props.map_mut(|props| props.props.set::<T>(key, val).unwrap(), *self);
     }
 
     fn on_death(&self, world: &mut World) {

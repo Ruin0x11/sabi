@@ -53,6 +53,12 @@ seethrough=true
 passable=true
 
 [[cells]]
+name="carpet"
+tile="carpet"
+seethrough=true
+passable=true
+
+[[cells]]
 name="seawall"
 tile="seawall"
 seethrough=true

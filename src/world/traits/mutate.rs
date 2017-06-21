@@ -49,7 +49,7 @@ pub trait Mutate: Query + Sized {
 
         self.ecs().ais.map(|ai| {
             for e in self.seen_entities(e) {
-                ai.add_memory(AiTrigger::SawEntity(e));
+                ai.data.add_memory(AiTrigger::SawEntity(e));
             }
         }, e);
     }

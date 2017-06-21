@@ -91,9 +91,10 @@ impl AiGoal {
 }
 
 fn get_default_goal(entity: Entity, world: &World) -> (AiGoal, Option<Entity>) {
-    let ai = world.ecs().ais.get_or_err(entity);
+    let ai_compo = world.ecs().ais.get_or_err(entity);
+    let ai = &ai_compo.data;
 
-    match ai.kind {
+    match ai_compo.kind {
         AiKind::Wait => (AiGoal::DoNothing, None),
         AiKind::Wander => (AiGoal::Wander, None),
         AiKind::Follow => (AiGoal::Follow, world.player()),

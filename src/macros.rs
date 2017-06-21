@@ -64,6 +64,7 @@ macro_rules! format_mes {
 ///       "bar" => do_baz(),
 /// )
 ///```
+#[allow(unused_assignments)]
 macro_rules! menu {
     ($context:ident, $( $x:expr => $y:expr ),*) => {
         {
@@ -135,16 +136,51 @@ macro_rules! make_global {
     }
 }
 
+
+use toml;
+pub trait Getter<T: Default> {
+    fn get_for(table: &toml::value::Table) -> Result<T, ()>;
+}
+
+pub struct Get;
+
+#[macro_export]
+macro_rules! make_getter {
+    ($s:ident { $( $x:ident: $y:ty ),+ $(,)* } ) => {
+        #[derive(Clone, Debug, Serialize, Deserialize)]
+        pub struct $s {
+            $( pub $x: $y ),+
+        }
+
+        impl Getter<$s> for Get {
+            fn get_for(table: &toml::value::Table) -> Result<$s, ()> {
+                let mut default: $s = Default::default();
+                $(
+                        println!("table contains key {:?}: {}", stringify!($x), table.contains_key(stringify!($x)));
+                    if table.contains_key(stringify!($x)) {
+                        match table[stringify!($x)].clone().try_into::<$y>() {
+                            Ok(val) => default.$x = val,
+                            Err(_) => return Err(())
+                        }
+                    }
+                )*
+
+                    Ok(default)
+            }
+        }
+    }
+}
+
 #[macro_export]
 macro_rules! crit_ecs(
     ($w:ident, $e:expr, #$tag:expr, $($args:tt)+) => {
         if let Some(l) = $w.ecs().logs.get($e) {
-            crit!(l.logger, $tag, $($args)+);
+            crit!(l.get(), $tag, $($args)+);
         }
     };
     ($w:ident, $e:expr, $($args:tt)+) => {
         if let Some(l) = $w.ecs().logs.get($e) {
-            crit!(l.logger, $($args)+);
+            crit!(l.get(), $($args)+);
         }
     };
 );
@@ -153,12 +189,12 @@ macro_rules! crit_ecs(
 macro_rules! error_ecs(
     ($w:ident, $e:expr, #$tag:expr, $($args:tt)+) => {
         if let Some(l) = $w.ecs().logs.get($e) {
-            error!(l.logger, $tag, $($args)+);
+            error!(l.get(), $tag, $($args)+);
         }
     };
     ($w:ident, $e:expr, $($args:tt)+) => {
         if let Some(l) = $w.ecs().logs.get($e) {
-            error!(l.logger, $($args)+);
+            error!(l.get(), $($args)+);
         }
     };
 );
@@ -167,12 +203,12 @@ macro_rules! error_ecs(
 macro_rules! warn_ecs(
     ($w:ident, $e:expr, #$tag:expr, $($args:tt)+) => {
         if let Some(l) = $w.ecs().logs.get($e) {
-            warn!(l.logger, $tag, $($args)+);
+            warn!(l.get(), $tag, $($args)+);
         }
     };
     ($w:ident, $e:expr, $($args:tt)+) => {
         if let Some(l) = $w.ecs().logs.get($e) {
-            warn!(l.logger, $($args)+);
+            warn!(l.get(), $($args)+);
         }
     };
 );
@@ -181,12 +217,12 @@ macro_rules! warn_ecs(
 macro_rules! info_ecs(
     ($w:ident, $e:expr, #$tag:expr, $($args:tt)+) => {
         if let Some(l) = $w.ecs().logs.get($e) {
-            info!(l.logger, $tag, $($args)+);
+            info!(l.get(), $tag, $($args)+);
         }
     };
     ($w:ident, $e:expr, $($args:tt)+) => {
         if let Some(l) = $w.ecs().logs.get($e) {
-            info!(l.logger, $($args)+);
+            info!(l.get(), $($args)+);
         }
     };
 );
@@ -195,12 +231,12 @@ macro_rules! info_ecs(
 macro_rules! debug_ecs(
     ($w:ident, $e:expr, #$tag:expr, $($args:tt)+) => {
         if let Some(l) = $w.ecs().logs.get($e) {
-            debug!(l.logger, $tag, $($args)+);
+            debug!(l.get(), $tag, $($args)+);
         }
     };
     ($w:ident, $e:expr, $($args:tt)+) => {
         if let Some(l) = $w.ecs().logs.get($e) {
-            debug!(l.logger, $($args)+);
+            debug!(l.get(), $($args)+);
         }
     };
 );
@@ -209,12 +245,12 @@ macro_rules! debug_ecs(
 macro_rules! trace_ecs(
     ($w:ident, $e:expr, #$tag:expr, $($args:tt)+) => {
         if let Some(l) = $w.ecs().logs.get($e) {
-            trace!(l.logger, $tag, $($args)+);
+            trace!(l.get(), $tag, $($args)+);
         }
     };
     ($w:ident, $e:expr, $($args:tt)+) => {
         if let Some(l) = $w.ecs().logs.get($e) {
-            trace!(l.logger, $($args)+);
+            trace!(l.get(), $($args)+);
         }
     };
 );

@@ -1,7 +1,18 @@
-[stats]
-hp=3000
-strength=1
-defense=10
-glyph="Putit"
+[Name]
+name="grand putit"
+proper_name="Dood"
 
-[properties]
+[Health]
+max_hit_points=100
+hit_points=100
+
+[Appearance]
+kind="player"
+
+[Ai]
+
+[Turn]
+
+[Fov]
+
+[Log]

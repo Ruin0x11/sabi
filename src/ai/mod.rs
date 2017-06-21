@@ -21,6 +21,8 @@ use logic::Action;
 use point::Point;
 use world::World;
 use world::traits::Query;
+use macros::{Getter, Get};
+use toml;
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum Disposition {
@@ -28,14 +30,33 @@ pub enum Disposition {
     Enemy,
 }
 
+make_getter!(Ai {
+    kind: AiKind,
+
+    data: AiData,
+});
+
+impl Default for Ai {
+    fn default() -> Self {
+        Ai::new(AiKind::Guard)
+    }
+}
+
+impl Ai {
+    pub fn new(kind: AiKind) -> Ai {
+        Ai {
+            kind: kind,
+            data: AiData::new(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Ai {
+pub struct AiData {
     #[serde(skip_serializing)]
     #[serde(skip_deserializing)]
     #[serde(default = "make_planner")]
     planner: AiPlanner,
-
-    kind: AiKind,
 
     important_pos: RefCell<Option<Point>>,
     target: RefCell<Option<Entity>>,
@@ -53,11 +74,11 @@ pub struct Ai {
 pub type AiMemory = GoapState<AiProp, bool>;
 pub type AiFacts = GoapFacts<AiProp, bool>;
 
-impl Ai {
-    pub fn new(kind: AiKind) -> Self {
+impl AiData {
+    pub fn new() -> Self {
         //TEMP: Figure out how to work with defaults.
         let facts = default_ai_facts();
-        Ai {
+        AiData {
             planner: make_planner(),
 
             important_pos: RefCell::new(None),
@@ -65,7 +86,6 @@ impl Ai {
             goal: RefCell::new(AiMemory { facts: facts.clone() }),
             memory: RefCell::new(AiMemory { facts: facts }),
             disposition: Disposition::Friendly,
-            kind: kind,
 
             next_action: RefCell::new(None),
             triggers: RefCell::new(Vec::new()),
@@ -138,8 +158,8 @@ pub fn run(entity: Entity, world: &World) -> Option<Action> {
     }
 
     check_target(entity, world);
-    check_triggers(entity, world);
     update_goal(entity, world);
+    check_triggers(entity, world);
     update_memory(entity, world);
     let action = choose_action(entity, world);
 
@@ -150,7 +170,7 @@ fn check_target(entity: Entity, world: &World) {
     // The entity reference could go stale, so make sure it isn't.
     // TODO: Should this have to happen every time an entity reference is held
     // by something?
-    let ai = world.ecs().ais.get_or_err(entity);
+    let ai = &world.ecs().ais.get_or_err(entity).data;
 
     let mut target = ai.target.borrow_mut();
     let dead = target.map_or(true, |t| world.position(t).is_none());
@@ -169,15 +189,17 @@ fn check_target(entity: Entity, world: &World) {
 fn check_triggers(entity: Entity, world: &World) {
     let ai = world.ecs().ais.get_or_err(entity);
 
+    debug_ecs!(world, entity, "triggers: {:?}", ai.data.triggers.borrow());
+
     if let Some((goal, target)) = ai.kind.check_triggers(entity, world) {
         set_goal(entity, world, goal.get_end_state(), target, goal);
     }
 
-    ai.triggers.borrow_mut().clear();
+    ai.data.triggers.borrow_mut().clear();
 }
 
 fn update_goal(entity: Entity, world: &World) {
-    let ai = world.ecs().ais.get_or_err(entity);
+    let ai = &world.ecs().ais.get_or_err(entity).data;
 
     if ai.goal_finished() {
         debug_ecs!(world, entity, "Last goal finished.");
@@ -188,7 +210,7 @@ fn update_goal(entity: Entity, world: &World) {
 }
 
 fn set_goal(entity: Entity, world: &World, desired: AiFacts, target: Option<Entity>, goal_kind: AiGoal) {
-    let ai = world.ecs().ais.get_or_err(entity);
+    let ai = &world.ecs().ais.get_or_err(entity).data;
 
     let goal = GoapState { facts: desired };
     *ai.last_goal.borrow_mut() = goal_kind;
@@ -216,20 +238,20 @@ fn update_memory(entity: Entity, world: &World) {
     }
 
     let stale = {
-        let memory = ai.memory.borrow();
+        let memory = ai.data.memory.borrow();
         *memory != new_memory
     };
 
-    debug_ecs!(world, entity, "Target: {:?}", ai.target.borrow());
+    debug_ecs!(world, entity, "Target: {:?}", ai.data.target.borrow());
 
     if stale {
-        debug_ecs!(world, entity, "Regenerating AI cache! {:?}", ai.memory.borrow());
+        debug_ecs!(world, entity, "Regenerating AI cache! {:?}", ai.data.memory.borrow());
         // make sure the memory is fresh before picking an action
-        *ai.memory.borrow_mut() = new_memory;
+        *ai.data.memory.borrow_mut() = new_memory;
 
-        let next_action = ai.get_next_action();
+        let next_action = ai.data.get_next_action();
         debug_ecs!(world, entity, "Do thing: {:?}", next_action);
-        *ai.next_action.borrow_mut() = next_action;
+        *ai.data.next_action.borrow_mut() = next_action;
     }
 }
 
@@ -243,6 +265,7 @@ pub fn make_planner() -> AiPlanner {
     effects.set_postcondition(AiProp::Moving, true);
     effects.set_postcondition(AiProp::HasTarget, true);
     effects.set_postcondition(AiProp::TargetVisible, true);
+    effects.set_postcondition(AiProp::FoundItem, true);
     actions.insert(AiAction::Wander, effects);
 
     let mut effects = GoapEffects::new(1000);
