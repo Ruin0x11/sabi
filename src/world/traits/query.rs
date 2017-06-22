@@ -73,6 +73,11 @@ pub trait Query {
         self.is_mob(e) && ecs.npcs.has(e)
     }
 
+    fn is_item(&self, e: Entity) -> bool {
+        let ecs = self.ecs();
+        ecs.items.has(e) && ecs.names.has(e)
+    }
+
     fn tangible_entities_at(&self, loc: Point) -> Vec<Entity> {
         self.find_entities(loc, |&e| {
             self.position(e).is_some() && self.ecs().appearances.get(e).is_some()
@@ -82,5 +87,19 @@ pub trait Query {
     /// Return mob (if any) at given position.
     fn mob_at(&self, loc: Point) -> Option<Entity> {
         self.find_entity(loc, |&e| self.is_mob(e))
+    }
+
+    fn entities_below(&self, entity: Entity) -> Vec<Entity> {
+        if !self.is_mob(entity) {
+            return Vec::new();
+        }
+
+        if let Some(pos) = self.position(entity) {
+            let mut at_pos = self.entities_at(pos);
+            at_pos.retain(|e| *e != entity);
+            return at_pos;
+        }
+
+        Vec::new()
     }
 }

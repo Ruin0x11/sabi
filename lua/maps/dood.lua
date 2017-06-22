@@ -1,8 +1,8 @@
 function init()
    width = 50
    height = 50
-   caviness_min = 8
-   caviness_max = 10
+   caviness_min = 10
+   caviness_max = 14
 end
 
 function put_stairs()
@@ -19,7 +19,7 @@ function put_stairs()
       end)
    until point ~= world.point(-1, -1)
 
-   prefab:place_stairs_in(point)
+   prefab:place_marker(point, "stairs_in")
    log.info("stairs at " .. tostring(point))
 end
 
@@ -39,7 +39,7 @@ function put_stairs_b()
       end)
    until point ~= world.point(-1, -1)
 
-   prefab:place_stairs_out(point)
+   prefab:place_marker(point, "stairs_out")
    log.info("stairs at " .. tostring(point))
 end
 
@@ -99,23 +99,23 @@ function generate()
       prefab:print()
 
       carve_circle(kind, dood)
-
    end
-   for pos in iter.rect_iterator(world.point(0, 0), world.point(height / 2 - 2, width / 2 - 2)) do
-      if prefab:get(pos) ~= "wall" then
-         goto nextc
-      end
 
-      if prefab:get(pos) ~= "floor" then
-         goto nextc
-      end
+   for pos in iter.rect_iterator(world.point(1, 1), world.point(height / 2 - 2, width / 2 - 2)) do
+      -- if prefab:get(pos) ~= "wall" then
+      --    goto nextc
+      -- end
+
+      -- if prefab:get(pos) ~= "floor" then
+      --    goto nextc
+      -- end
 
       function check(pos, dirs)
-         if prefab.get(pos + world.dir(dirs[0])) == "wall" then
-            if prefab.get(pos + world.dir(dirs[1])) == "wall" then
-               if prefab.get(pos + world.dir(dirs[2])) == kind then
-                  if prefab.get(pos + world.dir(dirs[3])) == kind then
-                     prefab.set(pos, "water")
+         if prefab:get(pos + world.dir(dirs[1])) == "wall" then
+            if prefab:get(pos + world.dir(dirs[2])) == "wall" then
+               if prefab:get(pos + world.dir(dirs[3])) == kind then
+                  if prefab:get(pos + world.dir(dirs[4])) == kind then
+                     prefab:set(pos, "floor")
                   end
                end
                return true

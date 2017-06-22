@@ -39,7 +39,7 @@ impl From<hlua::LuaError>for PrefabError {
 }
 
 pub type PrefabResult<T> = Result<T, PrefabError>;
-pub type Markers = HashMap<Point, PrefabMarker>;
+pub type Markers = HashMap<Point, String>;
 pub type PrefabArgs = HashMap<String, String>;
 
 #[derive(Debug, Clone)]
@@ -68,26 +68,15 @@ impl fmt::Display for Prefab {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
-pub enum PrefabMarker {
-    Mob(String),
-    Npc,
-    Door,
-    StairsIn,
-    StairsOut,
-    Connection
-}
-
-impl PrefabMarker {
-    pub fn to_mark(&self) -> Color {
-        match *self {
-            PrefabMarker::Mob(..) => Color::new(255, 0, 255),
-            PrefabMarker::Door => Color::new(0, 0, 255),
-            PrefabMarker::StairsIn => Color::new(0, 255, 0),
-            PrefabMarker::StairsOut => Color::new(255, 255, 0),
-            PrefabMarker::Connection => Color::new(255, 0, 0),
-            _ => Color::new(0, 0, 0),
-        }
+pub fn mark_to_color(mark: &str) -> Color {
+    match mark {
+        "mob" => Color::new(255, 0, 255),
+        "door" => Color::new(0, 0, 255),
+        "stairs_in" => Color::new(0, 255, 0),
+        "stairs_out" => Color::new(255, 255, 0),
+        "connection" => Color::new(255, 0, 0),
+        "npc" => Color::new(0, 255, 255),
+        _ => Color::new(0, 0, 0),
     }
 }
 
@@ -141,20 +130,24 @@ impl Prefab {
         }
     }
 
-    pub fn set_marker(&mut self, pt: &Point, val: PrefabMarker) {
+    pub fn set_marker(&mut self, pt: &Point, val: String) {
         // Only supports one marker per location.
         if self.in_bounds(pt) {
             self.markers.insert(*pt, val);
         }
     }
 
-    pub fn find_marker(&self, query: PrefabMarker) -> Option<Point> {
+    pub fn find_marker(&self, query: &str) -> Option<Point> {
         for (point, marker) in self.markers.iter() {
             if *marker == query {
                 return Some(*point);
             }
         }
         None
+    }
+
+    pub fn size(&self) -> Point {
+        self.size
     }
 
     pub fn width(&self) -> i32 {
@@ -165,14 +158,17 @@ impl Prefab {
         self.size.y
     }
 
-    pub fn combine(&mut self, other: &mut Prefab, x: i32, y: i32) {
-        let offset = Point::new(x, y);
+    pub fn merge(&mut self, other: Prefab, offset: Point) {
         for (point, cell) in other.iter() {
             self.set(&(point + offset), *cell);
         }
+
+        for (point, marker) in other.markers {
+            self.markers.insert(point + offset, marker);
+        }
     }
 
-    pub fn markers<'a>(&'a self) -> impl Iterator<Item=(&'a Point, &'a PrefabMarker)> {
+    pub fn markers<'a>(&'a self) -> impl Iterator<Item=(&'a Point, &'a String)> {
         self.markers.iter()
     }
 

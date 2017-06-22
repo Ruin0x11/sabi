@@ -43,7 +43,7 @@ fn open_lua_libs(lua: &mut Lua) -> Result<(), hlua::LuaError> {
     run_script(lua, "lib/init")
 }
 
-fn init() -> Lua<'static> {
+pub fn init() -> Lua<'static> {
     let mut lua = Lua::new();
     open_libs(&mut lua).unwrap();
     lua

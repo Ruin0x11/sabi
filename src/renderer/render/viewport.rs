@@ -1,6 +1,7 @@
 use cgmath;
 use glium;
-use renderer::render::{SCREEN_WIDTH, SCREEN_HEIGHT};
+
+use util;
 
 #[derive(Debug)]
 pub struct Viewport {
@@ -13,6 +14,14 @@ pub struct Viewport {
 pub type RendererSubarea = ([[f32; 4]; 4], glium::Rect);
 
 impl Viewport {
+    pub fn width(&self) -> u32 {
+        self.scaled_size().0
+    }
+
+    pub fn height(&self) -> u32 {
+        self.scaled_size().1
+    }
+
     pub fn main_window(&self) -> RendererSubarea {
         let (w, h) = self.scaled_size();
         self.make_subarea((0, 0, w, h - 120))
@@ -26,24 +35,34 @@ impl Viewport {
         (self.size.0 / 48, (self.size.1 - 120) / 48)
     }
 
-    pub fn renderable_area() -> (i32, i32) {
-        (SCREEN_WIDTH as i32 / 48, SCREEN_HEIGHT as i32 / 48)
+    pub fn renderable_area(&self) -> (i32, i32) {
+        (self.width() as i32 / 48, (self.height() as i32 - 120) / 48)
     }
 
 
     /// Returns the tile position of the upper-left corner of the viewport with
     /// the given camera coordinates.
-    pub fn min_tile_pos<I: Into<(i32, i32)>>(&self, camera: I) -> (i32, i32) {
+    pub fn min_tile_pos<I: Into<(i32, i32)>>(&self, camera: I, bound: Option<I>) -> (i32, i32) {
         let camera = camera.into();
         let (vw, vh) = self.visible_area();
-        (camera.0 - (vw as i32 / 2), camera.1 - (vh as i32 / 2))
+        let (mut cx, mut cy) = (camera.0 - (vw as i32 / 2), camera.1 - (vh as i32 / 2));
+
+        if let Some(b) = bound {
+            let (bx, by) = b.into();
+            let (rx, ry) = self.renderable_area();
+
+            cx = util::clamp(cx, 0, bx - rx);
+            cy = util::clamp(cy, 0, by - ry);
+        }
+
+        (cx, cy)
     }
 
     /// Returns the tile position of the bottom-right corner of the viewport
     /// with the given camera coordinates.
-    pub fn max_tile_pos<I: Into<(i32, i32)>>(&self, camera: I) -> (i32, i32) {
-        let c = self.min_tile_pos(camera);
-        let v = Viewport::renderable_area();
+    pub fn max_tile_pos<I: Into<(i32, i32)>>(&self, camera: I, bound: Option<I>) -> (i32, i32) {
+        let c = self.min_tile_pos(camera, bound);
+        let v = self.renderable_area();
 
         (c.0 + v.0, c.1 + v.1)
     }

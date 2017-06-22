@@ -10,9 +10,9 @@ use world::WorldPosition;
 
 fn many_entities() -> GameContext {
     let mut context = test_context_bounded(128, 128);
-    for i in 0..32 {
-        for j in 0..32 {
-            place_mob(&mut context.state.world, WorldPosition::new(i, j));
+    for i in 0..16 {
+        for j in 0..16 {
+            place_mob(&mut context.state.world, WorldPosition::new(i + 32, j + 32));
         }
     }
     context

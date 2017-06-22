@@ -18,7 +18,7 @@ function generate()
       end
    end
 
-   prefab:place_stairs_in_raw(1, 1)
+   prefab:place_marker_raw(1, 1, "stairs_in")
 
    if true then
       dood = 9 + rand.zero_to(3)

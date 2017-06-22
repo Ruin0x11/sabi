@@ -1,9 +1,13 @@
 mod action;
 mod goal;
 mod sensors;
+mod trigger;
 
+use self::action::*;
 use self::goal::*;
+use self::sensors::*;
 pub use self::goal::AiKind;
+pub use self::trigger::AiTrigger;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -11,11 +15,14 @@ use std::collections::HashMap;
 use calx_ecs::Entity;
 use goap::*;
 
-use logic::Action;
 use ai::sensors::Sensor;
 use ecs::traits::ComponentQuery;
-use world::traits::Query;
+use logic::Action;
+use point::Point;
 use world::World;
+use world::traits::Query;
+use macros::{Getter, Get};
+use toml;
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum Disposition {
@@ -23,52 +30,71 @@ pub enum Disposition {
     Enemy,
 }
 
+make_getter!(Ai {
+    kind: AiKind,
+
+    data: AiData,
+});
+
+impl Default for Ai {
+    fn default() -> Self {
+        Ai::new(AiKind::Guard)
+    }
+}
+
+impl Ai {
+    pub fn new(kind: AiKind) -> Ai {
+        Ai {
+            kind: kind,
+            data: AiData::new(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Ai {
+pub struct AiData {
     #[serde(skip_serializing)]
     #[serde(skip_deserializing)]
     #[serde(default = "make_planner")]
     planner: AiPlanner,
 
-    kind: AiKind,
-
+    important_pos: RefCell<Option<Point>>,
     target: RefCell<Option<Entity>>,
     memory: RefCell<AiMemory>,
     goal: RefCell<AiMemory>,
     next_action: RefCell<Option<AiAction>>,
+    triggers: RefCell<Vec<AiTrigger>>,
 
+    // TODO: Keep track of other entities turned enemies, such as due to too much friendly fire
     pub disposition: Disposition,
+
+    pub last_goal: RefCell<AiGoal>,
 }
 
 pub type AiMemory = GoapState<AiProp, bool>;
 pub type AiFacts = GoapFacts<AiProp, bool>;
 
-fn default_ai_facts() -> AiFacts {
-    let mut facts = AiFacts::new();
-    facts.insert(AiProp::Exists, true);
-    facts.insert(AiProp::Moving, false);
-    facts.insert(AiProp::HealthLow, false);
-    facts.insert(AiProp::HasTarget, false);
-    facts.insert(AiProp::TargetVisible, false);
-    facts.insert(AiProp::TargetDead, false);
-    facts.insert(AiProp::NextToTarget, false);
-    facts
-}
-
-impl Ai {
-    pub fn new(kind: AiKind) -> Self {
+impl AiData {
+    pub fn new() -> Self {
         //TEMP: Figure out how to work with defaults.
         let facts = default_ai_facts();
-        Ai {
+        AiData {
             planner: make_planner(),
+
+            important_pos: RefCell::new(None),
             target: RefCell::new(None),
             goal: RefCell::new(AiMemory { facts: facts.clone() }),
             memory: RefCell::new(AiMemory { facts: facts }),
             disposition: Disposition::Friendly,
-            kind: kind,
 
             next_action: RefCell::new(None),
+            triggers: RefCell::new(Vec::new()),
+            last_goal: RefCell::new(AiGoal::DoNothing),
         }
+    }
+
+    pub fn cond(&self, prop: AiProp, val: bool) -> bool {
+        self.memory.borrow().facts.get(&prop).map_or(false, |f| *f == val)
     }
 
     pub fn get_plan(&self) -> Result<Vec<AiAction>, AiMemory> {
@@ -83,27 +109,34 @@ impl Ai {
     }
 
     pub fn goal_finished(&self) -> bool {
-        self.next_action.borrow().is_none()
+        let invalid = self.is_state_invalid();
+        let no_possible_action = self.next_action.borrow().is_none();
+        invalid || no_possible_action
     }
-}
 
-#[derive(Serialize, Deserialize, Hash, Ord, PartialOrd, Eq, PartialEq, Debug, Clone)]
-pub enum AiProp {
-    HealthLow,
-    HasTarget,
-    TargetVisible,
-    TargetDead,
-    NextToTarget,
-    Exists,
-    Moving,
-}
+    fn is_state_invalid(&self) -> bool {
+        if self.last_goal.borrow().requires_target() {
+            if self.target.borrow().is_none() {
+                return true
+            }
+        }
 
-#[derive(Serialize, Deserialize, Hash, Ord, PartialOrd, Eq, PartialEq, Debug, Clone)]
-pub enum AiAction {
-    Wander,
-    MoveCloser,
-    SwingAt,
-    Run,
+        if self.last_goal.borrow().requires_position() {
+            if self.important_pos.borrow().is_none() {
+                return true
+            }
+        }
+
+        false
+    }
+
+    pub fn add_memory(&self, trigger: AiTrigger) {
+        self.triggers.borrow_mut().push(trigger);
+    }
+
+    pub fn debug_info(&self) -> String {
+        format!("target: {:?}, goal: {:?}", self.target.borrow(), self.last_goal.borrow())
+    }
 }
 
 thread_local! {
@@ -126,6 +159,7 @@ pub fn run(entity: Entity, world: &World) -> Option<Action> {
 
     check_target(entity, world);
     update_goal(entity, world);
+    check_triggers(entity, world);
     update_memory(entity, world);
     let action = choose_action(entity, world);
 
@@ -136,38 +170,54 @@ fn check_target(entity: Entity, world: &World) {
     // The entity reference could go stale, so make sure it isn't.
     // TODO: Should this have to happen every time an entity reference is held
     // by something?
-    let ai = world.ecs().ais.get_or_err(entity);
+    let ai = &world.ecs().ais.get_or_err(entity).data;
 
     let mut target = ai.target.borrow_mut();
     let dead = target.map_or(true, |t| world.position(t).is_none());
     let removed = target.map_or(true, |t| !world.ecs().contains(t));
-    if target.is_some() && (dead || removed) {
+    let in_inventory = target.map_or(false, |t| world.entities_in(entity).contains(&t));
+    // debug_ecs!(entity, world, "Target: {:?} dead {} removed {} in inv {}", target, dead, removed, in_inventory);
+    if target.is_some() && (dead || removed) && !in_inventory {
         *target = None;
     }
+
+    if ai.important_pos.borrow().is_none() {
+        *ai.important_pos.borrow_mut() = world.position(entity)
+    }
+}
+
+fn check_triggers(entity: Entity, world: &World) {
+    let ai = world.ecs().ais.get_or_err(entity);
+
+    debug_ecs!(world, entity, "triggers: {:?}", ai.data.triggers.borrow());
+
+    if let Some((goal, target)) = ai.kind.check_triggers(entity, world) {
+        set_goal(entity, world, goal.get_end_state(), target, goal);
+    }
+
+    ai.data.triggers.borrow_mut().clear();
 }
 
 fn update_goal(entity: Entity, world: &World) {
-    let ai = world.ecs().ais.get_or_err(entity);
+    let ai = &world.ecs().ais.get_or_err(entity).data;
 
     if ai.goal_finished() {
-        let (desired, target) = make_new_plan(entity, world);
+        debug_ecs!(world, entity, "Last goal finished.");
+        let (desired, target, goal_kind) = make_new_plan(entity, world);
 
-        let goal = GoapState { facts: desired };
-        *ai.goal.borrow_mut() = goal;
-        *ai.target.borrow_mut() = target;
+        set_goal(entity, world, desired, target, goal_kind);
     }
 }
 
-fn all_props() -> Vec<AiProp> {
-    vec![
-        AiProp::HasTarget,
-        AiProp::TargetVisible,
-        AiProp::TargetDead,
-        AiProp::NextToTarget,
-        AiProp::HealthLow,
-        AiProp::Exists,
-        AiProp::Moving,
-    ]
+fn set_goal(entity: Entity, world: &World, desired: AiFacts, target: Option<Entity>, goal_kind: AiGoal) {
+    let ai = &world.ecs().ais.get_or_err(entity).data;
+
+    let goal = GoapState { facts: desired };
+    *ai.last_goal.borrow_mut() = goal_kind;
+    *ai.goal.borrow_mut() = goal;
+    *ai.target.borrow_mut() = target;
+
+    // ai.kind.on_goal(goal_kind, entity, world);
 }
 
 fn update_memory(entity: Entity, world: &World) {
@@ -177,7 +227,10 @@ fn update_memory(entity: Entity, world: &World) {
 
     for fact in wants_to_know.iter() {
         SENSORS.with(|s| {
-            let sensor = s.get(fact).unwrap();
+            let sensor = match s.get(fact) {
+                Some(f) => f,
+                None    => return,
+            };
             let result = (sensor.callback)(world, entity, ai);
             // debug_ecs!(world, entity, "{:?}, {}", fact, result);
             new_memory.facts.insert(fact.clone(), result);
@@ -185,62 +238,20 @@ fn update_memory(entity: Entity, world: &World) {
     }
 
     let stale = {
-        let memory = ai.memory.borrow();
+        let memory = ai.data.memory.borrow();
         *memory != new_memory
     };
 
+    debug_ecs!(world, entity, "Target: {:?}", ai.data.target.borrow());
+
     if stale {
-        debug_ecs!(world, entity, "Regenerating AI cache!");
+        debug_ecs!(world, entity, "Regenerating AI cache! {:?}", ai.data.memory.borrow());
         // make sure the memory is fresh before picking an action
-        *ai.memory.borrow_mut() = new_memory;
+        *ai.data.memory.borrow_mut() = new_memory;
 
-        let next_action = ai.get_next_action();
-        *ai.next_action.borrow_mut() = next_action;
-    }
-}
-
-fn choose_action(entity: Entity, world: &World) -> Action {
-    // TEMP: Just save the whole plan and only update when something interesting
-    // happens
-    let ai = world.ecs().ais.get_or_err(entity);
-
-    match *ai.next_action.borrow() {
-        Some(ref action) => {
-            match *action {
-                AiAction::Wander => action::ai_wander(entity, world),
-                AiAction::MoveCloser => action::ai_move_closer(entity, world),
-                AiAction::SwingAt => action::ai_swing_at(entity, world),
-                AiAction::Run => action::ai_run_away(entity, world),
-            }
-        },
-        None => {
-            warn_of_unreachable_states(entity, world, &ai);
-            Action::Wait
-        },
-    }
-}
-
-fn warn_of_unreachable_states(entity: Entity, world: &World, ai: &Ai) {
-    warn_ecs!(world, entity, "I can't figure out what to do! \nfrom: {:?}\nto:{:?}",
-              ai.memory.borrow(), ai.goal.borrow());
-    if let Err(failed_state) = ai.get_plan() {
-        let mut needed: Vec<AiProp> = ai.goal.borrow().facts.iter().filter(|&(cond, val)| {
-            failed_state.facts.get(cond).map_or(false, |f| f != val)
-        }).map(|(cond, _)| cond.clone()).collect();
-
-        for action in ai.planner.get_actions().into_iter() {
-            let effects = ai.planner.actions(action);
-            let satisfied: Vec<AiProp> = effects.postconditions.iter().filter(|&(cond, val)| {
-                failed_state.facts.get(cond).map_or(true, |f| f == val)
-            }).map(|(cond, _)| cond.clone()).collect();
-
-            for s in satisfied {
-                needed.retain(|u| *u != s);
-            }
-        }
-
-        warn_ecs!(world, entity, "No actions could be found to make these properties true:");
-        warn_ecs!(world, entity, "{:?}", needed);
+        let next_action = ai.data.get_next_action();
+        debug_ecs!(world, entity, "Do thing: {:?}", next_action);
+        *ai.data.next_action.borrow_mut() = next_action;
     }
 }
 
@@ -251,30 +262,62 @@ pub fn make_planner() -> AiPlanner {
     let mut actions = HashMap::new();
     let mut effects = GoapEffects::new(100);
     effects.set_precondition(AiProp::Moving, false);
-    effects.set_precondition(AiProp::TargetVisible, false);
     effects.set_postcondition(AiProp::Moving, true);
+    effects.set_postcondition(AiProp::HasTarget, true);
+    effects.set_postcondition(AiProp::TargetVisible, true);
+    effects.set_postcondition(AiProp::FoundItem, true);
     actions.insert(AiAction::Wander, effects);
+
+    let mut effects = GoapEffects::new(1000);
+    effects.set_postcondition(AiProp::HealthLow, false);
+    effects.set_postcondition(AiProp::Moving, false);
+    actions.insert(AiAction::Wait, effects);
+
+    let mut effects = GoapEffects::new(12);
+    effects.set_precondition(AiProp::HasTarget, true);
+    effects.set_precondition(AiProp::OnTopOfTarget, true);
+    effects.set_precondition(AiProp::TargetInInventory, false);
+    effects.set_postcondition(AiProp::TargetVisible, true);
+    effects.set_postcondition(AiProp::TargetInInventory, true);
+    actions.insert(AiAction::PickupItem, effects);
 
     let mut effects = GoapEffects::new(10);
     effects.set_precondition(AiProp::HasTarget, true);
-    effects.set_precondition(AiProp::NextToTarget, false);
-    effects.set_precondition(AiProp::TargetDead, false);
+    effects.set_precondition(AiProp::OnTopOfTarget, false);
     effects.set_postcondition(AiProp::NextToTarget, true);
+    effects.set_postcondition(AiProp::OnTopOfTarget, true);
+    effects.set_postcondition(AiProp::TargetInRange, true);
     effects.set_postcondition(AiProp::TargetVisible, true);
     actions.insert(AiAction::MoveCloser, effects);
+
+    let mut effects = GoapEffects::new(10);
+    effects.set_precondition(AiProp::AtPosition, false);
+    effects.set_postcondition(AiProp::AtPosition, true);
+    actions.insert(AiAction::ReturnToPosition, effects);
 
     let mut effects = GoapEffects::new(9);
     effects.set_precondition(AiProp::HasTarget, true);
     effects.set_precondition(AiProp::TargetVisible, true);
     effects.set_precondition(AiProp::NextToTarget, true);
+    effects.set_precondition(AiProp::CanDoMelee, true);
     effects.set_precondition(AiProp::TargetDead, false);
     effects.set_postcondition(AiProp::TargetDead, true);
     actions.insert(AiAction::SwingAt, effects);
 
+    let mut effects = GoapEffects::new(8);
+    effects.set_precondition(AiProp::HasTarget, true);
+    effects.set_precondition(AiProp::TargetVisible, true);
+    effects.set_precondition(AiProp::NextToTarget, false);
+    effects.set_precondition(AiProp::CanDoRanged, true);
+    effects.set_precondition(AiProp::TargetInRange, true);
+    effects.set_precondition(AiProp::TargetDead, false);
+    effects.set_postcondition(AiProp::TargetDead, true);
+    actions.insert(AiAction::ShootAt, effects);
+
     let mut effects = GoapEffects::new(2);
     effects.set_precondition(AiProp::HealthLow, true);
     effects.set_postcondition(AiProp::HealthLow, false);
-    actions.insert(AiAction::Run, effects);
+    actions.insert(AiAction::RunAway, effects);
 
     GoapPlanner { actions: actions }
 }

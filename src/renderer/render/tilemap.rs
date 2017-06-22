@@ -261,8 +261,9 @@ impl<'a> Renderable for TileMap {
 
 use state::GameState;
 use renderer::RenderUpdate;
-use world::World;
+use world::{Bounds, World};
 use world::traits::{Query, WorldQuery};
+use infinigen::ChunkedWorld;
 
 fn get_neighboring_edges(world: &World, pos: Point, cell_type: usize) -> u8 {
     let mut res: u8 = 0;
@@ -279,8 +280,14 @@ fn get_neighboring_edges(world: &World, pos: Point, cell_type: usize) -> u8 {
 fn make_map(world: &World, viewport: &Viewport) -> Vec<(DrawTile, Point)> {
     let mut res = Vec::new();
     let camera = world.flags().camera;
-    let start_corner = viewport.min_tile_pos(camera).into();
-    world.with_cells(start_corner, Viewport::renderable_area().into(), |pos, &cell| {
+    let bound = if let Bounds::Bounded(w, h) = *world.terrain().bounds() {
+        Some(Point::new(w, h))
+    } else {
+        None
+    };
+
+    let start_corner = viewport.min_tile_pos(camera, bound).into();
+    world.with_cells(start_corner, viewport.renderable_area().into(), |pos, &cell| {
         let tile = DrawTile {
             kind: cell.glyph(),
             edges: get_neighboring_edges(world, pos, cell.type_),

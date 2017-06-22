@@ -87,22 +87,7 @@ impl RenderContext {
             .build_glium()
             .unwrap();
 
-        let bg = Background::new(&display);
-        let ui = Ui::new(&display);
-        let tile = TileMap::new(&display);
-
-        let mut vis = HashSet::new();
-        for point in CircleIter::new(Point::new(6, 6), 5) {
-            vis.insert(point);
-        }
-
-        let shadow = ShadowMap::new(&display);
-
-        let sprite = SpriteMap::new(&display);
-
         let scale = display.get_window().unwrap().hidpi_factor();
-
-        let accumulator = FpsAccumulator::new();
 
         let viewport = Viewport {
             position: (0, 0),
@@ -110,6 +95,14 @@ impl RenderContext {
             scale: scale,
             camera: (0, 0),
         };
+
+        let bg = Background::new(&display);
+        let ui = Ui::new(&display, &viewport);
+        let tile = TileMap::new(&display);
+        let shadow = ShadowMap::new(&display);
+        let sprite = SpriteMap::new(&display);
+
+        let accumulator = FpsAccumulator::new();
 
         RenderContext {
             backend: display,
@@ -208,6 +201,8 @@ impl RenderContext {
             scale: self.viewport.scale,
             camera: self.viewport.camera,
         };
+
+        self.ui = Ui::new(&self.backend, &self.viewport);
     }
 
     pub fn poll_events(&self) -> glium::backend::glutin_backend::PollEventsIter {

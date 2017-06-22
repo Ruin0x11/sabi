@@ -5,7 +5,6 @@ use ecs::globals;
 use graphics::cell::{CellFeature, StairDest, StairDir, StairKind};
 use infinigen::ChunkedWorld;
 use point::Point;
-use prefab::PrefabMarker;
 use state::GameState;
 use world::traits::*;
 use world::{self, World};
@@ -82,6 +81,7 @@ fn generate_dungeon_floor(state: &mut GameState, dungeon_entity: Entity) -> Comm
     let mut new_floor =
         dungeon.data
                .generate_next_floor(&state.world)
+        //TODO: Don't crash, just report error
                .ok_or(CommandError::Bug("Failed to generate stair!"))?;
 
     integrate_world_with_dungeon(&mut new_floor, dungeon, dungeon_entity)?;
@@ -103,6 +103,7 @@ fn generate_dungeon_branch(state: &mut GameState,
     let mut new_floor =
         dungeon.data
                .generate_branch(&state.world, branch)
+        //TODO: Don't crash, just report error
                .ok_or(CommandError::Bug("Failed to generate stair!"))?;
 
     integrate_world_with_dungeon(&mut new_floor, dungeon, dungeon_entity)?;
@@ -140,7 +141,7 @@ fn integrate_world_with_dungeon(new_floor: &mut World,
 
     // Now, connect the stairs to the next floor
     for (pos, marker) in new_floor.terrain().markers.clone().iter() {
-        if *marker == PrefabMarker::StairsOut {
+        if marker == "stairs_out" {
             debug!(new_floor.logger, "Connecting stairs to entity {:?}", dungeon_entity);
             let mut stairs_mut = new_floor.cell_mut(&pos).unwrap();
 

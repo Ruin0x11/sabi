@@ -1,6 +1,6 @@
-/// A macro to send a message to the game message log. Gets around borrowing by
-/// automatically binding the provided arguments ahead of time. The syntax is
-/// similar to format!, but with an ident and '=' before the expression, like:
+/// A macro to send a message to the game message log. The syntax is
+/// similar to format!, but with an ident and '=' before the
+/// expression, like:
 ///
 /// ```no_run
 /// mes!(world, "{}: {}", a=world.some_immut_fn(), b=world.some_mut_fn());
@@ -15,13 +15,10 @@ macro_rules! mes {
     ($w:expr, $e:expr) => {
         $w.message($e);
     };
-    ($w:expr, $e:expr, $( $x:ident=$y:expr ),+) => {
+    ($w:expr, $e:expr, $( $y:expr ),+) => {
         use util::grammar;
-        $(
-            let $x = $y;
-        )*;
 
-        $w.message(&grammar::capitalize(&format!($e, $($x),+)));
+        $w.message(&grammar::capitalize(&format!($e, $($y),+)));
     };
 }
 
@@ -40,7 +37,7 @@ macro_rules! mes {
 /// You can also conjugate verbs by surrounding the infinitive with angle brackets ("<>").
 ///
 /// ```no_run
-// format_mes!(world, entity, "%u <kill> {}! ({})", a = other.name(world), b = damage);
+// format_mes!(world, entity, "%u <kill> {}! ({})", other.name(world), damage);
 /// ```
 macro_rules! format_mes {
     ($world:expr, $entity:expr, $format:expr) => {
@@ -48,13 +45,10 @@ macro_rules! format_mes {
         let formatted = format::format_message($format, $entity, $world);
         $world.message(&formatted);
     };
-    ($world:expr, $entity:expr, $format:expr, $( $x:ident=$y:expr ),+) => {
+    ($world:expr, $entity:expr, $format:expr, $( $y:expr ),+) => {
         use util::format;
-        $(
-            let $x = $y;
-        )*;
 
-        let raw = format!($format, $($x),+);
+        let raw = format!($format, $($y),+);
 
         let formatted = format::format_message(&raw, $entity, $world);
         $world.message(&formatted);
@@ -70,6 +64,7 @@ macro_rules! format_mes {
 ///       "bar" => do_baz(),
 /// )
 ///```
+#[allow(unused_assignments)]
 macro_rules! menu {
     ($context:ident, $( $x:expr => $y:expr ),*) => {
         {
@@ -106,16 +101,14 @@ macro_rules! menu {
 /// map_args! { width: 80, height: 40 }
 /// ```
 macro_rules! prefab_args {
-    {
-        $($var:ident: $value:expr,)+
-    } => {
+    ( $($var:ident: $value:expr,)+ $(,)*)=> {
         {
 
             use std::collections::HashMap;
             let mut res = HashMap::new();
 
             $(
-                res.insert(stringify!($var).to_string(), stringify!($value).to_string());
+                res.insert(stringify!($var).to_string(), $value.to_string());
             )*;
 
             res
@@ -143,16 +136,51 @@ macro_rules! make_global {
     }
 }
 
+
+use toml;
+pub trait Getter<T: Default> {
+    fn get_for(table: &toml::value::Table) -> Result<T, ()>;
+}
+
+pub struct Get;
+
+#[macro_export]
+macro_rules! make_getter {
+    ($s:ident { $( $x:ident: $y:ty ),+ $(,)* } ) => {
+        #[derive(Clone, Debug, Serialize, Deserialize)]
+        pub struct $s {
+            $( pub $x: $y ),+
+        }
+
+        impl Getter<$s> for Get {
+            fn get_for(table: &toml::value::Table) -> Result<$s, ()> {
+                let mut default: $s = Default::default();
+                $(
+                        println!("table contains key {:?}: {}", stringify!($x), table.contains_key(stringify!($x)));
+                    if table.contains_key(stringify!($x)) {
+                        match table[stringify!($x)].clone().try_into::<$y>() {
+                            Ok(val) => default.$x = val,
+                            Err(_) => return Err(())
+                        }
+                    }
+                )*
+
+                    Ok(default)
+            }
+        }
+    }
+}
+
 #[macro_export]
 macro_rules! crit_ecs(
     ($w:ident, $e:expr, #$tag:expr, $($args:tt)+) => {
         if let Some(l) = $w.ecs().logs.get($e) {
-            crit!(l.logger, $tag, $($args)+);
+            crit!(l.get(), $tag, $($args)+);
         }
     };
     ($w:ident, $e:expr, $($args:tt)+) => {
         if let Some(l) = $w.ecs().logs.get($e) {
-            crit!(l.logger, $($args)+);
+            crit!(l.get(), $($args)+);
         }
     };
 );
@@ -161,12 +189,12 @@ macro_rules! crit_ecs(
 macro_rules! error_ecs(
     ($w:ident, $e:expr, #$tag:expr, $($args:tt)+) => {
         if let Some(l) = $w.ecs().logs.get($e) {
-            error!(l.logger, $tag, $($args)+);
+            error!(l.get(), $tag, $($args)+);
         }
     };
     ($w:ident, $e:expr, $($args:tt)+) => {
         if let Some(l) = $w.ecs().logs.get($e) {
-            error!(l.logger, $($args)+);
+            error!(l.get(), $($args)+);
         }
     };
 );
@@ -175,12 +203,12 @@ macro_rules! error_ecs(
 macro_rules! warn_ecs(
     ($w:ident, $e:expr, #$tag:expr, $($args:tt)+) => {
         if let Some(l) = $w.ecs().logs.get($e) {
-            warn!(l.logger, $tag, $($args)+);
+            warn!(l.get(), $tag, $($args)+);
         }
     };
     ($w:ident, $e:expr, $($args:tt)+) => {
         if let Some(l) = $w.ecs().logs.get($e) {
-            warn!(l.logger, $($args)+);
+            warn!(l.get(), $($args)+);
         }
     };
 );
@@ -189,12 +217,12 @@ macro_rules! warn_ecs(
 macro_rules! info_ecs(
     ($w:ident, $e:expr, #$tag:expr, $($args:tt)+) => {
         if let Some(l) = $w.ecs().logs.get($e) {
-            info!(l.logger, $tag, $($args)+);
+            info!(l.get(), $tag, $($args)+);
         }
     };
     ($w:ident, $e:expr, $($args:tt)+) => {
         if let Some(l) = $w.ecs().logs.get($e) {
-            info!(l.logger, $($args)+);
+            info!(l.get(), $($args)+);
         }
     };
 );
@@ -203,12 +231,12 @@ macro_rules! info_ecs(
 macro_rules! debug_ecs(
     ($w:ident, $e:expr, #$tag:expr, $($args:tt)+) => {
         if let Some(l) = $w.ecs().logs.get($e) {
-            debug!(l.logger, $tag, $($args)+);
+            debug!(l.get(), $tag, $($args)+);
         }
     };
     ($w:ident, $e:expr, $($args:tt)+) => {
         if let Some(l) = $w.ecs().logs.get($e) {
-            debug!(l.logger, $($args)+);
+            debug!(l.get(), $($args)+);
         }
     };
 );
@@ -217,12 +245,12 @@ macro_rules! debug_ecs(
 macro_rules! trace_ecs(
     ($w:ident, $e:expr, #$tag:expr, $($args:tt)+) => {
         if let Some(l) = $w.ecs().logs.get($e) {
-            trace!(l.logger, $tag, $($args)+);
+            trace!(l.get(), $tag, $($args)+);
         }
     };
     ($w:ident, $e:expr, $($args:tt)+) => {
         if let Some(l) = $w.ecs().logs.get($e) {
-            trace!(l.logger, $($args)+);
+            trace!(l.get(), $($args)+);
         }
     };
 );

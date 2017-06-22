@@ -1,16 +1,7 @@
 use std;
 use renderer::ui::elements::UiElement;
 use renderer::ui::renderer::UiRenderer;
-
-fn clamp(input: i32, min: i32, max: i32) -> i32 {
-    if input > max {
-        max
-    } else if input < min {
-        min
-    } else {
-        input
-    }
-}
+use util::clamp;
 
 pub struct UiBar {
     pos: (i32, i32),

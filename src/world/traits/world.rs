@@ -1,10 +1,12 @@
+use calx_ecs::Entity;
 use infinigen::*;
 
 use chunk::ChunkIndex;
 use data::Walkability;
+use ecs::Loadout;
 use graphics::cell::Cell;
 use graphics::cell::{CellFeature, StairDest, StairDir};
-use prefab::PrefabMarker;
+use prefab;
 use terrain::traits::*;
 use world::World;
 use world::MapId;
@@ -15,6 +17,8 @@ use point::{Point, RectangleIter};
 
 pub trait WorldQuery {
     fn can_walk(&self, pos: Point, walkability: Walkability) -> bool;
+
+    fn chunk_loaded(&self, index: &ChunkIndex) -> bool;
 
     /// Returns true if the given position has been loaded from disk and is
     /// contained in the terrain structure.
@@ -39,6 +43,10 @@ impl WorldQuery for World {
         // TODO: Should be anything blocking, like blocking terrain features
         let no_mob = walkability.can_walk(self, &pos);
         cell_walkable && no_mob
+    }
+
+    fn chunk_loaded(&self, index: &ChunkIndex) -> bool {
+        self.terrain.chunk_loaded(index)
     }
 
     fn pos_loaded(&self, pos: &Point) -> bool {
@@ -106,41 +114,5 @@ impl WorldMutate for World {
         self.autoload_chunk(pos);
 
         self.terrain().cell(pos)
-    }
-}
-
-impl World {
-    pub fn find_marker(&mut self, kind: PrefabMarker) -> Option<WorldPosition> {
-        let markers = self.terrain.markers.clone();
-
-        for (pos, marker) in markers.iter() {
-            if *marker == kind {
-                if self.cell(pos).is_some() {
-                    return Some(*pos)
-                }
-            }
-        }
-
-        None
-    }
-
-    pub fn find_stairs_in(&mut self) -> Option<WorldPosition> {
-        self.find_marker(PrefabMarker::StairsIn)
-    }
-
-    pub fn add_marker_overlays(&mut self) {
-        for (pos, marker) in self.terrain.markers.iter() {
-            self.debug_overlay.add(*pos, marker.to_mark());
-        }
-    }
-
-    pub fn place_stairs(&mut self, dir: StairDir,
-                        pos: WorldPosition,
-                        leading_to: MapId,
-                        dest_pos: WorldPosition) {
-        if let Some(cell_mut) = self.cell_mut(&pos) {
-            let dest = StairDest::Generated(leading_to, dest_pos);
-            cell_mut.feature = Some(CellFeature::Stairs(dir, dest));
-        }
     }
 }

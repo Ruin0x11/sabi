@@ -1,18 +1,35 @@
 use std::collections::HashSet;
 use std::fmt;
 
-use serde::de::{self, Deserialize, Deserializer, Visitor};
-use serde::ser::{Serialize, Serializer};
-
 use slog::Logger;
 
+use data::Properties;
 use item::{ItemContainer, ItemEffect};
 use log;
 use point::Point;
-use stats::properties::Properties;
+use util::clamp;
+use ai::*;
+use macros::{Getter, Get};
+use toml;
 
 // For persistence between worlds, because the entity ID may change.
 pub struct Uuid {}
+
+
+/// Interesting flags for mob entities.
+make_getter!(Flags {
+    is_invulnerable: bool,
+    reflects_ranged: bool,
+});
+
+impl Default for Flags {
+    fn default() -> Self {
+        Flags {
+            is_invulnerable: false,
+            reflects_ranged: false,
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Gender {
@@ -21,11 +38,16 @@ pub enum Gender {
     Unknown,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Name {
-    pub name: String,
-    pub proper_name: Option<String>,
-    pub gender: Gender,
+make_getter!(Name {
+    name: String,
+    proper_name: Option<String>,
+    gender: Gender,
+});
+
+impl Default for Name {
+    fn default() -> Self {
+        Name::new("someone".to_string())
+    }
 }
 
 impl Name {
@@ -46,17 +68,31 @@ impl Name {
     }
 }
 
-#[cfg(never)]
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Position {
-    x: i32,
-    y: i32,
+
+make_getter!(Props {
+    props: Properties
+});
+
+impl Default for Props {
+    fn default() -> Self {
+        Props {
+            props: Properties::new(),
+        }
+    }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Health {
-    pub hit_points: i32,
-    pub max_hit_points: i32,
+
+make_getter!(Health {
+    hit_points: i32,
+    max_hit_points: i32,
+    tp: i32,
+    max_tp: i32,
+});
+
+impl Default for Health {
+    fn default() -> Self {
+        Health::new(1)
+    }
 }
 
 impl Health {
@@ -65,6 +101,8 @@ impl Health {
         Health {
             hit_points: max,
             max_hit_points: max,
+            tp: 0,
+            max_tp: 100,
         }
     }
 
@@ -83,6 +121,18 @@ impl Health {
         }
     }
 
+    pub fn tp_full(&self) -> bool {
+        self.tp == self.max_tp
+    }
+
+    pub fn adjust_tp(&mut self, amount: i32) {
+        self.tp = clamp(self.tp + amount, 0, self.max_tp);
+    }
+
+    pub fn reset_tp(&mut self) {
+        self.tp = 0;
+    }
+
     pub fn kill(&mut self) {
         self.hit_points = 0;
     }
@@ -92,9 +142,15 @@ impl Health {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Appearance {
-    pub kind: String,
+
+make_getter!(Appearance {
+    kind: String,
+});
+
+impl Default for Appearance {
+    fn default() -> Self {
+        Appearance::new("unknown")
+    }
 }
 
 impl Appearance {
@@ -103,14 +159,15 @@ impl Appearance {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Props {
-    pub props: Properties,
-}
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Turn {
-    pub speed: u32,
+make_getter!(Turn {
+    speed: u32,
+});
+
+impl Default for Turn {
+    fn default() -> Self {
+        Turn::new(100)
+    }
 }
 
 impl Turn {
@@ -119,11 +176,17 @@ impl Turn {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Item {
-    pub count: u32,
-    pub weight: f32,
-    pub effect: ItemEffect,
+
+make_getter!(Item {
+    count: u32,
+    weight: f32,
+    effect: ItemEffect,
+});
+
+impl Default for Item {
+    fn default() -> Self {
+        Item::new()
+    }
 }
 
 impl Item {
@@ -148,9 +211,14 @@ impl Item {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Fov {
-    pub visible: HashSet<Point>,
+make_getter!(Fov {
+    visible: HashSet<Point>,
+});
+
+impl Default for Fov {
+    fn default() -> Self {
+        Fov::new()
+    }
 }
 
 impl Fov {
@@ -163,11 +231,10 @@ impl Fov {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct Log {
-    pub ident: String,
-    pub logger: Logger,
-}
+
+make_getter!(Log {
+    ident: String,
+});
 
 lazy_static! {
     static ref MOB_LOG: Logger = log::make_logger("mob");
@@ -177,65 +244,95 @@ fn get_mob_log() -> Logger {
     MOB_LOG.new(o!())
 }
 
+impl Default for Log {
+    fn default() -> Self {
+        Log::new("mob")
+    }
+}
+
 impl Log {
     pub fn new(ident: &str) -> Self {
         Log {
             ident: ident.to_string(),
-            logger: get_mob_log(),
+        }
+    }
+
+    pub fn get(&self) -> &'static Logger {
+        &MOB_LOG
+    }
+}
+
+make_getter!(Inventory {
+    container: ItemContainer,
+});
+
+
+impl Default for Inventory {
+    fn default() -> Self {
+        Inventory {
+            container: ItemContainer::new(),
         }
     }
 }
 
-impl Serialize for Log {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(&self.ident)
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Slot {
+    pub kind: SlotKind,
+    pub name: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum SlotKind {
+    Arm,
+    Head,
+    Legs
+}
+
+impl fmt::Display for Slot {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        let kind_str = match self.kind {
+            SlotKind::Arm => "arm",
+            SlotKind::Head => "head",
+            SlotKind::Legs => "legs",
+        };
+        write!(f, "{}", kind_str)
     }
 }
 
-impl<'de> Deserialize<'de> for Log {
-    fn deserialize<D>(deserializer: D) -> Result<Log, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct LogVisitor;
 
-        impl<'de> Visitor<'de> for LogVisitor {
-            type Value = Log;
+make_getter!(Equipment {
+    slots: Vec<Slot>,
+});
 
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("`ident`")
-            }
+impl Default for Equipment {
+    fn default() -> Self {
+        Equipment::new(Vec::new())
+    }
+}
 
-            fn visit_str<E>(self, value: &str) -> Result<Log, E>
-            where
-                E: de::Error,
-            {
-                let logger = get_mob_log();
-                let log = Log {
-                    ident: value.to_string(),
-                    logger: logger,
-                };
-                Ok(log)
-            }
+impl Equipment {
+    pub fn new(slots: Vec<Slot>) -> Self {
+        Equipment {
+            slots: slots,
         }
-
-        deserializer.deserialize_str(LogVisitor)
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Inventory {
-    pub container: ItemContainer,
-}
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Npc {}
+make_getter!(Npc {
+    quests: Vec<String>,
+});
+
+impl Default for Npc {
+    fn default() -> Self {
+        Npc::new()
+    }
+}
 
 impl Npc {
     pub fn new() -> Self {
-        Npc {}
+        Npc {
+            quests: Vec::new()
+        }
     }
 }

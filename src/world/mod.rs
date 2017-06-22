@@ -10,6 +10,7 @@ pub use self::bounds::Bounds;
 use self::flags::Flags;
 use self::traits::*;
 
+use std::cell::RefCell;
 use std::collections::HashSet;
 use std::slice;
 
@@ -29,9 +30,9 @@ use ecs::traits::*;
 use graphics::Marks;
 use graphics::cell::{CellFeature, StairDir, StairDest, StairKind};
 use log;
-use logic::entity::EntityQuery;
+use logic::entity::*;
 use point::{Direction, Point, POINT_ZERO};
-use prefab::{self, Prefab, PrefabArgs, PrefabMarker};
+use prefab::{self, Prefab, PrefabArgs};
 use terrain::Terrain;
 use terrain::regions::Regions;
 use terrain::traits::*;
@@ -77,7 +78,7 @@ impl World {
         }
     }
 
-    pub fn deploy_prefab(&mut self, prefab: &Prefab, offset: Point) {
+    pub fn deploy_prefab(&mut self, prefab: Prefab, offset: Point) {
         debug!(self.logger, "About to deploy prefab on map {}...", self.flags().map_id);
 
         for (pos, cell) in prefab.iter() {
@@ -88,21 +89,58 @@ impl World {
         }
 
         for (pos, marker) in prefab.markers.iter() {
-            let offset_pos = *pos + offset;
-            debug!(self.logger, "Marker: {:?} {}", marker, offset_pos);
-            match *marker {
-                PrefabMarker::Npc => {
-                    self.create(ecs::prefab::npc("dude"), offset_pos);
+            self.terrain.markers.insert(*pos + offset, marker.clone());
+        }
+
+        debug!(self.logger, "Finished deploying prefab");
+    }
+
+    pub fn reify_markers(&mut self) {
+        for (pos, marker) in self.terrain.markers.clone().iter() {
+            debug!(self.logger, "Marker: {:?} {}", marker, pos);
+            match marker.as_ref() {
+                "npc" => {
+                    self.create(ecs::prefab::npc("dude"), *pos);
                 },
                 // TODO: Allow both stair directions
-                PrefabMarker::StairsOut => self.place_stairs_down(*pos, StairKind::Unconnected),
+                "stairs_out" => self.place_stairs_down(*pos, StairKind::Unconnected),
                 _ => (),
             }
         }
+    }
 
-        self.terrain.markers = prefab.markers.clone();
+    pub fn find_marker(&mut self, kind: &str) -> Option<WorldPosition> {
+        let markers = self.terrain.markers.clone();
 
-        debug!(self.logger, "Finished deploying prefab");
+        for (pos, marker) in markers.iter() {
+            if *marker == kind {
+                if self.cell(pos).is_some() {
+                    return Some(*pos)
+                }
+            }
+        }
+
+        None
+    }
+
+    pub fn find_stairs_in(&mut self) -> Option<WorldPosition> {
+        self.find_marker("stairs_in")
+    }
+
+    pub fn add_marker_overlays(&mut self) {
+        for (pos, marker) in self.terrain.markers.iter() {
+            self.debug_overlay.add(*pos, prefab::mark_to_color(marker));
+        }
+    }
+
+    pub fn place_stairs(&mut self, dir: StairDir,
+                        pos: WorldPosition,
+                        leading_to: MapId,
+                        dest_pos: WorldPosition) {
+        if let Some(cell_mut) = self.cell_mut(&pos) {
+            let dest = StairDest::Generated(leading_to, dest_pos);
+            cell_mut.feature = Some(CellFeature::Stairs(dir, dest));
+        }
     }
 }
 
@@ -126,7 +164,7 @@ impl WorldBuilder {
             chunk_type: self.chunk_type.clone(),
 
             logger: get_world_log(),
-            messages: MessageLog::new(),
+            messages: get_message_log(),
             marks: Marks::new(),
             debug_overlay: Marks::new(),
         };
@@ -136,7 +174,8 @@ impl WorldBuilder {
         }
 
         if let Some(prefab) = prefab_opt {
-            world.deploy_prefab(&prefab, POINT_ZERO);
+            world.deploy_prefab(prefab, POINT_ZERO);
+            world.reify_markers();
         }
 
         Ok(world)
@@ -181,6 +220,10 @@ impl WorldBuilder {
     }
 }
 
+fn get_message_log() -> RefCell<MessageLog> {
+    RefCell::new(MessageLog::new())
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct World {
     ecs_: Ecs,
@@ -198,8 +241,8 @@ pub struct World {
 
     #[serde(skip_serializing)]
     #[serde(skip_deserializing)]
-    #[serde(default = "MessageLog::new")]
-    messages: MessageLog,
+    #[serde(default = "get_message_log")]
+    messages: RefCell<MessageLog>,
 
     #[serde(skip_serializing)]
     #[serde(skip_deserializing)]
@@ -214,21 +257,21 @@ pub struct World {
 
 impl World {
     pub fn get_messages(&self, count: usize) -> Vec<String> {
-        self.messages.get_lines(count)
+        self.messages.borrow_mut().get_lines(count)
     }
 
     #[cfg(not(test))]
-    pub fn message(&mut self, text: &str) {
-        self.messages.append(text);
+    pub fn message(&self, text: &str) {
+        self.messages.borrow_mut().append(text);
     }
 
     #[cfg(test)]
-    pub fn message(&mut self, text: &str) {
+    pub fn message(&self, text: &str) {
         println!("MESSAGE: {}", text);
     }
 
     pub fn next_message(&mut self) {
-        self.messages.next_line();
+        self.messages.borrow_mut().next_line();
     }
 }
 
@@ -346,6 +389,7 @@ impl Mutate for World {
     fn kill_entity(&mut self, e: Entity) {
         debug!(self.logger, "Marking entity {:?} as killed.", e);
         self.spatial.remove(e);
+
         let result = self.turn_order.remove(e);
         if let Err(err) = result {
             warn!(self.logger, "{:?} wasn't in world turn order! {:?}", e, err);
@@ -392,20 +436,21 @@ impl Mutate for World {
             return;
         }
 
-        // because FOV is so expensive, monster detection is done
-        // through checking for LOS only.
-        if !self.is_player(e) {
-            return;
-        }
+        // if !self.is_player(e) {
+        //     return;
+        // }
 
         if let Some(center) = self.position(e) {
-            const FOV_RADIUS: i32 = 7;
+            const FOV_RADIUS: i32 = 8;
 
             let visible = fov::bresenham_fast(self, center, FOV_RADIUS);
 
+            if self.is_player(e) {
+                self.flags_mut().explored.extend(visible.clone());
+            }
+
             let mut fov = &mut self.ecs_.fovs[e];
             fov.visible = visible;
-
         }
     }
 
@@ -469,7 +514,9 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for World {
             self.spatial.unfreeze(e);
             let result = self.turn_order.resume(e);
             if let Err(err) = result {
-                warn_ecs!(self, e, "{:?} wasn't in turn order! {:?}", e, err);
+                if self.is_mob(e) {
+                    warn_ecs!(self, e, "{:?} is mob, but wasn't in turn order! {:?}", e, err);
+                }
             }
         }
 
@@ -484,8 +531,8 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for World {
         //     self.flags().map_id
         // );
         let chunk = self.terrain
-                        .remove_chunk(index)
-                        .expect(&format!("Expected chunk at {}!", index));
+            .remove_chunk(index)
+            .expect(&format!("Expected chunk at {}!", index));
 
         let entities = self.entities_in_chunk(index);
         for e in entities {
@@ -496,7 +543,9 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for World {
             self.spatial.freeze(e);
             let result = self.turn_order.pause(e);
             if let Err(err) = result {
-                warn_ecs!(self, e, "{:?} wasn't in turn order! {:?}", e, err);
+                if self.is_mob(e) {
+                    warn_ecs!(self, e, "{:?} is mob, but wasn't in turn order! {:?}", e, err);
+                }
             }
 
         }
@@ -601,12 +650,19 @@ impl World {
 
     pub fn on_load(&mut self) {
         self.update_terrain();
-        self.recalc_entity_fovs();
         self.update_camera();
     }
 }
 
 impl World {
+    pub fn create(&mut self, loadout: Loadout, pos: Point) -> Option<Entity> {
+        if self.pos_loaded(&pos) {
+            Some(self.spawn(&loadout, pos))
+        } else {
+            None
+        }
+    }
+
     pub fn place_stairs_down(&mut self, pos: WorldPosition, kind: StairKind) {
         assert!(self.can_walk(pos, Walkability::MonstersWalkable));
         self.terrain.cell_mut(&pos).unwrap().feature =

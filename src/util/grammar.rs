@@ -141,7 +141,7 @@ fn is_vowel(ch: char) -> bool {
     }
 }
 
-fn get_article(name: &str) -> &str {
+pub fn get_article(name: &str) -> &str {
     if name.is_empty() {
         return "";
     }

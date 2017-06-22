@@ -26,20 +26,12 @@ function prefab_metatable:in_bounds(point)
    return self:in_bounds_raw(point.x, point.y)
 end
 
-function prefab_metatable:place_door(point)
-   return self:place_door_raw(point.x, point.y)
+function prefab_metatable:place_marker(point, marker)
+   return self:place_marker_raw(point.x, point.y, marker)
 end
 
-function prefab_metatable:place_stairs_in(point)
-   return self:place_stairs_in_raw(point.x, point.y)
-end
-
-function prefab_metatable:place_stairs_out(point)
-   return self:place_stairs_out_raw(point.x, point.y)
-end
-
-function prefab_metatable:place_npc(point)
-   return self:place_npc_raw(point.x, point.y)
+function prefab_metatable:deploy_prefab(point, kind, args)
+   return self:deploy_prefab_raw(point.x, point.y, kind, args)
 end
 
 function prefab_metatable:iter()
