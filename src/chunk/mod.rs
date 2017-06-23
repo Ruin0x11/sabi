@@ -40,4 +40,35 @@ impl Chunk {
     pub fn world_position_at(index: &ChunkIndex, pos: &ChunkPosition) -> Point {
         Point::new(pos.0.x + index.0.x * CHUNK_WIDTH, pos.0.y + index.0.y * CHUNK_WIDTH)
     }
+
+    pub fn iter(&self) -> ChunkIter {
+        ChunkIter {
+            index: 0,
+            width: CHUNK_WIDTH,
+            inner: self.cells.iter(),
+        }
+    }
+}
+
+pub struct ChunkIter<'a> {
+    index: i32,
+    width: i32,
+    inner: ::std::slice::Iter<'a, Cell>,
+}
+
+impl<'a> Iterator for ChunkIter<'a> {
+    type Item = (ChunkPosition, &'a Cell);
+
+    fn next(&mut self) -> Option<(ChunkPosition, &'a Cell)> {
+        let x = self.index % self.width;
+        let y = self.index / self.width;
+        self.index += 1;
+        match self.inner.next() {
+            Some(cell) => {
+                let level_position = ChunkPosition::from(Point::new(x, y));
+                Some((level_position, cell))
+            }
+            None => None,
+        }
+    }
 }

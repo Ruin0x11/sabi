@@ -16,8 +16,8 @@ function generate()
    local i, j
    local size = world.point(block_width, block_height)
 
-   for j = 0, blocks_vert, 1 do
-      for i = 0, blocks_horiz, 1 do
+   for j = 0, blocks_vert - 1, 1 do
+      for i = 0, blocks_horiz - 1, 1 do
          local start_corner = world.point((i + 1) * streets_width + i * block_width,
             (j + 1) * streets_width + j * block_height)
 

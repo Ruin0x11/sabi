@@ -151,6 +151,10 @@ fn debug_place_enemies(context: &mut GameContext) -> CommandResult<()> {
     let lower_right = select_tile(context, |_, _| ())?;
     let size = lower_right - upper_left;
 
+    if lower_right.x < upper_left.x || lower_right.y < upper_let.y {
+        return Err(CommandError::Cancel);
+    }
+
     for pos in RectangleIter::new(upper_left, size) {
         context.state.world.create(ecs::prefab::mob("putit", 50, "putit"), pos);
     }

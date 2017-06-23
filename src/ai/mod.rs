@@ -189,8 +189,6 @@ fn check_target(entity: Entity, world: &World) {
 fn check_triggers(entity: Entity, world: &World) {
     let ai = world.ecs().ais.get_or_err(entity);
 
-    debug_ecs!(world, entity, "triggers: {:?}", ai.data.triggers.borrow());
-
     if let Some((goal, target)) = ai.kind.check_triggers(entity, world) {
         set_goal(entity, world, goal.get_end_state(), target, goal);
     }
@@ -242,10 +240,10 @@ fn update_memory(entity: Entity, world: &World) {
         *memory != new_memory
     };
 
-    debug_ecs!(world, entity, "Target: {:?}", ai.data.target.borrow());
-
     if stale {
         debug_ecs!(world, entity, "Regenerating AI cache! {:?}", ai.data.memory.borrow());
+        debug_ecs!(world, entity, "Target: {:?}", ai.data.target.borrow());
+
         // make sure the memory is fresh before picking an action
         *ai.data.memory.borrow_mut() = new_memory;
 

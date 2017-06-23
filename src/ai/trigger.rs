@@ -33,7 +33,6 @@ impl AiKind {
         let mut res = None;
 
         for trigger in triggers.iter() {
-            debug_ecs!(world, entity, "attempt: {:?} {:?} {:?}", trigger, ai_goal, ai.kind);
             if let Some(r) = self.check_trigger(entity, world, *ai_goal, *trigger) {
                 debug_ecs!(world, entity, "TRIGGER: {:?} {:?}", trigger, ai_goal);
                 res = Some(r);

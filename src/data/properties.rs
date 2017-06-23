@@ -57,7 +57,7 @@ impl Properties {
     }
 
     pub fn set<T>(&mut self, key: &str, val: T) -> Result<(), PropErr>
-        where Properties: GetProp<T > {
+        where Properties: GetProp<T> {
         self.set_prop(key, val)
     }
 

@@ -246,9 +246,11 @@ pub fn load_context() -> GameContext {
     if let Ok(world) = world::serial::load_world(manifest.map_id) {
         apply_save_manifest(&mut context, world, manifest);
     } else {
+        let mut props = ::ecs::components::Props::new();
+        props.props.set::<bool>("omniscient", true);
         let player = context.state
             .world
-            .spawn(&::ecs::prefab::mob("player", 10000000, "player"),
+            .spawn(&::ecs::prefab::mob("player", 10000000, "player").c(props),
                    WorldPosition::new(0, 0));
         context.state.world.set_player(Some(player));
     }

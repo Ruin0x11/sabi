@@ -50,12 +50,15 @@ impl Viewport {
         if let Some(b) = bound {
             let (bx, by) = b.into();
             let (rx, ry) = self.renderable_area();
-            if bx < rx && by < ry {
-                return (0, 0);
-            }
-
             cx = util::clamp(cx, 0, bx - rx);
             cy = util::clamp(cy, 0, by - ry);
+
+            if bx < rx {
+                cx = 0;
+            }
+            if by < ry {
+                cy = 0
+            }
         }
 
         (cx, cy)

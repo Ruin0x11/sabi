@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use chunk::*;
 use chunk::serial::SerialChunk;
+use graphics::cell::Cell;
 use prefab::Markers;
 use world::{Bounds, WorldPosition};
 
@@ -58,6 +59,20 @@ impl Terrain {
     pub fn bounds(&self) -> &Bounds {
         &self.bounds
     }
+
+    pub fn iter(&self) -> Option<TerrainIter> {
+        let mut iter = self.chunks.iter();
+        let chunk_opt = iter.next();
+        if chunk_opt.is_none() {
+            return None;
+        }
+        let (idx, chunk) = chunk_opt.unwrap();
+        Some(TerrainIter {
+            index: *idx,
+            inner: chunk.iter(),
+            chunks: iter,
+        })
+    }
 }
 
 impl TerrainQuery for Terrain {
@@ -111,5 +126,32 @@ impl<'a> ChunkedTerrain<'a, ChunkIndex, SerialChunk, Regions> for Terrain
 
     fn chunk_indices(&self) -> Vec<ChunkIndex> {
         self.chunks.iter().map(|(&i, _)| i).collect()
+    }
+}
+
+pub struct TerrainIter<'a> {
+    index: ChunkIndex,
+    inner: ChunkIter<'a>,
+    chunks: ::std::collections::hash_map::Iter<'a, ChunkIndex, Chunk>,
+}
+
+impl<'a> Iterator for TerrainIter<'a> {
+    type Item = (WorldPosition, &'a Cell);
+
+    fn next(&mut self) -> Option<(WorldPosition, &'a Cell)> {
+        let mut res = self.inner.next();
+
+        if res.is_none() {
+            match self.chunks.next() {
+                Some((index, chunk)) => {
+                    self.index = *index;
+                    self.inner = chunk.iter();
+                    res = self.inner.next();
+                }
+                None => return None,
+            }
+        }
+
+        res.map(|(chunk_pos, cell)| (Chunk::world_position_at(&self.index, &chunk_pos), cell))
     }
 }

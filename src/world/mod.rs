@@ -443,7 +443,14 @@ impl Mutate for World {
         if let Some(center) = self.position(e) {
             const FOV_RADIUS: i32 = 8;
 
-            let visible = fov::bresenham_fast(self, center, FOV_RADIUS);
+            let visible = if e.prop_equals("omniscient", true, self) {
+                self.terrain().iter().map(|i| i.fold(HashSet::new(), |mut hs, (pos, _)| {
+                    hs.insert(pos);
+                    hs
+                })).unwrap_or(HashSet::new())
+            } else {
+                fov::bresenham_fast(self, center, FOV_RADIUS)
+            };
 
             if self.is_player(e) {
                 self.flags_mut().explored.extend(visible.clone());
@@ -651,6 +658,7 @@ impl World {
     pub fn on_load(&mut self) {
         self.update_terrain();
         self.update_camera();
+        self.recalc_entity_fovs();
     }
 }
 

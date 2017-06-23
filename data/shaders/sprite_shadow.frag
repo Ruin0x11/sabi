@@ -11,5 +11,5 @@ void main(void) {
     discard;
   }
 
-  color = vec4(0, 0, 0, 1.0);
+  color = vec4(0, 0, 0, 0.75);
 }

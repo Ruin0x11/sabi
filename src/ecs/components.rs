@@ -8,13 +8,11 @@ use item::{ItemContainer, ItemEffect};
 use log;
 use point::Point;
 use util::clamp;
-use ai::*;
 use macros::{Getter, Get};
 use toml;
 
 // For persistence between worlds, because the entity ID may change.
 pub struct Uuid {}
-
 
 /// Interesting flags for mob entities.
 make_getter!(Flags {
@@ -75,6 +73,12 @@ make_getter!(Props {
 
 impl Default for Props {
     fn default() -> Self {
+        Props::new()
+    }
+}
+
+impl Props {
+    pub fn new() -> Self {
         Props {
             props: Properties::new(),
         }

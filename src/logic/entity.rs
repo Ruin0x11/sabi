@@ -106,7 +106,7 @@ impl EntityQuery for Entity {
     }
 
     fn can_see_pos(&self, pos: Point, world: &World) -> bool {
-        if self.prop_equals("omniprescent", true, world) {
+        if self.prop_equals("omniscient", true, world) {
             return true;
         }
 
