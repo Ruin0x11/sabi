@@ -117,6 +117,7 @@ mod tests {
     use testing::*;
     use world::traits::*;
     use ecs;
+    use ecs::components::Name;
     use point::POINT_ZERO;
 
     #[test]
@@ -124,7 +125,7 @@ mod tests {
         let mut context = test_context();
         let world = &mut context.state.world;
         let player = world.player().unwrap();
-        let e = world.spawn(&ecs::prefab::mob("putit", 1000000, "putit"), POINT_ZERO);
+        let e = world.spawn(&ecs::prefab::mob("putit", 1000000, "putit").c(Name::new("putit".to_string())), POINT_ZERO);
 
         assert_eq!(&format_message("%u <kill> it.", player, world), "You kill it.");
         assert_eq!(&format_message("%u <target> you.", e, world), "It targets you.");
