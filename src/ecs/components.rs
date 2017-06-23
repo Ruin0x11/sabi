@@ -316,6 +316,15 @@ impl Equipment {
             slots: slots,
         }
     }
+
+    pub fn can_equip(&self, slot_idx: usize) -> bool {
+        let slot = match self.slots.get(slot_idx) {
+            Some(s) => s,
+            None    => return false,
+        };
+
+        true
+    }
 }
 
 

@@ -120,6 +120,12 @@ pub struct UiRenderer {
     color_stack: Vec<(u8, u8, u8, u8)>,
 }
 
+pub struct UiSubrenderer<'a> {
+    pub offset: (u32, u32),
+    pub size: (u32, u32),
+    backend: &'a UiRenderer,
+}
+
 fn build_ui_atlas<F: Facade>(display: &F) -> TextureAtlas {
     TextureAtlasBuilder::new()
         .add_texture("win")
@@ -406,15 +412,13 @@ fn make_scissor(clip_rect: (f32, f32, f32, f32), height: f32, scale: f32) -> Rec
 }
 
 impl<'a> Renderable for UiRenderer {
-    fn render<F, S>(&self, display: &F, target: &mut S, viewport: &Viewport)
+    fn render<F, S>(&self, display: &F, target: &mut S, viewport: &Viewport, time: u64)
         where F: glium::backend::Facade, S: glium::Surface {
 
         let proj = viewport.static_projection();
-
+        // TODO: move into struct
         let vertices = glium::VertexBuffer::dynamic(display, &self.draw_list.vertices).unwrap();
-
         let height = viewport.size.1 as f32;
-
         let mut idx_start = 0;
 
         for cmd in self.draw_list.commands.iter() {

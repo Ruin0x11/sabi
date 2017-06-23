@@ -228,7 +228,7 @@ fn get_message_log() -> RefCell<MessageLog> {
 pub struct World {
     ecs_: Ecs,
     terrain: Terrain,
-    spatial: Spatial,
+    pub spatial: Spatial,
     turn_order: TurnOrder,
     flags: Flags,
 

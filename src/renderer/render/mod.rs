@@ -175,21 +175,21 @@ impl RenderContext {
         let millis = self.accumulator.millis_since_start();
 
         self.background
-            .render(&self.backend, &mut target, &self.viewport);
+            .render(&self.backend, &mut target, &self.viewport, millis);
 
         self.tilemap.redraw(&self.backend, millis);
         self.tilemap
-            .render(&self.backend, &mut target, &self.viewport);
+            .render(&self.backend, &mut target, &self.viewport, millis);
 
         self.spritemap.redraw(&self.backend, millis);
         self.spritemap
-            .render(&self.backend, &mut target, &self.viewport);
+            .render(&self.backend, &mut target, &self.viewport, millis);
 
         self.shadowmap.redraw(&self.backend, millis);
         self.shadowmap
-            .render(&self.backend, &mut target, &self.viewport);
+            .render(&self.backend, &mut target, &self.viewport, millis);
 
-        self.ui.render(&self.backend, &mut target, &self.viewport);
+        self.ui.render(&self.backend, &mut target, &self.viewport, millis);
 
         target.finish().unwrap();
     }
@@ -248,7 +248,7 @@ impl RenderContext {
 }
 
 pub trait Renderable {
-    fn render<F, S>(&self, display: &F, target: &mut S, viewport: &Viewport)
+    fn render<F, S>(&self, display: &F, target: &mut S, viewport: &Viewport, time: u64)
     where
         F: glium::backend::Facade,
         S: glium::Surface;

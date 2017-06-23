@@ -27,6 +27,8 @@ pub struct SpriteMap {
 
     tile_atlas: TileAtlas,
     valid: bool,
+
+    i: u32,
 }
 
 struct DrawSprite {
@@ -52,6 +54,7 @@ impl SpriteMap {
             shadow_program: shadow_program,
             tile_atlas: tile_atlas,
             valid: false,
+            i: 0,
         };
 
         spritemap.redraw(display, 0);
@@ -134,7 +137,7 @@ impl SpriteMap {
 }
 
 impl<'a> Renderable for SpriteMap {
-    fn render<F, S>(&self, _display: &F, target: &mut S, viewport: &Viewport)
+    fn render<F, S>(&self, _display: &F, target: &mut S, viewport: &Viewport, time: u64)
         where
         F: glium::backend::Facade,
         S: glium::Surface,
@@ -161,7 +164,15 @@ impl<'a> Renderable for SpriteMap {
                             .wrap_function(glium::uniforms::SamplerWrapFunction::Clamp)
                             .minify_filter(glium::uniforms::MinifySamplerFilter::Nearest)
                             .magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
+                        time: time as f32 / 1000.0,
                     };
+
+                target.draw((&self.vertices, instances.per_instance().unwrap()),
+                            &self.indices,
+                            &self.shadow_program,
+                            &uniforms,
+                            &params)
+                    .unwrap();
 
                 target.draw((&self.vertices, instances.per_instance().unwrap()),
                             &self.indices,
@@ -169,6 +180,7 @@ impl<'a> Renderable for SpriteMap {
                             &uniforms,
                             &params)
                     .unwrap();
+
             }
         }
     }
@@ -229,7 +241,7 @@ fn make_sprites(world: &World, viewport: &Viewport) -> Vec<(DrawSprite, (u32, u3
                     continue;
                 }
 
-                push_sprite(pos, "shadow");
+                // push_sprite(pos, "shadow");
 
                 if world.is_mob(*entity) {
                     continue;

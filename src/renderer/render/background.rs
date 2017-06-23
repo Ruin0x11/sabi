@@ -38,7 +38,7 @@ impl Background {
 }
 
 impl Renderable for Background {
-    fn render<F, S>(&self, _display: &F, target: &mut S, viewport: &Viewport)
+    fn render<F, S>(&self, _display: &F, target: &mut S, viewport: &Viewport, _time: u64)
         where F: Facade, S: glium::Surface {
 
         let (w, h) = (viewport.size.0 as f32, viewport.size.1 as f32);

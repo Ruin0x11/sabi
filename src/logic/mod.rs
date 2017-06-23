@@ -1,6 +1,7 @@
 mod action;
 pub mod command;
 pub mod entity;
+mod equipment;
 mod debug_command;
 mod stairs;
 

@@ -72,4 +72,5 @@ Ecs_with_toml! {
     fovs: Fov, true;
     npcs: Npc, true;
     logs: Log, false;
+    equipments: Equipment, true;
 }

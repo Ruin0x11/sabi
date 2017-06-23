@@ -203,7 +203,7 @@ impl DungeonSection {
     }
 
     pub fn generate_next_floor(&mut self, current_floor: &World) -> Option<World> {
-        self.next_ungenerated_floor_idx().map_or(None, |idx| {
+        self.next_ungenerated_floor_idx().and_then(|idx| {
             let world = World::new()
                 .from_other_world(current_floor)
                 .with_prefab(&self.kind)

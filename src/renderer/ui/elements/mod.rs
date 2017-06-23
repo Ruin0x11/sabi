@@ -7,8 +7,14 @@ mod message;
 pub use self::message::UiMessageLog;
 pub use self::bar::UiBar;
 
+use point::Point;
+
 pub trait UiElement {
     fn draw(&self, renderer: &mut UiRenderer);
+    fn required_size(&self, _constraint: Point) -> Point {
+        Point::new(1, 1)
+    }
+    fn layout(&mut self, constraint: Point) {}
 }
 
 impl UiElement for UiWindow {

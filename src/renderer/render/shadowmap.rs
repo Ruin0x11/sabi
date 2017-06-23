@@ -66,7 +66,7 @@ impl ShadowMap {
 }
 
 impl Renderable for ShadowMap {
-    fn render<F, S>(&self, _display: &F, target: &mut S, viewport: &Viewport)
+    fn render<F, S>(&self, _display: &F, target: &mut S, viewport: &Viewport, _time: u64)
     where
         F: glium::backend::Facade,
         S: glium::Surface,

@@ -125,10 +125,10 @@ impl Ui {
 }
 
 impl<'a> Renderable for Ui {
-    fn render<F, S>(&self, display: &F, target: &mut S, viewport: &Viewport)
+    fn render<F, S>(&self, display: &F, target: &mut S, viewport: &Viewport, time: u64)
         where F: glium::backend::Facade, S: glium::Surface {
 
-        self.renderer.render(display, target, viewport);
+        self.renderer.render(display, target, viewport, time);
     }
 }
 

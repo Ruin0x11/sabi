@@ -3,8 +3,6 @@ use rand::{self, Rng};
 use GameContext;
 use ai::{Ai, AiKind};
 use ecs;
-use ecs::traits::*;
-use logic::entity::*;
 use point::{Point, RectangleIter, POINT_ZERO};
 use prefab::{self, PrefabArgs};
 use renderer;
@@ -18,7 +16,8 @@ const TEST_WORLD_ID: u32 = 10000000;
 
 pub(super) fn cmd_debug_menu(context: &mut GameContext) -> CommandResult<()> {
     menu!(context,
-          "ai"             => debug_ai_menu(context),
+          "Reload shaders" => debug_reload_shaders(),
+          "AI"             => debug_ai_menu(context),
           "print entity info" => debug_print_entity_info(context),
           "Item test"      => debug_item_test(context),
           "List entities"  => debug_list_entities(context),
@@ -26,7 +25,6 @@ pub(super) fn cmd_debug_menu(context: &mut GameContext) -> CommandResult<()> {
           "Goto world"     => debug_goto_world(context),
           "Debug prefab"   => debug_prefab(context),
           "Deploy prefab"  => debug_deploy_prefab(context),
-          "Reload shaders" => debug_reload_shaders(),
           "Restart game"   => debug_restart_game(context)
     )
 }

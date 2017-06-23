@@ -22,6 +22,7 @@ pub trait EntityQuery {
     fn name_with_article(&self, world: &World) -> String;
     fn verb_person(&self, world: &World) -> VerbPerson;
     fn is_dead(&self, world: &World) -> bool;
+    fn can_see_pos(&self, pos: Point, world: &World) -> bool;
     fn can_see_other(&self, target: Entity, world: &World) -> bool;
     fn inventory(&self, world: &World) -> Vec<Entity>;
     fn closest_entity(&self, entities: Vec<Entity>, world: &World) -> Option<Entity>;
@@ -104,6 +105,15 @@ impl EntityQuery for Entity {
         world.ecs().healths.get(*self).map_or(true, |h| h.is_dead())
     }
 
+    fn can_see_pos(&self, pos: Point, world: &World) -> bool {
+        if self.prop_equals("omniprescent", true, world) {
+            return true;
+        }
+
+        let fov = world.ecs().fovs.get(*self);
+        fov.map_or(false, |v| v.is_visible(&pos))
+    }
+
     fn can_see_other(&self, target: Entity, world: &World) -> bool {
         if let Some(target_pos) = world.position(target) {
             if !world.is_player(*self) {
@@ -113,8 +123,7 @@ impl EntityQuery for Entity {
                 }
             }
 
-            let fov = world.ecs().fovs.get(*self);
-            fov.map_or(false, |v| v.is_visible(&target_pos))
+            self.can_see_pos(target_pos, world)
         } else {
             false
         }
