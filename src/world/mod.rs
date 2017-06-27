@@ -445,6 +445,10 @@ impl Mutate for World {
 
             let visible = fov::bresenham_fast(self, center, FOV_RADIUS);
 
+            if self.is_player(e) {
+                self.flags_mut().explored.extend(visible.clone());
+            }
+
             let mut fov = &mut self.ecs_.fovs[e];
             fov.visible = visible;
         }
@@ -527,8 +531,8 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for World {
         //     self.flags().map_id
         // );
         let chunk = self.terrain
-                        .remove_chunk(index)
-                        .expect(&format!("Expected chunk at {}!", index));
+            .remove_chunk(index)
+            .expect(&format!("Expected chunk at {}!", index));
 
         let entities = self.entities_in_chunk(index);
         for e in entities {

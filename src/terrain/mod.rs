@@ -54,6 +54,10 @@ impl Terrain {
         self.id = id;
         self.regions.set_id(id);
     }
+
+    pub fn bounds(&self) -> &Bounds {
+        &self.bounds
+    }
 }
 
 impl TerrainQuery for Terrain {

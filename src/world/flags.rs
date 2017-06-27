@@ -1,6 +1,8 @@
+use std::collections::HashSet;
+
 use calx_alg::EncodeRng;
 use calx_ecs::Entity;
-use rand::{Rng, SeedableRng, XorShiftRng};
+use rand::{SeedableRng, XorShiftRng};
 use world::MapId;
 
 use point::Point;
@@ -11,6 +13,7 @@ pub struct Flags {
 
     pub camera: Point,
     pub map_id: MapId,
+    pub explored: HashSet<Point>,
     seed: u32,
     rng: EncodeRng<XorShiftRng>,
 }
@@ -39,6 +42,7 @@ impl Flags {
             },
             camera: Point::new(0, 0),
             map_id: map_id,
+            explored: HashSet::new(),
 
             seed: seed,
             rng: SeedableRng::from_seed([seed, seed, seed, seed]),

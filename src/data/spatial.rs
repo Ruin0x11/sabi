@@ -12,6 +12,7 @@ pub enum Place {
     Unloaded(Point),
     At(Point),
     In(Entity),
+    Equipped(Entity, usize),
 }
 
 /// Spatial index for game entities
@@ -52,7 +53,9 @@ impl Spatial {
     /// entity contains entity e.
     pub fn contains(&self, parent: Entity, e: Entity) -> bool {
         match self.entity_to_place.get(&e) {
+            Some(&Equipped(p, _)) |
             Some(&In(p)) if p == parent => true,
+            Some(&Equipped(p, _)) |
             Some(&In(p)) => self.contains(parent, p),
             _ => false,
         }
@@ -65,6 +68,37 @@ impl Spatial {
             "Trying to create circular containment"
         );
         self.insert(e, In(parent));
+    }
+
+    /// Equips an entity in an equipment slot.
+    pub fn equip(&mut self, equipment: Entity, parent: Entity, slot: usize) {
+        assert!(
+            !self.contains(equipment, parent),
+            "Trying to create circular containment"
+        );
+        assert!(
+            self.contains(parent, equipment),
+            "Parent did not hold equipping item"
+        );
+        assert!(
+            self.entities_in(equipment).is_empty(),
+            "Equipment was container"
+        );
+        self.insert(equipment, Equipped(parent, slot));
+    }
+
+    pub fn equipment(&self, parent: Entity) -> Vec<(Entity, usize)> {
+        let mut res = Vec::new();
+        for e in self.entities_in(parent) {
+            match self.get(e) {
+                Some(Equipped(p, slot)) if p == parent => {
+                    res.push((p, slot));
+                },
+                _ => (),
+            }
+        }
+
+        res
     }
 
     /// Remove an entity from the local structures but do not pop out its

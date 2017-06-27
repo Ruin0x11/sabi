@@ -97,19 +97,20 @@ impl Renderable for ShadowMap {
     }
 }
 
-use world::World;
+use world::{Bounds, World};
 use world::traits::Query;
 use state::GameState;
 use point::Point;
 use renderer::RenderUpdate;
+use infinigen::ChunkedWorld;
 
-fn make_shadows(world: &World, viewport: &Viewport) -> Vec<Shadow> {
+fn make_shadows(world: &World, viewport: &Viewport, bound: Option<Point>) -> Vec<Shadow> {
     let camera = world.flags().camera;
-    let start_corner = viewport.min_tile_pos(camera);
+    let start_corner = viewport.min_tile_pos(camera, bound);
     let area = RectangleIter::new(start_corner, viewport.renderable_area().into());
 
     let mut visible = HashSet::new();
-    let points: Vec<Point> = match world.player() {
+    let visible_points: Vec<Point> = match world.player() {
         Some(player) => {
             if let Some(fov) = world.ecs().fovs.get(player) {
                 fov.visible.iter().cloned().collect()
@@ -120,17 +121,23 @@ fn make_shadows(world: &World, viewport: &Viewport) -> Vec<Shadow> {
         None => area.clone().collect(),
     };
 
-    for point in points.iter() {
+    for point in visible_points.iter() {
         visible.insert(*point);
     }
 
     let mut shadows = Vec::new();
 
+    let explored = &world.flags().explored;
     for point in area {
         if !visible.contains(&point) {
+            let color = if !explored.contains(&point) {
+                (0, 0, 0, 255)
+            } else {
+                (0, 0, 0, 192)
+            };
             let shadow = Shadow {
                 pos: (point - start_corner).into(),
-                color: (0, 0, 0, 128),
+                color: color,
             };
             shadows.push(shadow);
         }
@@ -139,9 +146,9 @@ fn make_shadows(world: &World, viewport: &Viewport) -> Vec<Shadow> {
     shadows
 }
 
-fn make_marks(world: &World, viewport: &Viewport) -> Vec<Shadow> {
+fn make_marks(world: &World, viewport: &Viewport, bound: Option<Point>) -> Vec<Shadow> {
     let camera = world.flags().camera;
-    let start_corner = viewport.min_tile_pos(camera);
+    let start_corner = viewport.min_tile_pos(camera, bound);
     let mut marks = Vec::new();
 
     {
@@ -170,8 +177,13 @@ fn make_marks(world: &World, viewport: &Viewport) -> Vec<Shadow> {
 
 fn make_map(world: &World, viewport: &Viewport) -> Vec<Shadow> {
     let mut map = Vec::new();
-    let shadows = make_shadows(world, viewport);
-    let marks = make_marks(world, viewport);
+    let bound = if let Bounds::Bounded(w, h) = *world.terrain().bounds() {
+        Some(Point::new(w, h))
+    } else {
+        None
+    };
+    let shadows = make_shadows(world, viewport, bound);
+    let marks = make_marks(world, viewport, bound);
 
     map.extend(shadows);
     map.extend(marks);

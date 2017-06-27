@@ -23,20 +23,27 @@ macro_rules! Ecs_with_toml {
         pub fn loadout_from_toml_file(filename: &str) -> Result<Loadout, ()> {
             let mut loadout = Loadout::new();
             let val = util::toml::toml_value_from_file(filename);
+
             let table = match val {
                 toml::Value::Table(ref table) => table,
                 _ => return Err(()),
             };
 
+            //let meta = table["Meta"]
+            // if meta.contains_key("parent") {
+            // loadout = loadout_from_toml_file(parent).unwrap();
+            //}
+
+            //let names = table["Components"].keys().cloned();
             let names = table.keys().cloned();
 
             for name in names {
-                $(
-                    let compo_table = match table[&name] {
-                        toml::Value::Table(ref table) => table,
-                        _ => return Err(()),
-                    };
+                let compo_table = match table[&name] {
+                    toml::Value::Table(ref table) => table,
+                    _ => return Err(()),
+                };
 
+                $(
                     if name == stringify!($comptype) {
                         let compo: $comptype = if $should_get {
                             Get::get_for(compo_table)?

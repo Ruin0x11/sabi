@@ -21,7 +21,7 @@ pub struct SpriteMap {
 
     indices: glium::IndexBuffer<u16>,
     vertices: glium::VertexBuffer<Vertex>,
-    instances: Vec<glium::VertexBuffer<Instance>>,
+    instances: Vec<Option<glium::VertexBuffer<Instance>>>,
     program: glium::Program,
     shadow_program: glium::Program,
 
@@ -71,7 +71,7 @@ impl SpriteMap {
     }
 
     fn make_instances<F>(&mut self, display: &F, msecs: u64)
-    where
+        where
         F: glium::backend::Facade,
     {
 
@@ -79,48 +79,55 @@ impl SpriteMap {
 
         for pass in 0..self.tile_atlas.passes() {
             let data = self.sprites
-                           .iter()
-                           .filter(|&&(ref sprite, _)| {
-                                       let texture_idx =
-                                           self.tile_atlas.get_tile_texture_idx(&sprite.kind);
-                                       texture_idx == pass
-                                   })
-                           .map(|&(ref sprite, pos)| {
-                let (x, y) = pos;
+                .iter()
+                .filter(|&&(ref sprite, _)| {
+                    let texture_idx =
+                        self.tile_atlas.get_tile_texture_idx(&sprite.kind);
+                    texture_idx == pass
+                })
+                .map(|&(ref sprite, pos)| {
+                    let (x, y) = pos;
 
-                let (tx, ty) = self.tile_atlas.get_texture_offset(&sprite.kind, msecs);
-                let (sx, sy) = self.tile_atlas.get_tile_texture_size(&sprite.kind);
-                let tex_ratio = self.tile_atlas.get_sprite_tex_ratio(&sprite.kind);
+                    let (tx, ty) = self.tile_atlas.get_texture_offset(&sprite.kind, msecs);
+                    let (sx, sy) = self.tile_atlas.get_tile_texture_size(&sprite.kind);
+                    let tex_ratio = self.tile_atlas.get_sprite_tex_ratio(&sprite.kind);
 
-                // To store the tile kind without putting a string in the
-                // index vertex, a mapping from a numeric index to a string
-                // is used in the tile atlas. Then, when the tile kind needs
-                // to be checked, the numeric index can retrieve a tile kind.
-                let tile_idx = self.tile_atlas.get_tile_index(&sprite.kind);
+                    // To store the tile kind without putting a string in the
+                    // index vertex, a mapping from a numeric index to a string
+                    // is used in the tile atlas. Then, when the tile kind needs
+                    // to be checked, the numeric index can retrieve a tile kind.
+                    let tile_idx = self.tile_atlas.get_tile_index(&sprite.kind);
 
-                Instance {
-                    tile_idx: tile_idx,
-                    map_coord: [x, y],
-                    tex_offset: [tx, ty],
-                    tex_ratio: tex_ratio,
-                    sprite_size: [sx, sy],
-                }
-            })
-                           .collect::<Vec<Instance>>();
-            instances.push(glium::VertexBuffer::dynamic(display, &data).unwrap());
+                    Instance {
+                        tile_idx: tile_idx,
+                        map_coord: [x, y],
+                        tex_offset: [tx, ty],
+                        tex_ratio: tex_ratio,
+                        sprite_size: [sx, sy],
+                    }
+                })
+                .collect::<Vec<Instance>>();
+            let result = if !data.is_empty() {
+                Some(glium::VertexBuffer::dynamic(display, &data).unwrap())
+            } else {
+                None
+            };
+            instances.push(result);
         }
 
         self.instances = instances;
     }
 
     fn update_instances(&mut self, msecs: u64) {
-        for buffer in self.instances.iter_mut() {
-            for instance in buffer.map().iter_mut() {
-                let (tx, ty) =
-                    self.tile_atlas
+        for buffer_opt in self.instances.iter_mut() {
+            if let &mut Some(ref mut buffer) = buffer_opt {
+                for instance in buffer.map().iter_mut() {
+                    let (tx, ty) =
+                        self.tile_atlas
                         .get_texture_offset_indexed(instance.tile_idx, msecs);
 
-                instance.tex_offset = [tx, ty];
+                    instance.tex_offset = [tx, ty];
+                }
             }
         }
     }
@@ -128,7 +135,7 @@ impl SpriteMap {
 
 impl<'a> Renderable for SpriteMap {
     fn render<F, S>(&self, _display: &F, target: &mut S, viewport: &Viewport)
-    where
+        where
         F: glium::backend::Facade,
         S: glium::Surface,
     {
@@ -136,32 +143,33 @@ impl<'a> Renderable for SpriteMap {
         let (proj, scissor) = viewport.main_window();
 
         for pass in 0..self.tile_atlas.passes() {
-            let texture = self.tile_atlas.get_texture(pass);
+            if let Some(ref instances) = self.instances[pass] {
+                let texture = self.tile_atlas.get_texture(pass);
 
-            let params = glium::DrawParameters {
-                blend: glium::Blend::alpha_blending(),
-                scissor: Some(scissor),
-                ..Default::default()
-            };
-
-            let instances = &self.instances[pass];
-
-            let uniforms =
-                uniform! {
-                    matrix: proj,
-                    tile_size: [48u32; 2],
-                    tex: texture.sampled()
-                        .wrap_function(glium::uniforms::SamplerWrapFunction::Clamp)
-                        .minify_filter(glium::uniforms::MinifySamplerFilter::Nearest)
-                        .magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
+                let params = glium::DrawParameters {
+                    blend: glium::Blend::alpha_blending(),
+                    scissor: Some(scissor),
+                    ..Default::default()
                 };
 
-            target.draw((&self.vertices, instances.per_instance().unwrap()),
-                        &self.indices,
-                        &self.program,
-                        &uniforms,
-                        &params)
-                  .unwrap();
+
+                let uniforms =
+                    uniform! {
+                        matrix: proj,
+                        tile_size: [48u32; 2],
+                        tex: texture.sampled()
+                            .wrap_function(glium::uniforms::SamplerWrapFunction::Clamp)
+                            .minify_filter(glium::uniforms::MinifySamplerFilter::Nearest)
+                            .magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
+                    };
+
+                target.draw((&self.vertices, instances.per_instance().unwrap()),
+                            &self.indices,
+                            &self.program,
+                            &uniforms,
+                            &params)
+                    .unwrap();
+            }
         }
     }
 }
@@ -169,12 +177,13 @@ impl<'a> Renderable for SpriteMap {
 use state::GameState;
 use ecs::traits::ComponentQuery;
 use renderer::RenderUpdate;
-use world::World;
+use world::{Bounds, World};
 use world::traits::Query;
+use infinigen::ChunkedWorld;
 
-fn tile_in_viewport(viewport: &Viewport, camera: Point, tile: Point) -> bool {
-    let min: Point = viewport.min_tile_pos(camera).into();
-    let max: Point = viewport.max_tile_pos(camera).into();
+fn tile_in_viewport(viewport: &Viewport, camera: Point, tile: Point, bounds: Option<Point>) -> bool {
+    let min: Point = viewport.min_tile_pos(camera, bounds).into();
+    let max: Point = viewport.max_tile_pos(camera, bounds).into();
 
     min <= tile && max > tile
 }
@@ -182,7 +191,13 @@ fn tile_in_viewport(viewport: &Viewport, camera: Point, tile: Point) -> bool {
 fn make_sprites(world: &World, viewport: &Viewport) -> Vec<(DrawSprite, (u32, u32))> {
     let mut res = Vec::new();
     let camera = world.flags().camera;
-    let start_corner: Point = viewport.min_tile_pos(camera).into();
+    let bound = if let Bounds::Bounded(w, h) = *world.terrain().bounds() {
+        Some(Point::new(w, h))
+    } else {
+        None
+    };
+
+    let start_corner: Point = viewport.min_tile_pos(camera, bound).into();
 
     let player = match world.player() {
         Some(p) => p,
@@ -210,7 +225,7 @@ fn make_sprites(world: &World, viewport: &Viewport) -> Vec<(DrawSprite, (u32, u3
         // First pass: Shadows, then non-mobs are rendered below mobs.
         for entity in seen.iter() {
             if let Some(pos) = world.position(*entity) {
-                if !tile_in_viewport(viewport, camera, pos) {
+                if !tile_in_viewport(viewport, camera, pos, bound) {
                     continue;
                 }
 

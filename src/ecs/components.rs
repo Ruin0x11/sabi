@@ -1,8 +1,6 @@
 use std::collections::HashSet;
 use std::fmt;
 
-use serde::de::{self, Deserialize, Deserializer, Visitor};
-use serde::ser::{Serialize, Serializer};
 use slog::Logger;
 
 use data::Properties;
@@ -319,6 +317,7 @@ impl Equipment {
         }
     }
 }
+
 
 make_getter!(Npc {
     quests: Vec<String>,
