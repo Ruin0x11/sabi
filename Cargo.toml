@@ -12,6 +12,7 @@ hlua = "0.3.1"
 rust-crypto = "^0.2"
 glob = "0.2"
 regex = "0.2"
+rodio = "0.5"
 
 # Drawing
 glium = "0.16.0"

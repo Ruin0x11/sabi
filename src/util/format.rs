@@ -134,7 +134,7 @@ mod tests {
         assert_eq!(&format_message("%R dreams sound brightly.", player, world),
                    "Your dreams sound brightly.");
         // assert_eq!(&format_message("%R dreams sound brightly.", e, world),
-                   "The putit's dreams sound brightly.");
+                   // "The putit's dreams sound brightly.");
         assert_eq!(&format_message("%r parameters:", e, world), "Its parameters:");
 
         assert_eq!(&format_message("<<>>", player, world), "<>>");

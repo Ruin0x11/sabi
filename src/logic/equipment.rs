@@ -5,6 +5,7 @@ use logic::entity::*;
 use world::traits::*;
 use world::World;
 
+#[cfg(never)]
 pub(super) fn equip(entity: Entity, equipment: Entity, slot: usize, world: &mut World) -> ActionResult {
     // After validating that the thing is equippable
     let should_equip = {
