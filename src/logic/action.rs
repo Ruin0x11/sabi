@@ -5,6 +5,7 @@ use data::Walkability;
 use ecs::traits::*;
 use logic::entity::*;
 use point::{Direction, Point};
+use sound;
 use stats;
 use world::traits::*;
 use world::{World, WorldPosition};
@@ -69,6 +70,7 @@ fn action_move_entity(world: &mut World, entity: Entity, dir: Direction) -> Acti
 fn action_pickup(world: &mut World, parent: Entity, target: Entity) -> ActionResult {
     world.place_entity_in(parent, target);
     format_mes!(world, parent, "%U <pick up> {}.", target.name(world));
+    sound::play("pickup");
     Ok(())
 }
 
@@ -107,6 +109,8 @@ fn action_swing_at(world: &mut World, attacker: Entity, other: Entity) -> Action
 
     format_mes!(world, attacker, "%U <hit> {}! ({})", other.name(world), damage);
     hurt(world, other, attacker, damage);
+
+    sound::play("damage");
 
     Ok(())
 }

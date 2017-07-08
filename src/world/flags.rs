@@ -22,6 +22,7 @@ pub struct Flags {
 pub struct GlobalFlags {
     pub max_map_id: u32,
     pub player: Option<Entity>,
+    // pub party: HashSet<Entity>,
 }
 
 impl GlobalFlags {
