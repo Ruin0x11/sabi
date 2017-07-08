@@ -48,7 +48,7 @@ fn make_stats(value: &Value) -> Stats {
 }
 
 fn make_properties(value: &Value) -> Properties {
-    match get_value_in_table(value, PROPERTIES_TABLE) {
+    match value_in_table(value, PROPERTIES_TABLE) {
         Some(&Value::Table(ref t)) => properties_from_table(t),
         Some(_)                    => panic!("[properties] was not a table!"),
         _                          => Properties::new(),

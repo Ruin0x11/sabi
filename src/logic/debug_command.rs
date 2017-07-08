@@ -42,7 +42,7 @@ fn debug_ai_menu(context: &mut GameContext) -> CommandResult<()> {
 fn debug_loadout(context: &mut GameContext) -> CommandResult<()> {
     goto_new_world(context, get_debug_world("blank", Some(prefab_args! { width: 100, height: 100, })).unwrap());
 
-    context.state.world.create(ecs::loadout_from_toml_file("data/monster/putit.toml").unwrap(), Point::new(1, 1));
+    context.state.world.create(ecs::load_mob("putit").unwrap(), Point::new(1, 1));
 
     Ok(())
 }

@@ -1,0 +1,17 @@
+[Components.Name]
+name="(unknown)"
+
+[Components.Health]
+max_hit_points=100
+hit_points=100
+
+[Components.Appearance]
+kind="player"
+
+[Components.Ai]
+
+[Components.Turn]
+
+[Components.Fov]
+
+[Components.Log]

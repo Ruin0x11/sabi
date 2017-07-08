@@ -156,7 +156,6 @@ macro_rules! make_getter {
             fn get_for(table: &toml::value::Table) -> Result<$s, ()> {
                 let mut default: $s = Default::default();
                 $(
-                        println!("table contains key {:?}: {}", stringify!($x), table.contains_key(stringify!($x)));
                     if table.contains_key(stringify!($x)) {
                         match table[stringify!($x)].clone().try_into::<$y>() {
                             Ok(val) => default.$x = val,

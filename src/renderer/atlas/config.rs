@@ -124,7 +124,7 @@ impl TileAtlas {
             let atlas: String = util::toml::expect_value_in_table(tile, "atlas");
             let offset: [u32; 2] = util::toml::expect_value_in_table(tile, "offset");
             let is_autotile: bool = util::toml::expect_value_in_table(tile, "is_autotile");
-            let tile_kind = match util::toml::get_value_in_table(tile, "anim_frames") {
+            let tile_kind = match util::toml::value_in_table(tile, "anim_frames") {
                 Some(anim_frames) => {
                     let anim_frames = anim_frames.clone().try_into().unwrap();
                     let anim_delay = util::toml::expect_value_in_table(tile, "anim_delay");
