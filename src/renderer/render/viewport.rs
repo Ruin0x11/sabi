@@ -15,11 +15,11 @@ pub type RendererSubarea = ([[f32; 4]; 4], glium::Rect);
 
 impl Viewport {
     pub fn width(&self) -> u32 {
-        self.scaled_size().0
+        self.size.0
     }
 
     pub fn height(&self) -> u32 {
-        self.scaled_size().1
+        self.size.1
     }
 
     pub fn main_window(&self) -> RendererSubarea {

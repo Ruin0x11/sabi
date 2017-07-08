@@ -1,18 +1,10 @@
-[Name]
+[Meta]
+parent="mob"
+
+[Components.Name]
 name="grand putit"
 proper_name="Dood"
 
-[Health]
+[Components.Health]
 max_hit_points=100
 hit_points=100
-
-[Appearance]
-kind="player"
-
-[Ai]
-
-[Turn]
-
-[Fov]
-
-[Log]

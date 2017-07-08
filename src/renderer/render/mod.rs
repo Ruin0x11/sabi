@@ -195,10 +195,11 @@ impl RenderContext {
     }
 
     pub fn set_viewport(&mut self, w: u32, h: u32) {
+        let scale = self.backend.get_window().unwrap().hidpi_factor();
         self.viewport = Viewport {
             position: (0, 0),
             size: (w, h),
-            scale: self.viewport.scale,
+            scale: scale,
             camera: self.viewport.camera,
         };
 
