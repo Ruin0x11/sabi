@@ -3,6 +3,7 @@ use rand::{self, Rng};
 use GameContext;
 use ai::{Ai, AiKind};
 use ecs;
+use logic::entity::*;
 use point::{Point, RectangleIter, POINT_ZERO};
 use prefab::{self, PrefabArgs};
 use renderer;
@@ -33,8 +34,25 @@ fn debug_ai_menu(context: &mut GameContext) -> CommandResult<()> {
     menu!(context,
           "scav"           => debug_scav(context),
           "guard"          => debug_guard(context),
-          "loadout"        => debug_loadout(context)
+          "loadout"        => debug_loadout(context),
+          "pet"            => debug_pet(context)
     )
+}
+
+fn make_pet(context: &mut GameContext, pos: Point) {
+    let world = &mut context.state.world;
+
+    let e = world.create(ecs::load_mob("putit").unwrap().c(Ai::new(AiKind::Follow)), pos).unwrap();
+    let uuid = e.uuid(world).unwrap();
+    world.flags_mut().globals.party.add_member(uuid);
+}
+
+fn debug_pet(context: &mut GameContext) -> CommandResult<()> {
+    for pos in select_rect(context)? {
+        make_pet(context, pos);
+    }
+
+    Ok(())
 }
 
 fn debug_loadout(context: &mut GameContext) -> CommandResult<()> {
@@ -143,19 +161,23 @@ fn debug_list_entities(context: &mut GameContext) -> CommandResult<()> {
     Ok(())
 }
 
-fn debug_place_enemies(context: &mut GameContext) -> CommandResult<()> {
+fn select_rect(context: &mut GameContext) -> CommandResult<RectangleIter> {
     mes!(context.state.world, "First corner?");
     let upper_left = select_tile(context, |_, _| ())?;
 
     mes!(context.state.world, "Second corner?");
     let lower_right = select_tile(context, |_, _| ())?;
-    let size = lower_right - upper_left;
 
     if lower_right.x < upper_left.x || lower_right.y < upper_left.y {
         return Err(CommandError::Cancel);
     }
 
-    for pos in RectangleIter::new(upper_left, size) {
+    let size = lower_right - upper_left;
+    Ok(RectangleIter::new(upper_left, size))
+}
+
+fn debug_place_enemies(context: &mut GameContext) -> CommandResult<()> {
+    for pos in select_rect(context)? {
         context.state.world.create(ecs::prefab::mob("putit", 50, "putit"), pos);
     }
 

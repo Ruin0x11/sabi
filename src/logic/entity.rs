@@ -11,8 +11,11 @@ use ai::AiTrigger;
 use data::{Properties, GetProp};
 use ecs::components::Gender;
 use ecs::traits::*;
+use ecs::Loadout;
+use ecs::party::*;
 use point::{Point, LineIter};
 use util::grammar::{self, VerbPerson};
+use uuid;
 use world::traits::*;
 use world::World;
 
@@ -28,6 +31,8 @@ pub trait EntityQuery {
     fn closest_entity(&self, entities: Vec<Entity>, world: &World) -> Option<Entity>;
     fn get_prop<T: Clone>(&self, prop: &str, world: &World) -> Option<T> where Properties: GetProp<T>;
     fn prop_equals<T: Clone + Eq>(&self, key: &str, val: T, world: &World) -> bool where Properties: GetProp<T>;
+    fn is_pet(&self, world: &World) -> bool;
+    fn uuid(&self, world: &World) -> Option<uuid::Uuid>;
 }
 
 impl EntityQuery for Entity {
@@ -154,12 +159,21 @@ impl EntityQuery for Entity {
         where Properties: GetProp<T>  {
         self.get_prop(key, world).map_or(false, |p| p == val)
     }
+
+    fn is_pet(&self, world: &World) -> bool {
+        world.flags().globals.party.contains_member(*self, world)
+    }
+
+    fn uuid(&self, world: &World) -> Option<uuid::Uuid> {
+        world.ecs().uuids.get(*self).map(|u| u.uuid.clone())
+    }
 }
 
 pub trait EntityMutate {
     fn add_memory(&self, trigger: AiTrigger, world: &mut World);
     fn on_death(&self, world: &mut World);
     fn set_prop<T>(&self, key: &str, val: T, world: &mut World) where Properties: GetProp<T>;
+    fn force_drop_all_items(&self, world: &mut World);
 }
 
 impl EntityMutate for Entity {
@@ -173,6 +187,19 @@ impl EntityMutate for Entity {
     }
 
     fn on_death(&self, world: &mut World) {
+        // if this is a pet, mark status as "dead" and don't drop anything
+        if self.is_pet(world) {
+            let loadout = Loadout::get(world.ecs(), *self);
+            let uuid = self.uuid(world).unwrap();
+            world.flags_mut().globals.party.set_status(uuid, PartyMemberStatus::Dead(loadout));
+            mes!(world, "You feel sad.");
+            return;
+        }
+
+        self.force_drop_all_items(world);
+    }
+
+    fn force_drop_all_items(&self, world: &mut World) {
         let pos = world.position(*self).unwrap();
 
         let inv = self.inventory(world);

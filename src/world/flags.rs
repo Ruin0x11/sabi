@@ -5,6 +5,7 @@ use calx_ecs::Entity;
 use rand::{SeedableRng, XorShiftRng};
 use world::MapId;
 
+use ecs::party::Party;
 use point::Point;
 
 #[derive(Serialize, Deserialize)]
@@ -18,11 +19,11 @@ pub struct Flags {
     rng: EncodeRng<XorShiftRng>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct GlobalFlags {
     pub max_map_id: u32,
     pub player: Option<Entity>,
-    // pub party: HashSet<Entity>,
+    pub party: Party,
 }
 
 impl GlobalFlags {
@@ -30,6 +31,7 @@ impl GlobalFlags {
         GlobalFlags {
             max_map_id: 0,
             player: None,
+            party: Party::new(),
         }
     }
 }
@@ -38,8 +40,9 @@ impl Flags {
     pub fn new(seed: u32, map_id: MapId) -> Flags {
         Flags {
             globals: GlobalFlags {
-                player: None,
                 max_map_id: map_id,
+                player: None,
+                party: Party::new(),
             },
             camera: Point::new(0, 0),
             map_id: map_id,

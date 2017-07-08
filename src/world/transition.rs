@@ -32,7 +32,7 @@ impl TransitionLoadout {
     }
 
     fn inject(self, world: &mut World) -> Entity {
-        let parent = world.spawn(&self.parent, Point::new(0, 0));
+        let parent = world.spawn(self.parent, Point::new(0, 0));
         for child in self.children.into_iter() {
             let child_entity = child.parent.make(world.ecs_mut());
             world.place_entity_in(parent, child_entity);
@@ -156,7 +156,7 @@ mod tests {
 
         context.state.world.move_to_map(new_world, change_pos).unwrap();
 
-        let e = context.state.world.spawn(&ecs::prefab::item("cola", "cola"), change_pos);
+        let e = context.state.world.spawn(ecs::prefab::item("cola", "cola"), change_pos);
 
         assert!(context.state.world.position(e).is_some());
     }
@@ -187,7 +187,7 @@ mod tests {
     fn test_transition_loadout() {
         let mut context = test_context_bounded(64, 64);
 
-        let item = context.state.world.spawn(&ecs::prefab::item("cola", "cola"), POINT_ZERO);
+        let item = context.state.world.spawn(ecs::prefab::item("cola", "cola"), POINT_ZERO);
         state::run_action(&mut context, Action::Pickup(item));
 
         let player = context.state.world.player().unwrap();
@@ -205,7 +205,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let item = context.state.world.spawn(&ecs::prefab::item("cola", "cola"), POINT_ZERO);
+        let item = context.state.world.spawn(ecs::prefab::item("cola", "cola"), POINT_ZERO);
         state::run_action(&mut context, Action::Pickup(item));
 
         context.state.world.move_to_map(new_world, POINT_ZERO).unwrap();

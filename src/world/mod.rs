@@ -27,6 +27,7 @@ use data::{TurnOrder, Walkability, MessageLog};
 use ecs;
 use ecs::*;
 use ecs::traits::*;
+use ecs::components::Uuid;
 use graphics::Marks;
 use graphics::cell::{CellFeature, StairDir, StairDest, StairKind};
 use log;
@@ -461,7 +462,9 @@ impl Mutate for World {
         }
     }
 
-    fn spawn(&mut self, loadout: &Loadout, pos: WorldPosition) -> Entity {
+    fn spawn(&mut self, mut loadout: Loadout, pos: WorldPosition) -> Entity {
+        loadout = loadout.c(Uuid::new());
+
         let entity = loadout.make(&mut self.ecs_);
         self.place_entity(entity, pos);
 
@@ -665,7 +668,7 @@ impl World {
 impl World {
     pub fn create(&mut self, loadout: Loadout, pos: Point) -> Option<Entity> {
         if self.pos_loaded(&pos) {
-            Some(self.spawn(&loadout, pos))
+            Some(self.spawn(loadout, pos))
         } else {
             None
         }

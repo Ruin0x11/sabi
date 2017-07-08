@@ -35,6 +35,7 @@ serde = "1.0"
 serde_derive = "1.0"
 enum_derive = "0.1.7"
 macro-attr = "0.2.0"
+uuid = { version = "0.5", features = ["v4", "serde"] }
 
 calx-ecs = "0.6.0"
 calx-alg = { git = "https://github.com/rsaarelm/calx" }

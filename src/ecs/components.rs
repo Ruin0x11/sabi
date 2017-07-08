@@ -10,9 +10,26 @@ use point::Point;
 use util::clamp;
 use macros::{Getter, Get};
 use toml;
+use uuid;
 
 // For persistence between worlds, because the entity ID may change.
-pub struct Uuid {}
+make_getter!(Uuid {
+    uuid: uuid::Uuid
+});
+
+impl Default for Uuid {
+    fn default() -> Self {
+        Uuid::new()
+    }
+}
+
+impl Uuid {
+    pub fn new() -> Self {
+        Uuid {
+            uuid: uuid::Uuid::new_v4()
+        }
+    }
+}
 
 /// Interesting flags for mob entities.
 make_getter!(Flags {

@@ -250,7 +250,7 @@ pub fn load_context() -> GameContext {
         props.props.set::<bool>("omniscient", true);
         let player = context.state
             .world
-            .spawn(&::ecs::prefab::mob("player", 10000000, "player").c(props),
+            .spawn(::ecs::prefab::mob("player", 10000000, "player").c(props),
                    WorldPosition::new(0, 0));
         context.state.world.set_player(Some(player));
     }
