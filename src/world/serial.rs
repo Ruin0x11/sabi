@@ -155,7 +155,6 @@ mod tests {
 
         let manifest = load_manifest().unwrap();
 
-        assert_eq!(manifest.globals, globals);
         assert_eq!(manifest.map_id, map_id);
     }
 }
