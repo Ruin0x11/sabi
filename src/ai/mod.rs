@@ -25,9 +25,10 @@ use macros::{Getter, Get};
 use toml;
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
-pub enum Disposition {
+pub enum Attitude {
     Friendly,
-    Enemy,
+    Neutral,
+    Hostile,
 }
 
 make_getter!(Ai {
@@ -65,9 +66,6 @@ pub struct AiData {
     next_action: RefCell<Option<AiAction>>,
     triggers: RefCell<Vec<AiTrigger>>,
 
-    // TODO: Keep track of other entities turned enemies, such as due to too much friendly fire
-    pub disposition: Disposition,
-
     pub last_goal: RefCell<AiGoal>,
 }
 
@@ -85,7 +83,6 @@ impl AiData {
             target: RefCell::new(None),
             goal: RefCell::new(AiMemory { facts: facts.clone() }),
             memory: RefCell::new(AiMemory { facts: facts }),
-            disposition: Disposition::Friendly,
 
             next_action: RefCell::new(None),
             triggers: RefCell::new(Vec::new()),

@@ -116,7 +116,7 @@ impl World {
         for (pos, marker) in markers.iter() {
             if *marker == kind {
                 if self.cell(pos).is_some() {
-                    return Some(*pos)
+                    return Some(*pos);
                 }
             }
         }
@@ -134,7 +134,8 @@ impl World {
         }
     }
 
-    pub fn place_stairs(&mut self, dir: StairDir,
+    pub fn place_stairs(&mut self,
+                        dir: StairDir,
                         pos: WorldPosition,
                         leading_to: MapId,
                         dest_pos: WorldPosition) {
@@ -295,6 +296,17 @@ impl Query for World {
         None
     }
 
+    fn party(&self) -> Vec<Entity> {
+        // NOTE: if party member is not in Party structure...?
+        self.flags()
+            .globals
+            .party
+            .active_uuids()
+            .into_iter()
+            .map(|u| self.entity_by_uuid(u).expect("No such entity for UUID"))
+            .collect()
+    }
+
     fn is_player(&self, e: Entity) -> bool {
         self.player().map_or(false, |p| p == e)
     }
@@ -445,10 +457,15 @@ impl Mutate for World {
             const FOV_RADIUS: i32 = 8;
 
             let visible = if e.prop_equals("omniscient", true, self) {
-                self.terrain().iter().map(|i| i.fold(HashSet::new(), |mut hs, (pos, _)| {
-                    hs.insert(pos);
-                    hs
-                })).unwrap_or(HashSet::new())
+                self.terrain()
+                    .iter()
+                    .map(|i| {
+                    i.fold(HashSet::new(), |mut hs, (pos, _)| {
+                        hs.insert(pos);
+                        hs
+                    })
+                })
+                    .unwrap_or(HashSet::new())
             } else {
                 fov::bresenham_fast(self, center, FOV_RADIUS)
             };
@@ -541,8 +558,8 @@ impl<'a> ChunkedWorld<'a, ChunkIndex, SerialChunk, Regions, Terrain> for World {
         //     self.flags().map_id
         // );
         let chunk = self.terrain
-            .remove_chunk(index)
-            .expect(&format!("Expected chunk at {}!", index));
+                        .remove_chunk(index)
+                        .expect(&format!("Expected chunk at {}!", index));
 
         let entities = self.entities_in_chunk(index);
         for e in entities {

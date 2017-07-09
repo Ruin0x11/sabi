@@ -2,6 +2,7 @@ use calx_ecs::Entity;
 use infinigen::*;
 
 use ecs::Loadout;
+use logic::entity::*;
 use point::Point;
 use world::serial;
 use world::{World, MapId};
@@ -17,12 +18,15 @@ struct TransitionLoadout {
 impl TransitionLoadout {
     fn from_entity(entity: Entity, world: &mut World) -> Self {
         // TODO: Does not handle recursive children
-        let children = world.entities_in(entity).into_iter()
-            .map(|e| TransitionLoadout {
+        let children = world.entities_in(entity)
+                            .into_iter()
+                            .map(|e| {
+            TransitionLoadout {
                 parent: world.unload_entity(e),
                 children: Vec::new(),
-            })
-            .collect();
+            }
+        })
+                            .collect();
         let parent = world.unload_entity(entity);
 
         TransitionLoadout {
@@ -45,7 +49,8 @@ impl TransitionLoadout {
 struct TransitionData {
     pub globals: GlobalFlags,
 
-    pub player_data: TransitionLoadout
+    pub player_data: TransitionLoadout,
+    pub party_data: Vec<TransitionLoadout>,
 }
 
 impl Transition<TransitionData> for World {
@@ -61,10 +66,15 @@ impl Transition<TransitionData> for World {
     fn get_transition_data(&mut self) -> TransitionResult<TransitionData> {
         let player = self.player().unwrap();
         let loadout = TransitionLoadout::from_entity(player, self);
+        let party = self.party()
+                        .into_iter()
+                        .map(|member| TransitionLoadout::from_entity(member, self))
+                        .collect();
         let data = TransitionData {
             globals: self.flags().get_globals(),
 
             player_data: loadout,
+            party_data: party,
         };
 
         Ok(data)
@@ -135,7 +145,10 @@ mod tests {
             cell_mut.unwrap().set("wall");
         }
 
-        context.state.world.move_to_map(new_world, change_pos).unwrap();
+        context.state
+               .world
+               .move_to_map(new_world, change_pos)
+               .unwrap();
 
         let cell = context.state.world.terrain().cell(&change_pos);
         assert!(cell.is_some(), "World terrain wasn't loaded in after transition");
@@ -154,9 +167,14 @@ mod tests {
 
         let change_pos = POINT_ZERO;
 
-        context.state.world.move_to_map(new_world, change_pos).unwrap();
+        context.state
+               .world
+               .move_to_map(new_world, change_pos)
+               .unwrap();
 
-        let e = context.state.world.spawn(ecs::prefab::item("cola", "cola"), change_pos);
+        let e = context.state
+                       .world
+                       .spawn(ecs::prefab::item("cola", "cola"), change_pos);
 
         assert!(context.state.world.position(e).is_some());
     }
@@ -174,12 +192,18 @@ mod tests {
 
         let prev_id = context.state.world.flags().map_id;
 
-        context.state.world.move_to_map(new_world, POINT_ZERO).unwrap();
+        context.state
+               .world
+               .move_to_map(new_world, POINT_ZERO)
+               .unwrap();
         assert_eq!(context.state.world.flags().globals.max_map_id, 1);
 
         let prev_world = world::serial::load_world(prev_id).unwrap();
 
-        context.state.world.move_to_map(prev_world, POINT_ZERO).unwrap();
+        context.state
+               .world
+               .move_to_map(prev_world, POINT_ZERO)
+               .unwrap();
         assert_eq!(context.state.world.flags().globals.max_map_id, 1);
     }
 
@@ -187,7 +211,9 @@ mod tests {
     fn test_transition_loadout() {
         let mut context = test_context_bounded(64, 64);
 
-        let item = context.state.world.spawn(ecs::prefab::item("cola", "cola"), POINT_ZERO);
+        let item = context.state
+                          .world
+                          .spawn(ecs::prefab::item("cola", "cola"), POINT_ZERO);
         state::run_action(&mut context, Action::Pickup(item));
 
         let player = context.state.world.player().unwrap();
@@ -205,10 +231,15 @@ mod tests {
             .build()
             .unwrap();
 
-        let item = context.state.world.spawn(ecs::prefab::item("cola", "cola"), POINT_ZERO);
+        let item = context.state
+                          .world
+                          .spawn(ecs::prefab::item("cola", "cola"), POINT_ZERO);
         state::run_action(&mut context, Action::Pickup(item));
 
-        context.state.world.move_to_map(new_world, POINT_ZERO).unwrap();
+        context.state
+               .world
+               .move_to_map(new_world, POINT_ZERO)
+               .unwrap();
 
         let player = context.state.world.player().unwrap();
 

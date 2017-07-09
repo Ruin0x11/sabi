@@ -105,13 +105,23 @@ fn cmd_player_move(context: &mut GameContext, dir: Direction) -> CommandResult<(
     // Check if we're bumping into something interactive, and if so don't consume a turn.
     let position = player_pos(context)?;
     let new_pos = position + dir;
-    let npc_opt = context.state
+    let mob_opt = context.state
                          .world
-                         .find_entity(new_pos, |e| context.state.world.is_npc(*e));
-    if let Some(npc) = npc_opt {
-        mes!(context.state.world, "{}: Hello!", npc.name(&context.state.world));
-        return Ok(());
+                         .find_entity(new_pos, |e| context.state.world.is_mob(*e));
+    if let Some(mob) = mob_opt {
+        if context.state.world.is_npc(mob) {
+            mes!(context.state.world, "{}: Hello!", mob.name(&context.state.world));
+            return Ok(());
+        }
+
+        let player = context.state.world.player().unwrap();
+        if mob.is_friendly(player, &context.state.world) {
+            mes!(context.state.world, "Don't do that to {}.", mob.name(&context.state.world));
+            return Ok(());
+        }
     }
+
+
 
     cmd_add_action(context, Action::MoveOrAttack(dir))
 }
