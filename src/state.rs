@@ -64,7 +64,10 @@ impl GameState {
                 {
                     let town_compo = self.globals.ecs.towns.get(town).unwrap();
                     if !town_compo.placed {
-                        if town_compo.spanning_chunks(town_pos).iter().any(|ci| self.world.chunk_loaded(ci)) {
+                        if town_compo.spanning_chunks(town_pos)
+                                     .iter()
+                                     .any(|ci| self.world.chunk_loaded(ci))
+                        {
                             place = true;
                         }
                     }
@@ -247,11 +250,11 @@ pub fn load_context() -> GameContext {
         apply_save_manifest(&mut context, world, manifest);
     } else {
         let mut props = ::ecs::components::Props::new();
-        props.props.set::<bool>("omniscient", true);
+        // props.props.set::<bool>("omniscient", true);
         let player = context.state
-            .world
-            .spawn(&::ecs::prefab::mob("player", 10000000, "player").c(props),
-                   WorldPosition::new(0, 0));
+                            .world
+                            .spawn(::ecs::prefab::mob("player", 10000000, "player").c(props),
+                                   WorldPosition::new(0, 0));
         context.state.world.set_player(Some(player));
     }
 

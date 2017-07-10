@@ -4,6 +4,7 @@ use std::slice;
 pub use infinigen::*;
 
 use calx_ecs::Entity;
+use uuid;
 
 use chunk::ChunkIndex;
 use data::TurnOrder;
@@ -19,6 +20,8 @@ pub trait Query {
     fn is_player(&self, e: Entity) -> bool;
 
     fn player(&self) -> Option<Entity>;
+
+    fn party(&self) -> Vec<Entity>;
 
     fn seed(&self) -> u32;
 
@@ -61,6 +64,14 @@ pub trait Query {
         F: FnMut(&Entity) -> bool,
     {
         self.find_entities(loc, condition).first().cloned()
+    }
+
+    fn entity_by_uuid(&self, uuid: uuid::Uuid) -> Option<Entity> {
+        self.ecs()
+            .uuids
+            .ent_iter()
+            .find(|&&e| self.ecs().uuids.get(e).map_or(false, |u| u.uuid == uuid))
+            .cloned()
     }
 
     fn is_mob(&self, e: Entity) -> bool {

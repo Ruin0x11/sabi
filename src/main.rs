@@ -36,6 +36,7 @@ extern crate serde;
 extern crate slog_stream;
 extern crate texture_packer;
 extern crate toml;
+extern crate uuid;
 
 extern crate test;
 

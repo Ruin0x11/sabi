@@ -1,6 +1,7 @@
 pub mod components;
 pub mod globals;
 pub mod instantiate;
+pub mod party;
 pub mod prefab;
 pub mod traits;
 
@@ -80,6 +81,7 @@ Ecs_with_toml! {
     fovs: Fov, Instantiable;
     npcs: Npc, Instantiable;
 
+    uuids: Uuid, Static;
     props: Props, Static;
     logs: Log, Static;
 }

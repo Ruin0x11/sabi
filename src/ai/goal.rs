@@ -21,13 +21,15 @@ pub enum AiKind {
 impl AiKind {
     pub fn on_goal(&self, goal: AiGoal, entity: Entity, world: &mut World) {
         match *self {
-            AiKind::Guard => match goal {
-                AiGoal::KillTarget => {
-                    format_mes!(world, entity, "%u: Scum!");
-                },
-                _ => ()
+            AiKind::Guard => {
+                match goal {
+                    AiGoal::KillTarget => {
+                        format_mes!(world, entity, "%u: Scum!");
+                    },
+                    _ => (),
+                }
             },
-            _ => ()
+            _ => (),
         }
     }
 }
@@ -78,14 +80,14 @@ impl AiGoal {
     pub fn requires_target(&self) -> bool {
         match *self {
             AiGoal::GetItem | AiGoal::FindTarget | AiGoal::KillTarget | AiGoal::Follow => true,
-            _ => false
+            _ => false,
         }
     }
 
     pub fn requires_position(&self) -> bool {
         match *self {
-              AiGoal::Guard => true,
-            _ => false
+            AiGoal::Guard => true,
+            _ => false,
         }
     }
 }
@@ -97,39 +99,52 @@ fn get_default_goal(entity: Entity, world: &World) -> (AiGoal, Option<Entity>) {
     match ai_compo.kind {
         AiKind::Wait => (AiGoal::DoNothing, None),
         AiKind::Wander => (AiGoal::Wander, None),
-        AiKind::Follow => (AiGoal::Follow, world.player()),
+        AiKind::Follow => {
+            if let Some(hostile) = hostile_target(entity, world) {
+                return (AiGoal::KillTarget, Some(hostile));
+            }
+
+            (AiGoal::Follow, world.player())
+        },
         AiKind::Scavenge if ai.cond(AiProp::FoundItem, true) => {
             let items: Vec<Entity> = world.seen_entities(entity)
-                .into_iter().filter(|&i| world.is_item(i))
-                .collect();
+                                          .into_iter()
+                                          .filter(|&i| world.is_item(i))
+                                          .collect();
 
             let chosen = entity.closest_entity(items, world);
 
             (AiGoal::GetItem, chosen)
-        }
+        },
         AiKind::Guard => {
-            for seen in world.seen_entities(entity) {
-                if !world.is_player(seen) {
-                    return (AiGoal::KillTarget, Some(seen))
-                }
+            if let Some(hostile) = hostile_target(entity, world) {
+                return (AiGoal::KillTarget, Some(hostile));
             }
 
             (AiGoal::Guard, None)
-        }
+        },
         AiKind::Scavenge => (AiGoal::FindItem, None),
         AiKind::SeekTarget => {
             match world.player() {
-                Some(p) => {
-                    if entity.can_see_other(p, world) {
-                        (AiGoal::KillTarget, Some(p))
+                Some(player) => {
+                    if entity.can_see_other(player, world) {
+                        (AiGoal::KillTarget, Some(player))
+                    } else if let Some(hostile) = hostile_target(entity, world) {
+                        return (AiGoal::KillTarget, Some(hostile));
                     } else {
-                        (AiGoal::FindTarget, Some(p))
+                        (AiGoal::FindTarget, Some(player))
                     }
                 },
                 None => (AiGoal::DoNothing, None),
             }
         },
     }
+}
+
+fn hostile_target(entity: Entity, world: &World) -> Option<Entity> {
+    world.seen_entities(entity)
+         .into_iter()
+         .find(|e| e.is_hostile(entity, world))
 }
 
 pub fn make_new_plan(entity: Entity, world: &World) -> (AiFacts, Option<Entity>, AiGoal) {

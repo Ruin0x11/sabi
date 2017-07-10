@@ -60,7 +60,7 @@ pub trait Mutate: Query + Sized {
 
     fn flags_mut(&mut self) -> &mut Flags;
 
-    fn spawn(&mut self, loadout: &Loadout, pos: Point) -> Entity;
+    fn spawn(&mut self, loadout: Loadout, pos: Point) -> Entity;
 
     fn kill(&mut self, entity: Entity);
 
