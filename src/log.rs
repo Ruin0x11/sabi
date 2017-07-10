@@ -20,12 +20,23 @@ macro_rules! now {
     () => ( Local::now().format("%m-%d %H:%M:%S%.3f") )
 }
 
+#[cfg(unix)]
+fn log_path(system_name: &str) -> String {
+    format!("/tmp/sabi-{}.log", system_name)
+}
+
+#[cfg(not(unix))]
+fn log_path(system_name: &str) -> String {
+    format!("sabi-{}.log", system_name)
+}
+
 /// Create a new root log and drain for a game system.
 /// Intended to be used once per major game system. For more specific logs
 /// within systems, use log.new(o!(...)) instead.
 pub fn make_logger(system_name: &str) -> Logger {
-    let path = format!("/tmp/sabi-{}.log", system_name);
-    let root_logfile = File::create(path).expect("Couldn't open log file");
+    let path = log_path(system_name);
+    let root_logfile = File::create(path)
+        .expect("Couldn't open log file");
 
     let logger = if DISABLE {
         Logger::root(slog::Discard, o!())
@@ -52,7 +63,7 @@ pub fn init_panic_hook() {
     panic::set_hook(Box::new(|info| {
         let stdout_drain = slog_stream::stream(io::stdout(), SabiLogFormat);
 
-        let path = format!("/tmp/sabi-error.log");
+        let path = format!("sabi-error.log");
         let err_logfile = File::create(path).expect("Couldn't open log file");
 
         let file_drain = slog_stream::stream(err_logfile, SabiLogFormat);
