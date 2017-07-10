@@ -2,10 +2,13 @@ use std::collections::HashSet;
 
 use glium;
 use glium::backend::Facade;
+use image;
 
 use graphics::Mark;
-use point::RectangleIter;
+use point::{Direction, RectangleIter};
+use renderer::atlas::make_texture;
 use renderer::render::{self, Renderable, Vertex, Viewport};
+use super::util::*;
 
 #[derive(Clone, Copy)]
 struct Instance {
@@ -23,13 +26,109 @@ pub struct ShadowMap {
     indices: glium::IndexBuffer<u16>,
     vertices: glium::VertexBuffer<Vertex>,
     program: glium::Program,
+    texture: glium::texture::CompressedSrgbTexture2d,
 
     valid: bool,
+}
+
+#[derive(Eq, PartialEq)]
+enum ShadowKind {
+    Light,
+    Dark,
+    Marker
 }
 
 struct Shadow {
     pos: (i32, i32),
     color: (u8, u8, u8, u8),
+    edges: u8,
+    kind: ShadowKind,
+}
+
+fn light_tile_index(edges: u8) -> i8 {
+    use point::Direction::*;
+    let conn = |dir: Direction| (edges & (1 << dir_to_bit(dir))) > 0;
+
+    // edges
+    if !conn(W) && conn(E) && conn(N) && conn(S) {
+        return 4;
+    }
+    if conn(W) && !conn(E) && conn(N) && conn(S) {
+        return 6;
+    }
+    if conn(W) && conn(E) && !conn(N) && conn(S) {
+        return 1;
+    }
+    if conn(W) && conn(E) && conn(N) && !conn(S) {
+        return 9;
+    }
+
+    // corners
+    if !conn(W) && conn(E) && !conn(N) && conn(S) {
+        return 0;
+    }
+    if !conn(W) && conn(E) && conn(N) && !conn(S) {
+        return 8;
+    }
+    if conn(W) && !conn(E) && !conn(N) && conn(S) {
+        return 2;
+    }
+    if conn(W) && !conn(E) && conn(N) && !conn(S) {
+        return 10;
+    }
+
+    return 3;
+}
+
+fn shadow_tile_index(edges: u8) -> i8 {
+    use point::Direction::*;
+    let conn = |dir: Direction| (edges & (1 << dir_to_bit(dir))) > 0;
+
+    // edges
+    if !conn(W) && conn(E) && conn(N) && conn(S) {
+        return 13;
+    }
+    if conn(W) && !conn(E) && conn(N) && conn(S) {
+        return 12;
+    }
+    if conn(W) && conn(E) && !conn(N) && conn(S) {
+        return 14;
+    }
+    if conn(W) && conn(E) && conn(N) && !conn(S) {
+        return 15;
+    }
+
+    // corners
+    if !conn(W) && conn(E) && !conn(N) && conn(S) {
+        return 17;
+    }
+    if !conn(W) && conn(E) && conn(N) && !conn(S) {
+        return 19;
+    }
+    if conn(W) && !conn(E) && !conn(N) && conn(S) {
+        return 16;
+    }
+    if conn(W) && !conn(E) && conn(N) && !conn(S) {
+        return 18;
+    }
+
+    // interior corners
+    if conn(W) && conn(E) && conn(N) && conn(S) {
+        if !conn(SE) {
+            return 25;
+        }
+        if !conn(SW) {
+            return 26;
+        }
+        if !conn(NW) {
+            return 27;
+        }
+        if !conn(NE) {
+            return 24;
+        }
+    }
+
+    return 11;
 }
 
 impl ShadowMap {
@@ -38,6 +137,8 @@ impl ShadowMap {
 
         let instances = glium::VertexBuffer::immutable(display, &[]).unwrap();
         let program = render::load_program(display, "shadow.vert", "shadow.frag").unwrap();
+        let image = image::open("data/texture/shadow.png").unwrap();
+        let texture = make_texture(display, image);
 
         ShadowMap {
             shadows: Vec::new(),
@@ -45,7 +146,15 @@ impl ShadowMap {
             vertices: vertices,
             indices: indices,
             program: program,
+            texture: texture,
             valid: false,
+        }
+    }
+
+    pub fn reload_shaders<F: Facade>(&mut self, display: &F) {
+        match render::load_program(display, "shadow.vert", "shadow.frag") {
+            Ok(program) => self.program = program,
+            Err(e)      => println!("Shader error: {:?}", e),
         }
     }
 
@@ -55,10 +164,16 @@ impl ShadowMap {
             let (x, y) = shadow.pos;
             let (r, g, b, a) = shadow.color;
 
+            let tile_index = if shadow.kind == ShadowKind::Light {
+                light_tile_index(shadow.edges)
+            } else {
+                shadow_tile_index(shadow.edges)
+            };
+
             instances.push(Instance {
                 map_coord: [x, y],
                 color: [r, g, b, a],
-                tile_index: 4,
+                tile_index: tile_index,
             })
         }
         self.instances = glium::VertexBuffer::immutable(display, &instances).unwrap();
@@ -67,7 +182,7 @@ impl ShadowMap {
 
 impl Renderable for ShadowMap {
     fn render<F, S>(&self, _display: &F, target: &mut S, viewport: &Viewport, _time: u64)
-    where
+        where
         F: glium::backend::Facade,
         S: glium::Surface,
     {
@@ -76,9 +191,12 @@ impl Renderable for ShadowMap {
 
         let uniforms =
             uniform! {
-            matrix: proj,
-            tile_size: [48u32; 2],
-        };
+                matrix: proj,
+                tile_size: [48u32; 2],
+                tex_ratio: [(1.0/4.0) as f32, (1.0/8.0) as f32],
+                tex: self.texture.sampled()
+                    .wrap_function(glium::uniforms::SamplerWrapFunction::Clamp),
+            };
 
         let params = glium::DrawParameters {
             blend: glium::Blend::alpha_blending(),
@@ -93,7 +211,7 @@ impl Renderable for ShadowMap {
             &uniforms,
             &params,
         )
-              .unwrap();
+            .unwrap();
     }
 }
 
@@ -128,16 +246,34 @@ fn make_shadows(world: &World, viewport: &Viewport, bound: Option<Point>) -> Vec
     let mut shadows = Vec::new();
 
     let explored = &world.flags().explored;
-    for point in area {
-        if !visible.contains(&point) {
-            let color = if !explored.contains(&point) {
+    for pos in area {
+        let edges = get_neighboring_edges(pos, |point| {
+            !visible.contains(&point)
+        });
+
+        if !visible.contains(&pos) {
+            let color = if !explored.contains(&pos) {
                 (0, 0, 0, 255)
             } else {
                 (0, 0, 0, 192)
             };
+
             let shadow = Shadow {
-                pos: (point - start_corner).into(),
+                pos: (pos - start_corner).into(),
                 color: color,
+                edges: edges,
+                kind: ShadowKind::Dark,
+            };
+            shadows.push(shadow);
+        } else if edges != 0 {
+            // This light tile borders a shadow, so add special light->shadow border tiles
+            let light_edges = !edges;
+
+            let shadow = Shadow {
+                pos: (pos - start_corner).into(),
+                color: (0, 0, 0, 192),
+                edges: light_edges,
+                kind: ShadowKind::Light,
             };
             shadows.push(shadow);
         }
@@ -158,6 +294,8 @@ fn make_marks(world: &World, viewport: &Viewport, bound: Option<Point>) -> Vec<S
                 let shadow = Shadow {
                     pos: pos.into(),
                     color: (mark.color.r, mark.color.g, mark.color.b, 64),
+                    edges: 0,
+                    kind: ShadowKind::Marker,
                 };
                 marks.push(shadow);
             }

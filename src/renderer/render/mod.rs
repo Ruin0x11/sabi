@@ -1,4 +1,10 @@
-use std::collections::HashSet;
+pub mod background;
+pub mod shadowmap;
+pub mod spritemap;
+pub mod tilemap;
+mod viewport;
+mod util;
+
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -9,17 +15,9 @@ use glium::backend::glutin_backend::GlutinFacade;
 use glium::backend::Facade;
 use glium::index::PrimitiveType;
 
-use point::{Point, CircleIter};
 use renderer::RenderUpdate;
 use renderer::ui::*;
-use util;
 use state::GameState;
-
-pub mod background;
-pub mod shadowmap;
-pub mod spritemap;
-pub mod tilemap;
-mod viewport;
 
 use self::background::Background;
 use self::shadowmap::ShadowMap;
@@ -43,8 +41,8 @@ pub fn load_program<F: Facade>(display: &F,
                                vert: &str,
                                frag: &str)
                                -> Result<glium::Program, glium::ProgramCreationError> {
-    let vertex_shader = util::read_string(&format!("data/shaders/{}", vert));
-    let fragment_shader = util::read_string(&format!("data/shaders/{}", frag));
+    let vertex_shader = ::util::read_string(&format!("data/shaders/{}", vert));
+    let fragment_shader = ::util::read_string(&format!("data/shaders/{}", frag));
 
     glium::Program::from_source(display, &vertex_shader, &fragment_shader, None)
 }
@@ -159,6 +157,7 @@ impl RenderContext {
     pub fn reload_shaders(&mut self) {
         self.background.reload_shaders(&self.backend);
         self.spritemap.reload_shaders(&self.backend);
+        self.shadowmap.reload_shaders(&self.backend);
     }
 
     pub fn update(&mut self, state: &GameState) {
@@ -289,7 +288,7 @@ impl FpsAccumulator {
             self.accumulator -= fixed_time_stamp;
         }
 
-        let millis = util::get_duration_millis(&Instant::now().duration_since(self.start));
+        let millis = ::util::get_duration_millis(&Instant::now().duration_since(self.start));
 
         if millis - self.last_time >= 1000 {
             let ms_per_frame = 1000.0 / self.frame_count as f32;
@@ -307,6 +306,6 @@ impl FpsAccumulator {
 
     pub fn millis_since_start(&self) -> u64 {
         let duration = Instant::now().duration_since(self.start);
-        util::get_duration_millis(&duration)
+        ::util::get_duration_millis(&duration)
     }
 }

@@ -5,6 +5,7 @@ use point::Direction;
 use point::Point;
 use renderer::atlas::*;
 use renderer::render::{self, Renderable, Vertex, Viewport};
+use super::util::*;
 
 #[derive(Copy, Clone, Debug)]
 struct Instance {
@@ -35,19 +36,6 @@ pub struct TileMap {
 
     tile_atlas: TileAtlas,
     valid: bool,
-}
-
-fn dir_to_bit(dir: Direction) -> u8 {
-    match dir {
-        Direction::NE => 0,
-        Direction::N  => 1,
-        Direction::NW => 2,
-        Direction::E  => 3,
-        Direction::W  => 4,
-        Direction::SE => 5,
-        Direction::S  => 6,
-        Direction::SW => 7,
-    }
 }
 
 const QUAD_NW: i8 = 0;
@@ -265,18 +253,6 @@ use world::{Bounds, World};
 use world::traits::{Query, WorldQuery};
 use infinigen::ChunkedWorld;
 
-fn get_neighboring_edges(world: &World, pos: Point, cell_type: usize) -> u8 {
-    let mut res: u8 = 0;
-    for dir in Direction::iter8() {
-        let new_pos = pos + *dir;
-        let same_type = world.cell_const(&new_pos).map_or(false, |c| c.type_ == cell_type);
-        if same_type {
-            res |= 1 << dir_to_bit(*dir);
-        }
-    }
-    res
-}
-
 fn make_map(world: &World, viewport: &Viewport) -> Vec<(DrawTile, Point)> {
     let mut res = Vec::new();
     let camera = world.flags().camera;
@@ -288,9 +264,12 @@ fn make_map(world: &World, viewport: &Viewport) -> Vec<(DrawTile, Point)> {
 
     let start_corner = viewport.min_tile_pos(camera, bound).into();
     world.with_cells(start_corner, viewport.renderable_area().into(), |pos, &cell| {
+        let edges = get_neighboring_edges(pos, |point| {
+            world.cell_const(&point).map_or(false, |other| other.type_ == cell.type_)
+        });
         let tile = DrawTile {
             kind: cell.glyph(),
-            edges: get_neighboring_edges(world, pos, cell.type_),
+            edges: edges,
         };
         res.push((tile, pos - start_corner));
 

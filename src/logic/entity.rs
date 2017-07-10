@@ -20,7 +20,6 @@ use world::traits::*;
 use world::World;
 
 pub trait EntityQuery {
-    fn has_los(&self, target_pos: Point, world: &World, limit: Option<usize>) -> bool;
     fn name(&self, world: &World) -> String;
     fn name_with_article(&self, world: &World) -> String;
     fn verb_person(&self, world: &World) -> VerbPerson;
@@ -41,6 +40,7 @@ pub trait EntityQuery {
     fn is_pet(&self, world: &World) -> bool;
     fn is_hostile(&self, other: Entity, world: &World) -> bool;
     fn is_friendly(&self, other: Entity, world: &World) -> bool;
+    fn has_los(&self, target_pos: Point, world: &World, limit: Option<usize>) -> bool;
     fn can_see_pos(&self, pos: Point, world: &World) -> bool;
     fn can_see_other(&self, target: Entity, world: &World) -> bool;
 }
