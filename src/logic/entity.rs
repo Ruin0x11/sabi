@@ -7,13 +7,13 @@
 use std::cmp::Ordering::Equal;
 use calx_ecs::Entity;
 
-use ai::AiTrigger;
-use data::{Properties, GetProp};
+use ai::{AiTrigger, Attitude};
+use data::{Properties, GetProp, Walkability};
 use ecs::components::Gender;
 use ecs::traits::*;
 use ecs::Loadout;
 use ecs::party::*;
-use point::{Point, LineIter};
+use point::{Direction, Point, LineIter};
 use util::grammar::{self, VerbPerson};
 use uuid;
 use world::traits::*;
@@ -24,15 +24,25 @@ pub trait EntityQuery {
     fn name(&self, world: &World) -> String;
     fn name_with_article(&self, world: &World) -> String;
     fn verb_person(&self, world: &World) -> VerbPerson;
-    fn is_dead(&self, world: &World) -> bool;
-    fn can_see_pos(&self, pos: Point, world: &World) -> bool;
-    fn can_see_other(&self, target: Entity, world: &World) -> bool;
+
     fn inventory(&self, world: &World) -> Vec<Entity>;
     fn closest_entity(&self, entities: Vec<Entity>, world: &World) -> Option<Entity>;
-    fn get_prop<T: Clone>(&self, prop: &str, world: &World) -> Option<T> where Properties: GetProp<T>;
-    fn prop_equals<T: Clone + Eq>(&self, key: &str, val: T, world: &World) -> bool where Properties: GetProp<T>;
-    fn is_pet(&self, world: &World) -> bool;
+    fn get_prop<T: Clone>(&self, prop: &str, world: &World) -> Option<T>
+    where
+        Properties: GetProp<T>;
+    fn prop_equals<T: Clone + Eq>(&self, key: &str, val: T, world: &World) -> bool
+    where
+        Properties: GetProp<T>;
     fn uuid(&self, world: &World) -> Option<uuid::Uuid>;
+    fn attitude(&self, other: Entity, world: &World) -> Attitude;
+    fn walkable_pos_nearby(&self, world: &World) -> Option<Point>;
+
+    fn is_dead(&self, world: &World) -> bool;
+    fn is_pet(&self, world: &World) -> bool;
+    fn is_hostile(&self, other: Entity, world: &World) -> bool;
+    fn is_friendly(&self, other: Entity, world: &World) -> bool;
+    fn can_see_pos(&self, pos: Point, world: &World) -> bool;
+    fn can_see_other(&self, target: Entity, world: &World) -> bool;
 }
 
 impl EntityQuery for Entity {
@@ -92,9 +102,9 @@ impl EntityQuery for Entity {
 
     fn verb_person(&self, world: &World) -> VerbPerson {
         let gender = world.ecs()
-            .names
-            .get(*self)
-            .map_or(Gender::Unknown, |n| n.gender);
+                          .names
+                          .get(*self)
+                          .map_or(Gender::Unknown, |n| n.gender);
         if world.is_player(*self) {
             VerbPerson::You
         } else {
@@ -139,24 +149,43 @@ impl EntityQuery for Entity {
     }
 
     fn closest_entity(&self, entities: Vec<Entity>, world: &World) -> Option<Entity> {
-        let mut dists: Vec<(Entity, f32)> = entities.iter().map(|&i| {
+        let mut dists: Vec<(Entity, f32)> = entities.iter()
+                                                    .map(|&i| {
             let my_pos = world.position(*self).unwrap();
             let item_pos = world.position(i).unwrap();
             (i, my_pos.distance(item_pos))
-        }).collect();
+        })
+                                                    .collect();
 
         dists.sort_by(|&(_, a), &(_, b)| a.partial_cmp(&b).unwrap_or(Equal));
 
         dists.first().map(|&(e, _)| e)
     }
 
+    fn walkable_pos_nearby(&self, world: &World) -> Option<Point> {
+        world.position(*self).and_then(|pos| {
+            let walkable: Vec<Point> = Direction::iter8()
+                .map(|&d| pos + d)
+                .filter(|p| world.can_walk(*p, Walkability::MonstersBlocking))
+                .collect();
+
+            walkable.first().cloned()
+        })
+    }
+
     fn get_prop<T: Clone>(&self, key: &str, world: &World) -> Option<T>
-        where Properties: GetProp<T> {
-        world.ecs().props.map_or(None, |props| props.props.get::<T>(key).ok().cloned(), *self)
+    where
+        Properties: GetProp<T>,
+    {
+        world.ecs()
+             .props
+             .map_or(None, |props| props.props.get::<T>(key).ok().cloned(), *self)
     }
 
     fn prop_equals<T: Clone + Eq>(&self, key: &str, val: T, world: &World) -> bool
-        where Properties: GetProp<T>  {
+    where
+        Properties: GetProp<T>,
+    {
         self.get_prop(key, world).map_or(false, |p| p == val)
     }
 
@@ -167,23 +196,64 @@ impl EntityQuery for Entity {
     fn uuid(&self, world: &World) -> Option<uuid::Uuid> {
         world.ecs().uuids.get(*self).map(|u| u.uuid.clone())
     }
+
+    fn attitude(&self, other: Entity, world: &World) -> Attitude {
+        if self.is_pet(world) {
+            if world.is_player(other) {
+                return Attitude::Friendly;
+            }
+
+            // Pets feel the same way as the player
+            return world.player()
+                        .map(|p| p.attitude(other, world))
+                        .unwrap_or(Attitude::Neutral);
+        }
+
+        if world.is_player(*self) {
+            if world.is_npc(other) || other.is_pet(world) {
+                return Attitude::Friendly;
+            }
+        }
+
+        if world.is_npc(*self) {
+            Attitude::Friendly;
+        }
+
+        Attitude::Hostile
+    }
+
+    fn is_hostile(&self, other: Entity, world: &World) -> bool {
+        self.attitude(other, world) == Attitude::Hostile
+    }
+
+    fn is_friendly(&self, other: Entity, world: &World) -> bool {
+        self.attitude(other, world) == Attitude::Friendly
+    }
 }
 
 pub trait EntityMutate {
     fn add_memory(&self, trigger: AiTrigger, world: &mut World);
+    fn set_prop<T>(&self, key: &str, val: T, world: &mut World)
+    where
+        Properties: GetProp<T>;
     fn on_death(&self, world: &mut World);
-    fn set_prop<T>(&self, key: &str, val: T, world: &mut World) where Properties: GetProp<T>;
     fn force_drop_all_items(&self, world: &mut World);
 }
 
 impl EntityMutate for Entity {
     fn add_memory(&self, trigger: AiTrigger, world: &mut World) {
-        world.ecs_mut().ais.map_mut(|ai| ai.data.add_memory(trigger), *self);
+        world.ecs_mut()
+             .ais
+             .map_mut(|ai| ai.data.add_memory(trigger), *self);
     }
 
     fn set_prop<T>(&self, key: &str, val: T, world: &mut World)
-        where Properties: GetProp<T> {
-        world.ecs_mut().props.map_mut(|props| props.props.set::<T>(key, val).unwrap(), *self);
+    where
+        Properties: GetProp<T>,
+    {
+        world.ecs_mut()
+             .props
+             .map_mut(|props| props.props.set::<T>(key, val).unwrap(), *self);
     }
 
     fn on_death(&self, world: &mut World) {
@@ -191,7 +261,10 @@ impl EntityMutate for Entity {
         if self.is_pet(world) {
             let loadout = Loadout::get(world.ecs(), *self);
             let uuid = self.uuid(world).unwrap();
-            world.flags_mut().globals.party.set_status(uuid, PartyMemberStatus::Dead(loadout));
+            world.flags_mut()
+                 .globals
+                 .party
+                 .set_status(uuid, PartyMemberStatus::Dead(loadout));
             mes!(world, "You feel sad.");
             return;
         }

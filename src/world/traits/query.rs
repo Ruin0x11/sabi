@@ -21,6 +21,8 @@ pub trait Query {
 
     fn player(&self) -> Option<Entity>;
 
+    fn party(&self) -> Vec<Entity>;
+
     fn seed(&self) -> u32;
 
     fn entities(&self) -> slice::Iter<Entity>;
@@ -65,7 +67,9 @@ pub trait Query {
     }
 
     fn entity_by_uuid(&self, uuid: uuid::Uuid) -> Option<Entity> {
-        self.ecs().uuids.ent_iter()
+        self.ecs()
+            .uuids
+            .ent_iter()
             .find(|&&e| self.ecs().uuids.get(e).map_or(false, |u| u.uuid == uuid))
             .cloned()
     }
