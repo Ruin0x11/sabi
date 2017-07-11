@@ -9,14 +9,12 @@ pub struct ChoiceLayer {
 
 impl ChoiceLayer {
     pub fn new(choices: Vec<String>) -> Self {
-        ChoiceLayer {
-            list: UiList::new((120, 120), choices),
-        }
+        ChoiceLayer { list: UiList::new((120, 120), choices) }
     }
 }
 
 impl UiElement for ChoiceLayer {
-    fn draw(&self, renderer: &mut UiRenderer) {
+    fn draw<'a>(&self, renderer: &mut UiSubRenderer<'a>) {
         self.list.draw(renderer);
     }
 }

@@ -6,11 +6,12 @@ mod message;
 
 pub use self::message::UiMessageLog;
 pub use self::bar::UiBar;
+pub use super::subrenderer::UiSubRenderer;
 
 use point::Point;
 
 pub trait UiElement {
-    fn draw(&self, renderer: &mut UiRenderer);
+    fn draw<'a>(&self, renderer: &mut UiSubRenderer<'a>);
     fn required_size(&self, _constraint: Point) -> Point {
         Point::new(1, 1)
     }
@@ -18,33 +19,50 @@ pub trait UiElement {
 }
 
 impl UiElement for UiWindow {
-    fn draw(&self, renderer: &mut UiRenderer) {
+    fn draw<'a>(&self, renderer: &mut UiSubRenderer<'a>) {
         let (x, y) = self.pos;
         let (w, h) = self.size;
 
         // center
         renderer.add_tex_stretch("win",
-                                 (x as i32,     y as i32,
-                                  (x + w) as i32, (y + h) as i32),
+                                 (x as i32, y as i32, (x + w) as i32, (y + h) as i32),
                                  None,
-                                 (0, 0), (64, 64));
+                                 (0, 0),
+                                 (64, 64));
 
-        renderer.repeat_tex("win", TexDir::Area,
-                            (x,     y,
-                             x + w,  y + h),
-                            (0, 64), (64, 64));
+        renderer.repeat_tex("win", TexDir::Area, (x, y, x + w, y + h), (0, 64), (64, 64));
 
         // corners
-        renderer.add_tex("win",  (x as i32,              y as i32),               None, (64,  0), (16, 16));
-        renderer.add_tex("win",  (x as i32,              (y + (h - 16)) as i32),  None, (64, 48), (16, 16));
-        renderer.add_tex("win",  ((x + (w - 16)) as i32, y as i32),               None, (112, 0),  (16, 16));
-        renderer.add_tex("win",  ((x + (w - 16)) as i32, (y + (h - 16)) as i32),  None, (112, 48), (16, 16));
+        renderer.add_tex("win", (x as i32, y as i32), None, (64, 0), (16, 16));
+        renderer.add_tex("win", (x as i32, (y + (h - 16)) as i32), None, (64, 48), (16, 16));
+        renderer.add_tex("win", ((x + (w - 16)) as i32, y as i32), None, (112, 0), (16, 16));
+        renderer.add_tex("win",
+                         ((x + (w - 16)) as i32, (y + (h - 16)) as i32),
+                         None,
+                         (112, 48),
+                         (16, 16));
 
         // borders
-        renderer.repeat_tex("win", TexDir::Horizontal, (x + 16,       y,            x + (w - 16), y + 16),       (80, 0),  (16, 16));
-        renderer.repeat_tex("win", TexDir::Horizontal, (x + 16,       y + (h - 16), x + (w - 16), y + h),        (80, 48), (16, 16));
-        renderer.repeat_tex("win", TexDir::Vertical,   (x,            y + 16,       x + 16,       y + (h - 16)), (64, 16), (16, 16));
-        renderer.repeat_tex("win", TexDir::Vertical,   (x + (w - 16), y + 16,       x + w,        y + (h - 16)), (112, 16), (16, 16));
+        renderer.repeat_tex("win",
+                            TexDir::Horizontal,
+                            (x + 16, y, x + (w - 16), y + 16),
+                            (80, 0),
+                            (16, 16));
+        renderer.repeat_tex("win",
+                            TexDir::Horizontal,
+                            (x + 16, y + (h - 16), x + (w - 16), y + h),
+                            (80, 48),
+                            (16, 16));
+        renderer.repeat_tex("win",
+                            TexDir::Vertical,
+                            (x, y + 16, x + 16, y + (h - 16)),
+                            (64, 16),
+                            (16, 16));
+        renderer.repeat_tex("win",
+                            TexDir::Vertical,
+                            (x + (w - 16), y + 16, x + w, y + (h - 16)),
+                            (112, 16),
+                            (16, 16));
     }
 }
 
@@ -75,12 +93,10 @@ impl UiText {
 }
 
 impl UiElement for UiText {
-    fn draw(&self, renderer: &mut UiRenderer) {
+    fn draw<'a>(&self, renderer: &mut UiSubRenderer<'a>) {
         for (idx, line) in self.text_lines.iter().enumerate() {
             let pos = (self.pos.0, self.pos.1 + (idx as u32 * renderer.get_font_size()) as i32);
-            renderer.with_color((0, 0, 0, 255), |r| {
-                r.add_string(pos, None, line);
-            });
+            renderer.with_color((0, 0, 0, 255), |r| { r.add_string(pos, None, line); });
         }
     }
 }
@@ -152,7 +168,7 @@ impl UiList {
 }
 
 impl UiElement for UiList {
-    fn draw(&self, renderer: &mut UiRenderer) {
+    fn draw<'a>(&self, renderer: &mut UiSubRenderer<'a>) {
         self.window.draw(renderer);
         for item in self.items.iter() {
             item.draw(renderer);

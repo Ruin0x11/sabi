@@ -25,7 +25,7 @@ fn member_name(uuid: &Uuid, status: &PartyMemberStatus, world: &World) -> String
         PartyMemberStatus::Dead(ref loadout) => {
             loadout.names
                    .clone()
-                   .map(|n| n.name.clone())
+                   .map(|n| n.name)
                    .unwrap_or("(unknown)".to_string())
         },
     }

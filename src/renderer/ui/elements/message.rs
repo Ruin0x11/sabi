@@ -1,9 +1,11 @@
 use renderer::ui::elements::UiElement;
 use renderer::ui::renderer::{TexDir, UiRenderer};
+use renderer::ui::subrenderer::UiSubRenderer;
 use renderer::render::{SCREEN_WIDTH, SCREEN_HEIGHT};
 use renderer::render::Viewport;
+use renderer::ui::traits::*;
 
-const LINE_HEIGHT: usize =  16;
+const LINE_HEIGHT: usize = 16;
 
 pub struct UiMessageLog {
     pos: (u32, u32),
@@ -31,15 +33,12 @@ impl UiMessageLog {
 }
 
 impl UiElement for UiMessageLog {
-    fn draw(&self, renderer: &mut UiRenderer) {
+    fn draw<'a>(&self, renderer: &mut UiSubRenderer<'a>) {
         let (x, y) = self.pos;
         let (w, h) = self.size;
 
         renderer.with_color((128, 128, 128, 255), |r| {
-            r.repeat_tex("textwin", TexDir::Area,
-                         (x,     y,
-                          x + w,  y + h),
-                         (0, 0), (46, 45));
+            r.repeat_tex("textwin", TexDir::Area, (x, y, x + w, y + h), (0, 0), (46, 45));
         });
 
         let (tx, ty) = (x as i32 + 8, (y + h - 8) as i32);
@@ -49,7 +48,7 @@ impl UiElement for UiMessageLog {
 
         for line in self.messages.iter() {
             if !line.is_empty() {
-                for wrapped in renderer.font().wrap_text(line, w - 16) {
+                for wrapped in renderer.wrap_text(line, w - 16) {
                     let offset = (idx * LINE_HEIGHT) as i32;
 
                     renderer.add_string_shadow((tx, ty - offset), None, &wrapped);

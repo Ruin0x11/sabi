@@ -1,6 +1,7 @@
 use std;
 use renderer::ui::elements::UiElement;
-use renderer::ui::renderer::UiRenderer;
+use renderer::ui::renderer::UiSubRenderer;
+use renderer::ui::traits::*;
 use util::clamp;
 
 pub struct UiBar {
@@ -36,8 +37,8 @@ impl UiBar {
 
 
 impl UiElement for UiBar {
-    fn draw(&self, renderer: &mut UiRenderer) {
-        let bar_portion = (258 as f32 * self.percent()) as u32;
+    fn draw<'a>(&self, renderer: &mut UiSubRenderer<'a>) {
+        let bar_portion = (258.0 * self.percent()) as u32;
         renderer.add_tex("bar", self.pos, None, (0, 30), (258, 30));
 
         renderer.with_color(self.color, |r| {
@@ -45,12 +46,10 @@ impl UiElement for UiBar {
         });
 
         let text = format!("{} / {}", self.current, self.max);
-        let text_width = renderer.font().text_width_px(&text) as i32;
+        let text_width = renderer.text_width_px(&text) as i32;
 
-        let text_pos = (
-            self.pos.0 + (258 / 2) - (text_width / 2),
-            self.pos.1 + 30 - (renderer.font().get_font_size() as i32),
-        );
+        let text_pos = (self.pos.0 + (258 / 2) - (text_width / 2),
+                        self.pos.1 + 30 - (renderer.get_font_size() as i32));
 
         renderer.add_string_shadow(text_pos, None, &text);
     }

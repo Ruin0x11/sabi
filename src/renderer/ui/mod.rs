@@ -8,10 +8,13 @@ pub mod elements;
 mod layer;
 pub mod layers;
 mod renderer;
+mod subrenderer;
+mod traits;
 
-pub use self::elements::{UiElement};
-pub use self::renderer::UiRenderer;
+pub use self::elements::UiElement;
+pub use self::renderer::{UiRenderer, UiSubRenderer};
 pub use self::layer::{EventResult, UiLayer, UiQuery};
+pub use self::traits::*;
 
 use renderer::ui::elements::{UiBar, UiMessageLog};
 use renderer::render::SCREEN_HEIGHT;
@@ -33,7 +36,7 @@ impl MainLayer {
 }
 
 impl UiElement for MainLayer {
-    fn draw(&self, renderer: &mut UiRenderer) {
+    fn draw<'a>(&self, renderer: &mut UiSubRenderer<'a>) {
         self.log.draw(renderer);
         self.hp_bar.draw(renderer);
         self.tp_bar.draw(renderer);
@@ -64,7 +67,7 @@ impl Ui {
     }
 
     pub fn draw_layer<T: 'static + UiLayer>(&mut self, layer: &T) {
-        layer.draw(&mut self.renderer)
+        layer.draw(&mut UiSubRenderer::new(&mut self.renderer))
     }
 
     pub fn push_layer<T: 'static + UiLayer>(&mut self, layer: T) {
@@ -94,21 +97,21 @@ impl Ui {
                 self.invalidate();
                 match callback {
                     None => (),
-                    Some(cb) => cb(self)
+                    Some(cb) => cb(self),
                 }
-            }
-            EventResult::Done |
-            EventResult::Canceled => self.pop_layer(),
+            },
+            EventResult::Done | EventResult::Canceled => self.pop_layer(),
         }
     }
 
     pub fn render_all(&mut self) {
         self.renderer.clear();
 
-        self.main_layer.draw(&mut self.renderer);
+        self.main_layer
+            .draw(&mut UiSubRenderer::new(&mut self.renderer));
 
         for layer in self.layers.iter() {
-            layer.draw(&mut self.renderer);
+            layer.draw(&mut UiSubRenderer::new(&mut self.renderer));
         }
     }
 
@@ -126,7 +129,10 @@ impl Ui {
 
 impl<'a> Renderable for Ui {
     fn render<F, S>(&self, display: &F, target: &mut S, viewport: &Viewport, time: u64)
-        where F: glium::backend::Facade, S: glium::Surface {
+    where
+        F: glium::backend::Facade,
+        S: glium::Surface,
+    {
 
         self.renderer.render(display, target, viewport, time);
     }

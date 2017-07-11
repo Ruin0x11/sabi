@@ -20,7 +20,7 @@ impl InputLayer {
 }
 
 impl UiElement for InputLayer {
-    fn draw(&self, renderer: &mut UiRenderer) {
+    fn draw<'a>(&self, renderer: &mut UiSubRenderer<'a>) {
         self.win.draw(renderer);
         self.prompt.draw(renderer);
         self.text.draw(renderer);
@@ -42,15 +42,17 @@ impl UiLayer for InputLayer {
                         self.text.set(&t);
                         EventResult::Consumed(None)
                     },
-                    keycode => match keycode_to_char(keycode) {
-                        Some(ch) => {
-                            let mut t = self.text.text();
-                            t.push(ch);
-                            self.text.set(&t);
-                            EventResult::Consumed(None)
-                        },
-                        None => EventResult::Ignored,
-                    }
+                    keycode => {
+                        match keycode_to_char(keycode) {
+                            Some(ch) => {
+                                let mut t = self.text.text();
+                                t.push(ch);
+                                self.text.set(&t);
+                                EventResult::Consumed(None)
+                            },
+                            None => EventResult::Ignored,
+                        }
+                    },
                 }
             },
             _ => EventResult::Ignored,
@@ -68,32 +70,32 @@ impl UiQuery for InputLayer {
 
 fn keycode_to_char(keycode: VirtualKeyCode) -> Option<char> {
     match keycode {
-        VirtualKeyCode::A    => Some('a'),
-        VirtualKeyCode::B    => Some('b'),
-        VirtualKeyCode::C    => Some('c'),
-        VirtualKeyCode::D    => Some('d'),
-        VirtualKeyCode::E    => Some('e'),
-        VirtualKeyCode::F    => Some('f'),
-        VirtualKeyCode::G    => Some('g'),
-        VirtualKeyCode::H    => Some('h'),
-        VirtualKeyCode::I    => Some('i'),
-        VirtualKeyCode::J    => Some('j'),
-        VirtualKeyCode::K    => Some('k'),
-        VirtualKeyCode::L    => Some('l'),
-        VirtualKeyCode::M    => Some('m'),
-        VirtualKeyCode::N    => Some('n'),
-        VirtualKeyCode::O    => Some('o'),
-        VirtualKeyCode::P    => Some('p'),
-        VirtualKeyCode::Q    => Some('q'),
-        VirtualKeyCode::R    => Some('r'),
-        VirtualKeyCode::S    => Some('s'),
-        VirtualKeyCode::T    => Some('t'),
-        VirtualKeyCode::U    => Some('u'),
-        VirtualKeyCode::V    => Some('v'),
-        VirtualKeyCode::W    => Some('w'),
-        VirtualKeyCode::X    => Some('x'),
-        VirtualKeyCode::Y    => Some('y'),
-        VirtualKeyCode::Z    => Some('z'),
+        VirtualKeyCode::A => Some('a'),
+        VirtualKeyCode::B => Some('b'),
+        VirtualKeyCode::C => Some('c'),
+        VirtualKeyCode::D => Some('d'),
+        VirtualKeyCode::E => Some('e'),
+        VirtualKeyCode::F => Some('f'),
+        VirtualKeyCode::G => Some('g'),
+        VirtualKeyCode::H => Some('h'),
+        VirtualKeyCode::I => Some('i'),
+        VirtualKeyCode::J => Some('j'),
+        VirtualKeyCode::K => Some('k'),
+        VirtualKeyCode::L => Some('l'),
+        VirtualKeyCode::M => Some('m'),
+        VirtualKeyCode::N => Some('n'),
+        VirtualKeyCode::O => Some('o'),
+        VirtualKeyCode::P => Some('p'),
+        VirtualKeyCode::Q => Some('q'),
+        VirtualKeyCode::R => Some('r'),
+        VirtualKeyCode::S => Some('s'),
+        VirtualKeyCode::T => Some('t'),
+        VirtualKeyCode::U => Some('u'),
+        VirtualKeyCode::V => Some('v'),
+        VirtualKeyCode::W => Some('w'),
+        VirtualKeyCode::X => Some('x'),
+        VirtualKeyCode::Y => Some('y'),
+        VirtualKeyCode::Z => Some('z'),
         VirtualKeyCode::Key0 => Some('0'),
         VirtualKeyCode::Key1 => Some('1'),
         VirtualKeyCode::Key2 => Some('2'),
