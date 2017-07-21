@@ -33,7 +33,7 @@ impl UiMessageLog {
 }
 
 impl UiElement for UiMessageLog {
-    fn draw<'a>(&self, renderer: &mut UiSubRenderer<'a>) {
+    fn draw<'a>(&self, renderer: &UiSubRenderer<'a>) {
         let (x, y) = self.pos;
         let (w, h) = self.size;
 

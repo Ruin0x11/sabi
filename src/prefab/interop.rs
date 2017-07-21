@@ -35,7 +35,10 @@ pub fn build_prefab_args(args: &PrefabArgs) -> String {
     res
 }
 
-pub fn map_from_prefab<'a>(lua: &'a mut Lua, name: &str, args: &Option<PrefabArgs>) -> PrefabResult<Prefab> {
+pub fn map_from_prefab<'a>(lua: &'a mut Lua,
+                           name: &str,
+                           args: &Option<PrefabArgs>)
+                           -> PrefabResult<Prefab> {
     let map_filename = &format!("maps/{}", name);
 
     lua.execute::<()>("prefab = Prefab.new(1, 1, \"floor\")")?;
@@ -52,7 +55,8 @@ pub fn map_from_prefab<'a>(lua: &'a mut Lua, name: &str, args: &Option<PrefabArg
 
     lua.execute::<()>("prefab = generate()")?;
 
-    lua.get("prefab").ok_or_else(|| PrefabError::PrefabVarNotDeclared)
+    lua.get("prefab")
+       .ok_or_else(|| PrefabError::PrefabVarNotDeclared)
 }
 
 pub fn lua_new(x: i32, y: i32, fill: String) -> PrefabResult<Prefab> {
@@ -75,7 +79,7 @@ fn lua_set(prefab: &mut Prefab, x: i32, y: i32, cell_type: String) -> PrefabResu
 fn lua_blocked(prefab: &Prefab, x: i32, y: i32) -> bool {
     let pt = Point::new(x, y);
     if !prefab.in_bounds(&pt) {
-        return true
+        return true;
     }
     !prefab.get(&pt).can_pass_through()
 }
@@ -102,7 +106,12 @@ fn lua_place_marker(prefab: &mut Prefab, x: i32, y: i32, marker: String) {
     prefab.set_marker(&pt, marker);
 }
 
-fn lua_deploy_prefab(prefab: &mut Prefab, x: i32, y: i32, kind: String, args: PrefabArgsLua) -> Result<(), PrefabError> {
+fn lua_deploy_prefab(prefab: &mut Prefab,
+                     x: i32,
+                     y: i32,
+                     kind: String,
+                     args: PrefabArgsLua)
+                     -> Result<(), PrefabError> {
     let other = map_from_prefab(&mut lua::init(), &kind, &Some(args.0))?;
     prefab.merge(other, Point::new(x, y));
 
@@ -113,7 +122,8 @@ fn lua_deploy_prefab(prefab: &mut Prefab, x: i32, y: i32, kind: String, args: Pr
 struct PrefabArgsLua(PrefabArgs);
 
 impl<'lua, L> hlua::LuaRead<L> for PrefabArgsLua
-    where L: hlua::AsMutLua<'lua>
+where
+    L: hlua::AsMutLua<'lua>,
 {
     fn lua_read_at_position(lua: L, index: i32) -> Result<PrefabArgsLua, L> {
         let val: Result<hlua::UserdataOnStack<PrefabArgsLua, _>, _> =
@@ -181,7 +191,8 @@ mod tests {
 
     #[test]
     fn test_prefab_args() {
-        let args = prefab_args! {
+        let args =
+            prefab_args! {
             width: 80,
             height: 40,
         };

@@ -9,7 +9,7 @@ use self::components::*;
 use util;
 use ai::Ai;
 
-use macros::{Getter, Get};
+use macros::{Getter, TomlInstantiate};
 use toml;
 
 #[derive(Eq, PartialEq, Debug)]
@@ -56,7 +56,7 @@ macro_rules! Ecs_with_toml {
                 $(
                     if name == stringify!($comptype) {
                         let compo: $comptype = if $should_get == CompoType::Instantiable {
-                            Get::get_for(compo_table)?
+                            TomlInstantiate::get_for(compo_table)?
                         } else {
                             Default::default()
                         };

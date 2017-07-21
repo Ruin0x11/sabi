@@ -21,7 +21,7 @@ use logic::Action;
 use point::Point;
 use world::World;
 use world::traits::Query;
-use macros::{Getter, Get};
+use macros::{Getter, TomlInstantiate};
 use toml;
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -32,10 +32,10 @@ pub enum Attitude {
 }
 
 make_getter!(Ai {
-    kind: AiKind,
+                 kind: AiKind,
 
-    data: AiData,
-});
+                 data: AiData,
+             });
 
 impl Default for Ai {
     fn default() -> Self {
@@ -91,14 +91,16 @@ impl AiData {
     }
 
     pub fn cond(&self, prop: AiProp, val: bool) -> bool {
-        self.memory.borrow().facts.get(&prop).map_or(false, |f| *f == val)
+        self.memory
+            .borrow()
+            .facts
+            .get(&prop)
+            .map_or(false, |f| *f == val)
     }
 
     pub fn get_plan(&self) -> Result<Vec<AiAction>, AiMemory> {
-        self.planner.get_plan(
-            &self.memory.borrow(),
-            &self.goal.borrow(),
-        )
+        self.planner
+            .get_plan(&self.memory.borrow(), &self.goal.borrow())
     }
 
     pub fn get_next_action(&self) -> Option<AiAction> {
@@ -114,13 +116,13 @@ impl AiData {
     fn is_state_invalid(&self) -> bool {
         if self.last_goal.borrow().requires_target() {
             if self.target.borrow().is_none() {
-                return true
+                return true;
             }
         }
 
         if self.last_goal.borrow().requires_position() {
             if self.important_pos.borrow().is_none() {
-                return true
+                return true;
             }
         }
 
@@ -141,16 +143,10 @@ thread_local! {
 }
 
 pub fn run(entity: Entity, world: &World) -> Option<Action> {
-    assert!(
-        !world.is_player(entity),
-        "Tried running AI on current player!"
-    );
+    assert!(!world.is_player(entity), "Tried running AI on current player!");
 
     if !world.ecs().ais.has(entity) {
-        assert!(
-            !world.turn_order().contains(entity),
-            "Entity without ai in turn order!"
-        );
+        assert!(!world.turn_order().contains(entity), "Entity without ai in turn order!");
         return None;
     }
 
@@ -204,7 +200,11 @@ fn update_goal(entity: Entity, world: &World) {
     }
 }
 
-fn set_goal(entity: Entity, world: &World, desired: AiFacts, target: Option<Entity>, goal_kind: AiGoal) {
+fn set_goal(entity: Entity,
+            world: &World,
+            desired: AiFacts,
+            target: Option<Entity>,
+            goal_kind: AiGoal) {
     let ai = &world.ecs().ais.get_or_err(entity).data;
 
     let goal = GoapState { facts: desired };
@@ -224,7 +224,7 @@ fn update_memory(entity: Entity, world: &World) {
         SENSORS.with(|s| {
             let sensor = match s.get(fact) {
                 Some(f) => f,
-                None    => return,
+                None => return,
             };
             let result = (sensor.callback)(world, entity, ai);
             // debug_ecs!(world, entity, "{:?}, {}", fact, result);

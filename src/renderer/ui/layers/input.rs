@@ -13,17 +13,26 @@ impl InputLayer {
     pub fn new(prompt: &str) -> Self {
         InputLayer {
             win: UiWindow::new((100, 100)),
-            prompt: UiText::new((120, 120), prompt),
-            text: UiText::new((120, 140), &""),
+            prompt: UiText::new(prompt),
+            text: UiText::new(""),
         }
     }
 }
 
 impl UiElement for InputLayer {
-    fn draw<'a>(&self, renderer: &mut UiSubRenderer<'a>) {
-        self.win.draw(renderer);
-        self.prompt.draw(renderer);
-        self.text.draw(renderer);
+    fn draw<'a>(&self, renderer: &UiSubRenderer<'a>) {
+        {
+            let mut sub = renderer.sub_renderer((0, 0), (0, 0));
+            self.win.draw(&mut sub);
+        }
+        {
+            let mut sub = renderer.sub_renderer((0, 0), (0, 0));
+            self.prompt.draw(&mut sub);
+        }
+        {
+            let mut sub = renderer.sub_renderer((0, 0), (0, 0));
+            self.text.draw(&mut sub);
+        }
     }
 }
 

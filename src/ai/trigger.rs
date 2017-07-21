@@ -1,13 +1,10 @@
-use std::collections::HashMap;
-
 use calx_ecs::Entity;
 
 use ecs::traits::*;
-use logic::entity::EntityQuery;
 use world::traits::Query;
 use world::World;
 
-use super::{Ai, AiFacts, AiGoal, AiKind};
+use super::{AiGoal, AiKind};
 
 // TODO: If something strange happens during an unrelated AI goal, the AI should be able to react.
 // The obvious example is a neutral entity being attacked by something, in which case they could
@@ -26,7 +23,10 @@ pub enum AiTrigger {
 }
 
 impl AiKind {
-    pub fn check_triggers(&self, entity: Entity, world: &World) -> Option<(AiGoal, Option<Entity>)> {
+    pub fn check_triggers(&self,
+                          entity: Entity,
+                          world: &World)
+                          -> Option<(AiGoal, Option<Entity>)> {
         let ai = world.ecs().ais.get_or_err(entity);
         let ai_goal = ai.data.last_goal.borrow();
         let triggers = ai.data.triggers.borrow();
@@ -42,22 +42,33 @@ impl AiKind {
         res
     }
 
-    fn check_trigger(&self, entity: Entity, world: &World, goal: AiGoal, trigger: AiTrigger) -> Option<(AiGoal, Option<Entity>)> {
+    fn check_trigger(&self,
+                     entity: Entity,
+                     world: &World,
+                     goal: AiGoal,
+                     trigger: AiTrigger)
+                     -> Option<(AiGoal, Option<Entity>)> {
         match *self {
-            AiKind::Guard => match goal {
-                AiGoal::Guard => match trigger {
-                    // TODO: More detailed enemy/friend anger management
-                    AiTrigger::AttackedBy(attacker) => Some((AiGoal::KillTarget, Some(attacker))),
-                    AiTrigger::SawEntity(seen) => {
-                        if !world.is_player(seen) {
-                            Some((AiGoal::KillTarget, Some(seen)))
-                        } else {
-                            None
+            AiKind::Guard => {
+                match goal {
+                    AiGoal::Guard => {
+                        match trigger {
+                            // TODO: More detailed enemy/friend anger management
+                            AiTrigger::AttackedBy(attacker) => {
+                                Some((AiGoal::KillTarget, Some(attacker)))
+                            },
+                            AiTrigger::SawEntity(seen) => {
+                                if !world.is_player(seen) {
+                                    Some((AiGoal::KillTarget, Some(seen)))
+                                } else {
+                                    None
+                                }
+                            },
+                            _ => None,
                         }
                     },
                     _ => None,
-                },
-                _ => None,
+                }
             },
             _ => None,
         }

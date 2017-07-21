@@ -17,7 +17,6 @@ pub use self::layer::{EventResult, UiLayer, UiQuery};
 pub use self::traits::*;
 
 use renderer::ui::elements::{UiBar, UiMessageLog};
-use renderer::render::SCREEN_HEIGHT;
 
 pub struct MainLayer {
     pub log: UiMessageLog,
@@ -36,7 +35,7 @@ impl MainLayer {
 }
 
 impl UiElement for MainLayer {
-    fn draw<'a>(&self, renderer: &mut UiSubRenderer<'a>) {
+    fn draw<'a>(&self, renderer: &UiSubRenderer<'a>) {
         self.log.draw(renderer);
         self.hp_bar.draw(renderer);
         self.tp_bar.draw(renderer);
@@ -135,20 +134,6 @@ impl<'a> Renderable for Ui {
     {
 
         self.renderer.render(display, target, viewport, time);
-    }
-}
-
-pub struct UiWindow {
-    pos: (u32, u32),
-    size: (u32, u32),
-}
-
-impl UiWindow {
-    pub fn new(pos: (u32, u32)) -> Self {
-        UiWindow {
-            pos: pos,
-            size: (300, 400),
-        }
     }
 }
 

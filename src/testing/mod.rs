@@ -6,7 +6,8 @@ use ai::*;
 use ecs;
 use state;
 use point::Point;
-use world::traits::Mutate;
+use logic::entity::*;
+use world::traits::*;
 use world::{Bounds, World, WorldPosition};
 
 use GameContext;
@@ -33,6 +34,9 @@ pub fn test_context_bounded(w: i32, h: i32) -> GameContext {
     let mut context = GameContext::new();
     context.state.world = get_world_bounded(w, h);
     state::init_game_context(&mut context);
+    let player = context.state.world.player().unwrap();
+    player.set_prop::<bool>("omniscient", true, &mut context.state.world);
+
     context
 }
 

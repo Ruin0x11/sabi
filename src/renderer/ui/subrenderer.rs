@@ -14,13 +14,13 @@ use super::renderer::*;
 use super::traits::*;
 
 pub struct UiSubRenderer<'a> {
-    offset: (i32, i32),
-    size: (u32, u32),
-    backend: &'a mut UiRenderer,
+    pub offset: (i32, i32),
+    pub size: (u32, u32),
+    backend: &'a UiRenderer,
 }
 
 impl<'a> UiSubRenderer<'a> {
-    pub fn new(backend: &'a mut UiRenderer) -> Self {
+    pub fn new(backend: &'a UiRenderer) -> Self {
         UiSubRenderer {
             offset: (0, 0),
             size: (0, 0),
@@ -28,7 +28,7 @@ impl<'a> UiSubRenderer<'a> {
         }
     }
 
-    pub fn sub_renderer<I: Into<(i32, i32)>>(&'a mut self,
+    pub fn sub_renderer<I: Into<(i32, i32)>>(&'a self,
                                              offset: I,
                                              size: (u32, u32))
                                              -> UiSubRenderer<'a> {
@@ -39,6 +39,14 @@ impl<'a> UiSubRenderer<'a> {
             backend: self.backend,
         }
     }
+
+    pub fn with_color<F>(&self, color: (u8, u8, u8, u8), callback: F)
+    where
+        F: FnOnce(&UiSubRenderer),
+    {
+        self.backend.with_color(color, || callback(self))
+    }
+
 
     fn offset_screen_pos(&self, relative: (i32, i32)) -> (i32, i32) {
         (relative.0 + self.offset.0, relative.1 + self.offset.1)
@@ -60,13 +68,6 @@ impl<'a> UiSubRenderer<'a> {
 }
 
 impl<'a> UiRenderable for UiSubRenderer<'a> {
-    fn with_color<F>(&mut self, color: (u8, u8, u8, u8), callback: F)
-    where
-        F: FnOnce(&mut UiRenderer),
-    {
-        self.backend.with_color(color, callback)
-    }
-
     fn get_color(&self) -> (u8, u8, u8, u8) {
         self.backend.get_color()
     }
@@ -83,7 +84,7 @@ impl<'a> UiRenderable for UiSubRenderer<'a> {
         self.backend.wrap_text(text, width)
     }
 
-    fn repeat_tex(&mut self,
+    fn repeat_tex(&self,
                   key: &'static str,
                   dir: TexDir,
                   clipping_rect: (u32, u32, u32, u32),
@@ -94,7 +95,7 @@ impl<'a> UiRenderable for UiSubRenderer<'a> {
             .repeat_tex(key, dir, offset_clipping_rect, tex_pos, tex_area);
     }
 
-    fn add_tex(&mut self,
+    fn add_tex(&self,
                key: &'static str,
                screen_pos: (i32, i32),
                clipping_rect: Option<(u32, u32, u32, u32)>,
@@ -107,7 +108,7 @@ impl<'a> UiRenderable for UiSubRenderer<'a> {
             .add_tex(key, offset_screen_pos, offset_clipping_rect, tex_pos, tex_area);
     }
 
-    fn add_tex_stretch(&mut self,
+    fn add_tex_stretch(&self,
                        key: &'static str,
                        screen_rect: (i32, i32, i32, i32),
                        clipping_rect: Option<(u32, u32, u32, u32)>,
@@ -119,7 +120,7 @@ impl<'a> UiRenderable for UiSubRenderer<'a> {
             .add_tex_stretch(key, offset_screen_rect, offset_clipping_rect, tex_pos, tex_area);
     }
 
-    fn add_string_shadow(&mut self,
+    fn add_string_shadow(&self,
                          screen_pos: (i32, i32),
                          clipping_rect: Option<(u32, u32, u32, u32)>,
                          text: &str) {
@@ -129,12 +130,13 @@ impl<'a> UiRenderable for UiSubRenderer<'a> {
             .add_string_shadow(offset_screen_pos, offset_clipping_rect, text);
     }
 
-    fn add_string(&mut self,
+    fn add_string(&self,
                   screen_pos: (i32, i32),
                   clipping_rect: Option<(u32, u32, u32, u32)>,
                   text: &str) {
         let offset_screen_pos = self.offset_screen_pos(screen_pos);
         let offset_clipping_rect = clipping_rect.map(|rect| self.offset_clipping_rect(rect));
+        println!("offset: {:?} {:?}", offset_screen_pos, offset_clipping_rect);
         self.backend
             .add_string(offset_screen_pos, offset_clipping_rect, text);
     }

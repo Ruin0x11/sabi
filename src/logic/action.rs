@@ -17,6 +17,7 @@ pub enum Action {
     Move(Direction),
     MoveOrAttack(Direction),
     Wait,
+    SwitchPlaces(Entity),
     SwingAt(Entity),
     ShootAt(Entity),
     Pickup(Entity),
@@ -31,12 +32,13 @@ pub fn run_entity_action(world: &mut World, entity: Entity, action: Action) -> A
         Action::MoveOrAttack(dir) => action_move_or_attack(world, entity, dir),
         Action::Move(dir) => action_move_entity(world, entity, dir),
         Action::Pickup(target) => action_pickup(world, entity, target),
+        Action::SwitchPlaces(target) => action_switch_places(world, entity, target),
         Action::Drop(target) => action_drop(world, entity, target),
         Action::Teleport(pos) => action_try_teleport(world, entity, pos),
         Action::TeleportUnchecked(pos) => action_teleport_unchecked(world, entity, pos),
         Action::SwingAt(target) => action_swing_at(world, entity, target),
         Action::ShootAt(target) => action_shoot_at(world, entity, target),
-        _ => Err(()),
+        Action::Wait => Ok(()),
     }
 }
 
@@ -67,6 +69,16 @@ fn action_move_entity(world: &mut World, entity: Entity, dir: Direction) -> Acti
     Ok(())
 }
 
+fn action_switch_places(world: &mut World, parent: Entity, target: Entity) -> ActionResult {
+    let parent_pos = world.position(parent).expect("No entity position");
+    let target_pos = world.position(target).expect("No entity position");
+
+    world.place_entity(parent, target_pos);
+    world.place_entity(target, parent_pos);
+    format_mes!(world, parent, "%U <switch places> with {}.", target.name(world));
+    Ok(())
+}
+
 fn action_pickup(world: &mut World, parent: Entity, target: Entity) -> ActionResult {
     world.place_entity_in(parent, target);
     format_mes!(world, parent, "%U <pick up> {}.", target.name(world));
@@ -85,8 +97,8 @@ fn action_swing_at(world: &mut World, attacker: Entity, other: Entity) -> Action
     let mut damage;
     {
         if !world.position(attacker)
-            .unwrap()
-            .is_next_to(world.position(other).unwrap())
+                 .unwrap()
+                 .is_next_to(world.position(other).unwrap())
         {
             return Err(());
         }
@@ -134,15 +146,18 @@ fn action_shoot_at(world: &mut World, attacker: Entity, other: Entity) -> Action
 }
 
 fn hurt(world: &mut World, target: Entity, attacker: Entity, damage: u32) {
-    world.ecs_mut().healths.map_mut(|h| {
-        h.hurt(damage);
-        h.adjust_tp(2);
-    }, target);
+    world.ecs_mut().healths.map_mut(
+        |h| {
+            h.hurt(damage);
+            h.adjust_tp(2);
+        },
+        target,
+    );
     target.add_memory(AiTrigger::AttackedBy(attacker), world);
 
-    world.ecs_mut().healths.map_mut(|h| {
-        h.adjust_tp(1);
-    }, attacker);
+    world.ecs_mut()
+         .healths
+         .map_mut(|h| { h.adjust_tp(1); }, attacker);
 
     if target.is_dead(world) {
         format_mes!(world, attacker, "%U <kill> {}!", target.name(world));

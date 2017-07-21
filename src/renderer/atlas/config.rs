@@ -11,6 +11,7 @@ use glob;
 use image;
 use toml::Value;
 
+use graphics::color::Color;
 use renderer::atlas::*;
 use util;
 
@@ -78,7 +79,8 @@ impl TileAtlas {
 
         let mut textures = Vec::new();
 
-        let cached_texture_path = format!("{}/*.png", get_config_cache_path(packed_folder).display());
+        let cached_texture_path = format!("{}/*.png",
+                                          get_config_cache_path(packed_folder).display());
 
         for entry in glob::glob(&cached_texture_path).unwrap() {
             if let Ok(path) = entry {
@@ -102,7 +104,7 @@ impl TileAtlas {
 
         let maps = match util::toml::expect_value_in_table(&val, "maps") {
             Value::Array(array) => array,
-            _                   => panic!("Atlas config array wasn't an array."),
+            _ => panic!("Atlas config array wasn't an array."),
         };
 
         for map in maps.iter() {
@@ -115,7 +117,7 @@ impl TileAtlas {
 
         let tiles = match util::toml::expect_value_in_table(&val, "tiles") {
             Value::Array(array) => array,
-            _                   => panic!("Atlas config array wasn't an array."),
+            _ => panic!("Atlas config array wasn't an array."),
         };
 
         for tile in tiles.iter() {

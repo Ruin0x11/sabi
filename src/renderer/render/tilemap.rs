@@ -17,8 +17,7 @@ struct Instance {
     autotile_index: i8,
 }
 
-implement_vertex!(Instance, map_coord, tex_offset, quadrant, autotile,
-                  autotile_index);
+implement_vertex!(Instance, map_coord, tex_offset, quadrant, autotile, autotile_index);
 
 #[derive(Debug)]
 struct DrawTile {
@@ -70,69 +69,46 @@ fn get_autotile_index(edges: u8, quadrant: i8) -> i8 {
 
     if !is_connected(N) && !is_connected(W) && !is_connected(E) && !is_connected(S) {
         let ret = match quadrant {
-            QUAD_NW => {
-                0
-            },
-            QUAD_NE => {
-                1
-            },
-            QUAD_SW => {
-                4
-            },
-            QUAD_SE => {
-                5
-            },
+            QUAD_NW => 0,
+            QUAD_NE => 1,
+            QUAD_SW => 4,
+            QUAD_SE => 5,
             _ => -1,
         };
         return ret;
     }
 
-    let lookup_idx = |horiz: Direction, vert: Direction, corner: Direction, tiles: [i8; 4], corner_piece: i8| {
-        if !is_connected(horiz) && !is_connected(vert) {
-            tiles[0]
-        } else if !is_connected(horiz) && is_connected(vert) {
-            tiles[1]
-        } else if is_connected(horiz) && !is_connected(vert) {
-            tiles[2]
-        } else if !is_connected(corner) {
-            corner_piece
-        } else {
-            tiles[3]
-        }
-    };
+    let lookup_idx =
+        |horiz: Direction, vert: Direction, corner: Direction, tiles: [i8; 4], corner_piece: i8| {
+            if !is_connected(horiz) && !is_connected(vert) {
+                tiles[0]
+            } else if !is_connected(horiz) && is_connected(vert) {
+                tiles[1]
+            } else if is_connected(horiz) && !is_connected(vert) {
+                tiles[2]
+            } else if !is_connected(corner) {
+                corner_piece
+            } else {
+                tiles[3]
+            }
+        };
 
     match quadrant {
-        QUAD_NW => {
-            lookup_idx(N, W, NW, [8, 9, 12, 13], 2)
-        },
-        QUAD_NE => {
-            lookup_idx(N, E, NE, [11, 10, 15, 14], 3)
-        },
-        QUAD_SW => {
-            lookup_idx(S, W, SW, [20, 21, 16, 17], 6)
-        },
-        QUAD_SE => {
-            lookup_idx(S, E, SE, [23, 22, 19, 18], 7)
-        },
+        QUAD_NW => lookup_idx(N, W, NW, [8, 9, 12, 13], 2),
+        QUAD_NE => lookup_idx(N, E, NE, [11, 10, 15, 14], 3),
+        QUAD_SW => lookup_idx(S, W, SW, [20, 21, 16, 17], 6),
+        QUAD_SE => lookup_idx(S, E, SE, [23, 22, 19, 18], 7),
         _ => -1,
     }
 }
 
 fn get_tile_index(quadrant: i8) -> i8 {
     match quadrant {
-        QUAD_NW => {
-            0
-        },
-        QUAD_NE => {
-            1
-        },
-        QUAD_SW => {
-            4
-        },
-        QUAD_SE => {
-            5
-        },
-        _       => 0,
+        QUAD_NW => 0,
+        QUAD_NE => 1,
+        QUAD_SW => 4,
+        QUAD_SE => 5,
+        _ => 0,
     }
 }
 
@@ -158,51 +134,64 @@ impl TileMap {
         tilemap
     }
 
+    // hack to make tile color available
+    pub fn get_tile(&self, name: &str) -> &AtlasTile {
+        self.tile_atlas.get_tile(name)
+    }
+
     fn make_instances<F>(&mut self, display: &F, msecs: u64)
-        where F: glium::backend::Facade {
+    where
+        F: glium::backend::Facade,
+    {
 
         let mut instances = Vec::new();
 
         for pass in 0..self.tile_atlas.passes() {
-            let data = self.tiles.iter()
-                .filter(|&&(ref tile, _)| {
-                    let texture_idx = self.tile_atlas.get_tile_texture_idx(tile.kind);
-                    texture_idx == pass
-                })
-                .flat_map(|&(ref tile, c)| {
-                    let mut res = Vec::new();
-                    for quadrant in 0..4 {
-                        let (x, y) = (c.x, c.y);
-                        let (tx, ty) = self.tile_atlas.get_texture_offset(tile.kind, msecs);
-                        let is_autotile = self.tile_atlas.get_tile(tile.kind).data.is_autotile;
+            let data = self.tiles
+                           .iter()
+                           .filter(|&&(ref tile, _)| {
+                let texture_idx = self.tile_atlas.get_tile_texture_idx(tile.kind);
+                texture_idx == pass
+            })
+                           .flat_map(|&(ref tile, c)| {
+                let mut res = Vec::new();
+                for quadrant in 0..4 {
+                    let (x, y) = (c.x, c.y);
+                    let (tx, ty) = self.tile_atlas.get_texture_offset(tile.kind, msecs);
+                    let is_autotile = self.tile_atlas.get_tile(tile.kind).data.is_autotile;
 
-                        let autotile_index = if is_autotile {
-                            get_autotile_index(tile.edges, quadrant)
-                        } else {
-                            get_tile_index(quadrant)
-                        };
+                    let autotile_index = if is_autotile {
+                        get_autotile_index(tile.edges, quadrant)
+                    } else {
+                        get_tile_index(quadrant)
+                    };
 
-                        let tile_idx = self.tile_atlas.get_tile_index(tile.kind);
+                    let tile_idx = self.tile_atlas.get_tile_index(tile.kind);
 
-                        res.push(Instance { tile_idx: tile_idx,
-                                            map_coord: [x, y],
-                                            tex_offset: [tx, ty],
-                                            quadrant: quadrant,
-                                            autotile: 1,
-                                            autotile_index: autotile_index, });
-                    }
-                    res
-                }).collect::<Vec<Instance>>();
+                    res.push(Instance {
+                                 tile_idx: tile_idx,
+                                 map_coord: [x, y],
+                                 tex_offset: [tx, ty],
+                                 quadrant: quadrant,
+                                 autotile: 1,
+                                 autotile_index: autotile_index,
+                             });
+                }
+                res
+            })
+                           .collect::<Vec<Instance>>();
             instances.push(glium::VertexBuffer::dynamic(display, &data).unwrap());
         }
 
         self.instances = instances;
     }
 
-    fn update_instances(&mut self, msecs:u64) {
+    fn update_instances(&mut self, msecs: u64) {
         for buffer in self.instances.iter_mut() {
             for instance in buffer.map().iter_mut() {
-                let (tx, ty) = self.tile_atlas.get_texture_offset_indexed(instance.tile_idx, msecs);
+                let (tx, ty) =
+                    self.tile_atlas
+                        .get_texture_offset_indexed(instance.tile_idx, msecs);
 
                 instance.tex_offset = [tx, ty];
             }
@@ -212,7 +201,10 @@ impl TileMap {
 
 impl<'a> Renderable for TileMap {
     fn render<F, S>(&self, _display: &F, target: &mut S, viewport: &Viewport, _time: u64)
-        where F: glium::backend::Facade, S: glium::Surface {
+    where
+        F: glium::backend::Facade,
+        S: glium::Surface,
+    {
 
         let (proj, scissor) = viewport.main_window();
 
@@ -220,7 +212,8 @@ impl<'a> Renderable for TileMap {
             let texture = self.tile_atlas.get_texture(pass);
             let tex_ratio = self.tile_atlas.get_tilemap_tex_ratio(pass);
 
-            let uniforms = uniform! {
+            let uniforms =
+                uniform! {
                 matrix: proj,
                 tile_size: [48u32; 2],
                 tex: texture.sampled()
@@ -235,14 +228,15 @@ impl<'a> Renderable for TileMap {
             let params = glium::DrawParameters {
                 blend: glium::Blend::alpha_blending(),
                 scissor: Some(scissor),
-                .. Default::default()
+                ..Default::default()
             };
 
             target.draw((&self.vertices, instances.per_instance().unwrap()),
                         &self.indices,
                         &self.program,
                         &uniforms,
-                        &params).unwrap();
+                        &params)
+                  .unwrap();
         }
     }
 }
@@ -265,7 +259,8 @@ fn make_map(world: &World, viewport: &Viewport) -> Vec<(DrawTile, Point)> {
     let start_corner = viewport.min_tile_pos(camera, bound).into();
     world.with_cells(start_corner, viewport.renderable_area().into(), |pos, &cell| {
         let edges = get_neighboring_edges(pos, |point| {
-            world.cell_const(&point).map_or(false, |other| other.type_ == cell.type_)
+            world.cell_const(&point)
+                 .map_or(false, |other| other.type_ == cell.type_)
         });
         let tile = DrawTile {
             kind: cell.glyph(),

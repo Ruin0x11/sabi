@@ -4,18 +4,25 @@ use renderer::ui::*;
 use renderer::ui::elements::*;
 
 pub struct ChoiceLayer {
+    window: UiWindow,
     list: UiList,
 }
 
 impl ChoiceLayer {
     pub fn new(choices: Vec<String>) -> Self {
-        ChoiceLayer { list: UiList::new((120, 120), choices) }
+        ChoiceLayer {
+            window: UiWindow::new((120, 120)),
+            list: UiList::new((120, 120), choices),
+        }
     }
 }
 
 impl UiElement for ChoiceLayer {
-    fn draw<'a>(&self, renderer: &mut UiSubRenderer<'a>) {
-        self.list.draw(renderer);
+    fn draw<'a>(&self, renderer: &UiSubRenderer<'a>) {
+        let pos = (120, 120);
+        let size = (420, 420);
+        self.window.draw(&mut renderer.sub_renderer(pos, size));
+        self.list.draw(&mut renderer.sub_renderer(pos, size));
     }
 }
 

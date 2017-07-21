@@ -37,7 +37,7 @@ impl UiBar {
 
 
 impl UiElement for UiBar {
-    fn draw<'a>(&self, renderer: &mut UiSubRenderer<'a>) {
+    fn draw<'a>(&self, renderer: &UiSubRenderer<'a>) {
         let bar_portion = (258.0 * self.percent()) as u32;
         renderer.add_tex("bar", self.pos, None, (0, 30), (258, 30));
 

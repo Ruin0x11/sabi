@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fs::File;
 use std::path::Path;
 
@@ -6,6 +8,7 @@ use glium::backend::Facade;
 use glium::index::PrimitiveType;
 use glium::Rect;
 
+use graphics::color::Color;
 use renderer::atlas::AtlasRect;
 use renderer::atlas::font::FontTexture;
 use renderer::atlas::texture_atlas::*;
@@ -116,157 +119,21 @@ pub enum TexKind {
 pub struct UiRenderer {
     ui_atlas: TextureAtlas,
     font: FontTexture,
-    draw_list: UiDrawList,
     program: glium::Program,
     font_program: glium::Program,
+    tile_colors: HashMap<usize, Color>,
 
-    color_stack: Vec<(u8, u8, u8, u8)>,
+    draw_list: RefCell<UiDrawList>,
+    color_stack: RefCell<Vec<(u8, u8, u8, u8)>>,
 }
 
 fn build_ui_atlas<F: Facade>(display: &F) -> TextureAtlas {
     TextureAtlasBuilder::new()
+        .add_texture("pixel")
         .add_texture("win")
         .add_texture("textwin")
         .add_texture("bar")
         .build(display)
-}
-
-impl UiRenderable for UiRenderer {
-    fn get_font_size(&self) -> u32 {
-        self.font.get_font_size()
-    }
-
-    fn with_color<F>(&mut self, color: (u8, u8, u8, u8), callback: F)
-    where
-        F: FnOnce(&mut UiRenderer),
-    {
-        self.color_stack.push(color);
-        callback(self);
-        self.color_stack.pop();
-    }
-
-    fn get_color(&self) -> (u8, u8, u8, u8) {
-        match self.color_stack.last() {
-            Some(color) => *color,
-            None => (255, 255, 255, 255),
-        }
-    }
-
-    fn text_width_px(&self, text: &str) -> u32 {
-        self.font().text_width_px(text)
-    }
-
-    fn wrap_text(&self, text: &str, width: u32) -> Vec<String> {
-        self.font().wrap_text(text, width)
-    }
-
-    fn repeat_tex(&mut self,
-                  key: &'static str,
-                  dir: TexDir,
-                  clipping_rect: (u32, u32, u32, u32),
-                  tex_pos: (u32, u32),
-                  tex_area: (u32, u32)) {
-        let (cxa, cya, cxb, cyb) = clipping_rect;
-        let clipping_width = cxb - cxa;
-        let clipping_height = cyb - cya;
-
-        let (tw, th) = tex_area;
-        let repeats_h;
-        let repeats_v;
-        match dir {
-            TexDir::Horizontal => {
-                repeats_h = clipping_width / tw;
-                repeats_v = 0;
-            },
-            TexDir::Vertical => {
-                repeats_h = 0;
-                repeats_v = clipping_height / th;
-            },
-            TexDir::Area => {
-                repeats_h = clipping_width / tw;
-                repeats_v = clipping_height / th;
-            },
-        }
-
-        let mut x = cxa as i32;
-        let mut y = cya as i32;
-        let tw = tw as i32;
-        let th = th as i32;
-
-        for _ in 0..(repeats_h + 1) {
-            for _ in 0..(repeats_v + 1) {
-                let screen_pos = (x, y, x + tw, y + th);
-                let color = self.get_color();
-
-                self.add_tex_internal(TexKind::Elem(key, tex_pos, tex_area),
-                                      screen_pos,
-                                      Some(clipping_rect),
-                                      color);
-
-                y += th;
-            }
-            x += tw;
-            y = cya as i32;
-        }
-    }
-
-    fn add_tex(&mut self,
-               key: &'static str,
-               screen_pos: (i32, i32),
-               clip_rect: Option<(u32, u32, u32, u32)>,
-               tex_pos: (u32, u32),
-               tex_area: (u32, u32)) {
-        let (sx, sy) = screen_pos;
-        let (tw, th) = tex_area;
-
-        let true_screen_pos = (sx, sy, sx + tw as i32, sy + th as i32);
-        let color = self.get_color();
-
-        self.add_tex_internal(TexKind::Elem(key, tex_pos, tex_area),
-                              true_screen_pos,
-                              clip_rect,
-                              color);
-    }
-
-    fn add_tex_stretch(&mut self,
-                       key: &'static str,
-                       screen_pos: (i32, i32, i32, i32),
-                       clip_rect: Option<(u32, u32, u32, u32)>,
-                       tex_pos: (u32, u32),
-                       tex_area: (u32, u32)) {
-        let color = self.get_color();
-
-        self.add_tex_internal(TexKind::Elem(key, tex_pos, tex_area), screen_pos, clip_rect, color);
-    }
-
-    fn add_string_shadow(&mut self,
-                         screen_pos: (i32, i32),
-                         clipping_rect: Option<(u32, u32, u32, u32)>,
-                         text: &str) {
-        let shadow_pos = (screen_pos.0 + 1, screen_pos.1 + 1);
-        let color = self.get_color();
-
-        self.with_color((0, 0, 0, 255), |r| { r.add_string(shadow_pos, clipping_rect, text); });
-        self.with_color(color, |r| { r.add_string(screen_pos, clipping_rect, text); });
-    }
-
-    fn add_string(&mut self,
-                  screen_pos: (i32, i32),
-                  clipping_rect: Option<(u32, u32, u32, u32)>,
-                  text: &str) {
-        if text.is_empty() {
-            return;
-        }
-        let color = self.get_color();
-
-        let mut total_text_width = 0.0;
-        for ch in text.chars() {
-            // FIXME: apparently wrong, but only thing stable
-            let added_width_ems =
-                self.add_char(screen_pos, clipping_rect, total_text_width, color, ch);
-            total_text_width += added_width_ems;
-        }
-    }
 }
 
 impl UiRenderer {
@@ -286,22 +153,32 @@ impl UiRenderer {
         UiRenderer {
             ui_atlas: atlas,
             font: font,
-            draw_list: UiDrawList::new(),
             program: program,
             font_program: font_program,
-            color_stack: Vec::new(),
+            tile_colors: HashMap::new(),
+            draw_list: RefCell::new(UiDrawList::new()),
+            color_stack: RefCell::new(Vec::new()),
         }
     }
 
-    pub fn clear(&mut self) {
-        self.draw_list.clear();
+    pub fn clear(&self) {
+        self.draw_list.borrow_mut().clear();
     }
 
     pub fn font(&self) -> &FontTexture {
         &self.font
     }
 
-    pub fn add_tex_internal(&mut self,
+    pub fn with_color<F>(&self, color: (u8, u8, u8, u8), callback: F)
+    where
+        F: FnOnce(),
+    {
+        self.color_stack.borrow_mut().push(color);
+        callback();
+        self.color_stack.borrow_mut().pop();
+    }
+
+    pub fn add_tex_internal(&self,
                             kind: TexKind,
                             screen_pos: (i32, i32, i32, i32),
                             clip_rect: Option<(u32, u32, u32, u32)>,
@@ -366,20 +243,20 @@ impl UiRenderer {
 
         let next_indices = |i| vec![i, i + 1, i + 2, i, i + 2, i + 3];
 
-        let indices = next_indices(self.draw_list.vertices.len() as u16);
+        let indices = next_indices(self.draw_list.borrow().vertices.len() as u16);
 
-        self.draw_list.vertices.extend(vertices);
-        self.draw_list.indices.extend(indices);
+        self.draw_list.borrow_mut().vertices.extend(vertices);
+        self.draw_list.borrow_mut().indices.extend(indices);
 
         // Between a draw call for every texture and merged draw calls, it is a
         // nearly 800% speed difference (or more).
 
         // self.draw_list.commands.push(cmd);
-        self.draw_list.add_command(cmd);
+        self.draw_list.borrow_mut().add_command(cmd);
     }
 
     // Returns the width of the character that was printed in EMs.
-    fn add_char(&mut self,
+    fn add_char(&self,
                 screen_pos: (i32, i32),
                 clipping_rect: Option<(u32, u32, u32, u32)>,
                 total_text_width: f32,
@@ -418,6 +295,135 @@ impl UiRenderer {
     }
 }
 
+impl UiRenderable for UiRenderer {
+    fn get_font_size(&self) -> u32 {
+        self.font.get_font_size()
+    }
+
+    fn get_color(&self) -> (u8, u8, u8, u8) {
+        match self.color_stack.borrow().last() {
+            Some(color) => *color,
+            None => (255, 255, 255, 255),
+        }
+    }
+
+    fn text_width_px(&self, text: &str) -> u32 {
+        self.font().text_width_px(text)
+    }
+
+    fn wrap_text(&self, text: &str, width: u32) -> Vec<String> {
+        self.font().wrap_text(text, width)
+    }
+
+    fn repeat_tex(&self,
+                  key: &'static str,
+                  dir: TexDir,
+                  clipping_rect: (u32, u32, u32, u32),
+                  tex_pos: (u32, u32),
+                  tex_area: (u32, u32)) {
+        let (cxa, cya, cxb, cyb) = clipping_rect;
+        let clipping_width = cxb - cxa;
+        let clipping_height = cyb - cya;
+
+        let (tw, th) = tex_area;
+        let repeats_h;
+        let repeats_v;
+        match dir {
+            TexDir::Horizontal => {
+                repeats_h = clipping_width / tw;
+                repeats_v = 0;
+            },
+            TexDir::Vertical => {
+                repeats_h = 0;
+                repeats_v = clipping_height / th;
+            },
+            TexDir::Area => {
+                repeats_h = clipping_width / tw;
+                repeats_v = clipping_height / th;
+            },
+        }
+
+        let mut x = cxa as i32;
+        let mut y = cya as i32;
+        let tw = tw as i32;
+        let th = th as i32;
+
+        for _ in 0..(repeats_h + 1) {
+            for _ in 0..(repeats_v + 1) {
+                let screen_pos = (x, y, x + tw, y + th);
+                let color = self.get_color();
+
+                self.add_tex_internal(TexKind::Elem(key, tex_pos, tex_area),
+                                      screen_pos,
+                                      Some(clipping_rect),
+                                      color);
+
+                y += th;
+            }
+            x += tw;
+            y = cya as i32;
+        }
+    }
+
+    fn add_tex(&self,
+               key: &'static str,
+               screen_pos: (i32, i32),
+               clip_rect: Option<(u32, u32, u32, u32)>,
+               tex_pos: (u32, u32),
+               tex_area: (u32, u32)) {
+        let (sx, sy) = screen_pos;
+        let (tw, th) = tex_area;
+
+        let true_screen_pos = (sx, sy, sx + tw as i32, sy + th as i32);
+        let color = self.get_color();
+
+        self.add_tex_internal(TexKind::Elem(key, tex_pos, tex_area),
+                              true_screen_pos,
+                              clip_rect,
+                              color);
+    }
+
+    fn add_tex_stretch(&self,
+                       key: &'static str,
+                       screen_pos: (i32, i32, i32, i32),
+                       clip_rect: Option<(u32, u32, u32, u32)>,
+                       tex_pos: (u32, u32),
+                       tex_area: (u32, u32)) {
+        let color = self.get_color();
+
+        self.add_tex_internal(TexKind::Elem(key, tex_pos, tex_area), screen_pos, clip_rect, color);
+    }
+
+    fn add_string_shadow(&self,
+                         screen_pos: (i32, i32),
+                         clipping_rect: Option<(u32, u32, u32, u32)>,
+                         text: &str) {
+        let shadow_pos = (screen_pos.0 + 1, screen_pos.1 + 1);
+        let color = self.get_color();
+
+        self.with_color((0, 0, 0, 255), || { self.add_string(shadow_pos, clipping_rect, text); });
+        self.with_color(color, || { self.add_string(screen_pos, clipping_rect, text); });
+    }
+
+    fn add_string(&self,
+                  screen_pos: (i32, i32),
+                  clipping_rect: Option<(u32, u32, u32, u32)>,
+                  text: &str) {
+        if text.is_empty() {
+            return;
+        }
+        let color = self.get_color();
+
+        let mut total_text_width = 0.0;
+        for ch in text.chars() {
+            // FIXME: apparently wrong, but only thing stable
+            let added_width_ems =
+                self.add_char(screen_pos, clipping_rect, total_text_width, color, ch);
+            total_text_width += added_width_ems;
+        }
+    }
+}
+
 fn make_scissor(clip_rect: (f32, f32, f32, f32), height: f32, scale: f32) -> Rect {
     let conv = |i| (i * scale) as u32;
     Rect {
@@ -437,16 +443,18 @@ impl<'a> Renderable for UiRenderer {
 
         let proj = viewport.static_projection();
         // TODO: move into struct
-        let vertices = glium::VertexBuffer::dynamic(display, &self.draw_list.vertices).unwrap();
+        let vertices = glium::VertexBuffer::dynamic(display, &self.draw_list.borrow().vertices)
+            .unwrap();
         let height = viewport.size.1 as f32;
         let mut idx_start = 0;
 
-        for cmd in self.draw_list.commands.iter() {
+        for cmd in self.draw_list.borrow().commands.iter() {
             let idx_end = idx_start + cmd.elem_count;
 
             let indices = glium::IndexBuffer::dynamic(display,
                                                       PrimitiveType::TrianglesList,
-                                                      &self.draw_list.indices[idx_start..idx_end])
+                                                      &self.draw_list.borrow().indices
+                                                          [idx_start..idx_end])
                           .unwrap();
             idx_start = idx_end;
 

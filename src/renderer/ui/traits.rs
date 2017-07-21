@@ -7,39 +7,35 @@ pub trait UiRenderable {
 
     fn wrap_text(&self, text: &str, width: u32) -> Vec<String>;
 
-    fn with_color<F>(&mut self, color: (u8, u8, u8, u8), callback: F)
-    where
-        F: FnOnce(&mut UiRenderer);
-
     fn get_color(&self) -> (u8, u8, u8, u8);
 
-    fn repeat_tex(&mut self,
+    fn repeat_tex(&self,
                   key: &'static str,
                   dir: TexDir,
                   clipping_rect: (u32, u32, u32, u32),
                   tex_pos: (u32, u32),
                   tex_area: (u32, u32));
 
-    fn add_tex(&mut self,
+    fn add_tex(&self,
                key: &'static str,
                screen_pos: (i32, i32),
                clip_rect: Option<(u32, u32, u32, u32)>,
                tex_pos: (u32, u32),
                tex_area: (u32, u32));
 
-    fn add_tex_stretch(&mut self,
+    fn add_tex_stretch(&self,
                        key: &'static str,
                        screen_pos: (i32, i32, i32, i32),
                        clip_rect: Option<(u32, u32, u32, u32)>,
                        tex_pos: (u32, u32),
                        tex_area: (u32, u32));
 
-    fn add_string_shadow(&mut self,
+    fn add_string_shadow(&self,
                          screen_pos: (i32, i32),
                          clipping_rect: Option<(u32, u32, u32, u32)>,
                          text: &str);
 
-    fn add_string(&mut self,
+    fn add_string(&self,
                   screen_pos: (i32, i32),
                   clipping_rect: Option<(u32, u32, u32, u32)>,
                   text: &str);

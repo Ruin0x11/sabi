@@ -8,14 +8,12 @@ use item::{ItemContainer, ItemEffect};
 use log;
 use point::Point;
 use util::clamp;
-use macros::{Getter, Get};
+use macros::{Getter, TomlInstantiate};
 use toml;
 use uuid;
 
 // For persistence between worlds, because the entity ID may change.
-make_getter!(Uuid {
-    uuid: uuid::Uuid
-});
+make_getter!(Uuid { uuid: uuid::Uuid });
 
 impl Default for Uuid {
     fn default() -> Self {
@@ -25,17 +23,15 @@ impl Default for Uuid {
 
 impl Uuid {
     pub fn new() -> Self {
-        Uuid {
-            uuid: uuid::Uuid::new_v4()
-        }
+        Uuid { uuid: uuid::Uuid::new_v4() }
     }
 }
 
 /// Interesting flags for mob entities.
 make_getter!(Flags {
-    is_invulnerable: bool,
-    reflects_ranged: bool,
-});
+                 is_invulnerable: bool,
+                 reflects_ranged: bool,
+             });
 
 impl Default for Flags {
     fn default() -> Self {
@@ -96,9 +92,7 @@ impl Default for Props {
 
 impl Props {
     pub fn new() -> Self {
-        Props {
-            props: Properties::new(),
-        }
+        Props { props: Properties::new() }
     }
 }
 
@@ -273,9 +267,7 @@ impl Default for Log {
 
 impl Log {
     pub fn new(ident: &str) -> Self {
-        Log {
-            ident: ident.to_string(),
-        }
+        Log { ident: ident.to_string() }
     }
 
     pub fn get(&self) -> &'static Logger {
@@ -290,9 +282,7 @@ make_getter!(Inventory {
 
 impl Default for Inventory {
     fn default() -> Self {
-        Inventory {
-            container: ItemContainer::new(),
-        }
+        Inventory { container: ItemContainer::new() }
     }
 }
 
@@ -306,7 +296,7 @@ pub struct Slot {
 pub enum SlotKind {
     Arm,
     Head,
-    Legs
+    Legs,
 }
 
 impl fmt::Display for Slot {
@@ -333,15 +323,13 @@ impl Default for Equipment {
 
 impl Equipment {
     pub fn new(slots: Vec<Slot>) -> Self {
-        Equipment {
-            slots: slots,
-        }
+        Equipment { slots: slots }
     }
 
     pub fn can_equip(&self, slot_idx: usize) -> bool {
         let slot = match self.slots.get(slot_idx) {
             Some(s) => s,
-            None    => return false,
+            None => return false,
         };
 
         true
@@ -361,8 +349,6 @@ impl Default for Npc {
 
 impl Npc {
     pub fn new() -> Self {
-        Npc {
-            quests: Vec::new()
-        }
+        Npc { quests: Vec::new() }
     }
 }

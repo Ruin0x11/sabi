@@ -12,6 +12,8 @@ use texture_packer::{TexturePacker, TexturePackerConfig};
 use texture_packer::importer::ImageImporter;
 use texture_packer::exporter::ImageExporter;
 
+use graphics::color::{self, Color};
+
 mod config;
 pub mod font;
 pub mod texture_atlas;
@@ -66,6 +68,7 @@ pub struct AtlasTileData {
 pub struct AtlasTile {
     pub data: AtlasTileData,
     pub cached_rect: RefCell<Option<AtlasTextureRegion>>,
+    pub color: Color,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -102,7 +105,7 @@ pub struct TileAtlasBuilder<'a> {
     pub file_hash: String,
 }
 
-impl <'a> TileAtlasBuilder<'a> {
+impl<'a> TileAtlasBuilder<'a> {
     pub fn new() -> Self {
         let mut builder = TileAtlasBuilder {
             locations: HashMap::new(),
@@ -125,6 +128,7 @@ impl <'a> TileAtlasBuilder<'a> {
             let tile = AtlasTile {
                 data: tile_data,
                 cached_rect: RefCell::new(None),
+                color: color::BLACK,
             };
             frame.offsets.insert(index.clone(), tile);
 
@@ -144,7 +148,8 @@ impl <'a> TileAtlasBuilder<'a> {
             if packer.can_pack(&texture) {
                 packer.pack_own(path_string.to_string(), texture).unwrap();
                 let rect = packer.get_frame(path_string).unwrap().frame;
-                self.frames.insert(path_string.to_string(), AtlasFrame::new(idx, rect, tile_size));
+                self.frames
+                    .insert(path_string.to_string(), AtlasFrame::new(idx, rect, tile_size));
                 // cannot return self here, since self already borrowed, so
                 // cannot use builder pattern.
                 return;
@@ -161,7 +166,8 @@ impl <'a> TileAtlasBuilder<'a> {
             let mut packer = &mut self.packers[packer_idx];
             packer.pack_own(path_string.to_string(), texture).unwrap();
             let rect = packer.get_frame(&path_string).unwrap().frame;
-            self.frames.insert(path_string.to_string(), AtlasFrame::new(packer_idx, rect, tile_size));
+            self.frames
+                .insert(path_string.to_string(), AtlasFrame::new(packer_idx, rect, tile_size));
         }
     }
 
@@ -179,9 +185,10 @@ impl <'a> TileAtlasBuilder<'a> {
         self.packers.push(TexturePacker::new_skyline(config));
     }
 
-    pub fn build<F: Facade>(&self, display: &F, packed_tex_folder: &str) -> TileAtlas {
+    pub fn build<F: Facade>(&mut self, display: &F, packed_tex_folder: &str) -> TileAtlas {
         let mut textures = Vec::new();
 
+        // Create cached atlas texture directory
         let packed_folder_path = config::get_config_cache_path(packed_tex_folder);
 
         if Path::exists(packed_folder_path.as_path()) {
@@ -190,19 +197,32 @@ impl <'a> TileAtlasBuilder<'a> {
 
         fs::create_dir_all(packed_folder_path.as_path()).unwrap();
 
+        let mut images = Vec::new();
+
+        // Save the packed atlas textures to a cached location
         for (idx, packer) in self.packers.iter().enumerate() {
-            let image = ImageExporter::export(packer).unwrap();
+            let packer_image = ImageExporter::export(packer).unwrap();
 
             let mut file_path = packed_folder_path.clone();
             file_path.push(&format!("{}.png", idx));
 
             let mut file = File::create(file_path).unwrap();
 
-            image.save(&mut file, image::PNG).unwrap();
-            textures.push(make_texture(display, image));
+            packer_image.save(&mut file, image::PNG).unwrap();
+            images.push(packer_image.clone());
+            textures.push(make_texture(display, packer_image));
         }
 
         println!("Saved {}", packed_tex_folder);
+
+        // Generate minimap colors for tiles
+        for frame in self.frames.values_mut() {
+            for offset in frame.offsets.values_mut() {
+                let image = &images[frame.texture_idx];
+                let color = tile_minimap_color(&frame.rect, &frame.tile_size, offset, &image);
+                offset.color = color;
+            }
+        }
 
         let config = TileAtlasConfig {
             locations: self.locations.clone(),
@@ -214,6 +234,19 @@ impl <'a> TileAtlasBuilder<'a> {
 
         TileAtlas::new(config, textures)
     }
+}
+
+fn tile_minimap_color(rect: &AtlasRect,
+                      tile_size: &(u32, u32),
+                      offset: &AtlasTile,
+                      texture: &DynamicImage)
+                      -> Color {
+    let x = offset.data.offset.0 * tile_size.0 + rect.x;
+    let y = offset.data.offset.1 * tile_size.1 + rect.y;
+
+    let pixel = texture.get_pixel(x, y);
+
+    Color::new(pixel.data[0], pixel.data[1], pixel.data[2])
 }
 
 impl TileAtlas {
@@ -239,11 +272,7 @@ impl TileAtlas {
                 let tex_ratio = self.get_sprite_tex_ratio(tile_type);
                 let add_offset = get_add_offset(&frame.rect, &frame.tile_size);
 
-                let ratio = if tile.data.is_autotile {
-                    2
-                } else {
-                    1
-                };
+                let ratio = if tile.data.is_autotile { 2 } else { 1 };
 
                 let tx = ((tile.data.offset.0 + add_offset.0) * ratio) as f32 * tex_ratio[0];
                 let ty = ((tile.data.offset.1 + add_offset.1) * ratio) as f32 * tex_ratio[1];
@@ -255,7 +284,11 @@ impl TileAtlas {
             }
         }
 
-        self.indices = self.config.locations.keys().map(|l| l.to_string()).collect();
+        self.indices = self.config
+                           .locations
+                           .keys()
+                           .map(|l| l.to_string())
+                           .collect();
     }
 
     fn frame_size(&self, frame: &AtlasFrame) -> (u32, u32) {
@@ -274,7 +307,6 @@ impl TileAtlas {
     pub fn get_tile_texture_idx(&self, tile_type: &str) -> usize {
         self.get_frame(tile_type).texture_idx
     }
-
 
     pub fn get_tilemap_tex_ratio(&self, texture_idx: usize) -> [f32; 2] {
         let dimensions = self.texture_size(texture_idx);
@@ -314,8 +346,10 @@ impl TileAtlas {
         let frame = self.get_frame(tile_type);
         let tile = &frame.offsets[tile_type];
 
-        let (mut tx, ty, tw, _) = tile.cached_rect.borrow()
-            .expect("Texture atlas regions weren't cached yet.");
+        let (mut tx, ty, tw, _) =
+            tile.cached_rect
+                .borrow()
+                .expect("Texture atlas regions weren't cached yet.");
 
         match tile.data.tile_kind {
             TileKind::Static => (),
@@ -324,14 +358,19 @@ impl TileAtlas {
                 let x_index_offset = current_frame % frame_count;
 
                 tx += x_index_offset as f32 * tw;
-            }
+            },
         }
 
         (tx, ty)
     }
 
     pub fn get_tile_index(&self, tile_kind: &str) -> usize {
-        self.indices.iter().enumerate().find(|&(_, i)| i == tile_kind).unwrap().0
+        self.indices
+            .iter()
+            .enumerate()
+            .find(|&(_, i)| i == tile_kind)
+            .unwrap()
+            .0
     }
 
     fn get_tile_kind_indexed(&self, tile_idx: usize) -> &String {
@@ -361,6 +400,7 @@ fn get_add_offset(rect: &AtlasRect, tile_size: &(u32, u32)) -> (u32, u32) {
 
 pub fn make_texture<F: Facade>(display: &F, image: DynamicImage) -> Texture2d {
     let dimensions = image.dimensions();
-    let image = glium::texture::RawImage2d::from_raw_rgba_reversed(image.to_rgba().into_raw(), dimensions);
+    let image = glium::texture::RawImage2d::from_raw_rgba_reversed(image.to_rgba().into_raw(),
+                                                                   dimensions);
     Texture2d::new(display, image).unwrap()
 }

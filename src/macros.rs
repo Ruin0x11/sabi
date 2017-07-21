@@ -1,13 +1,9 @@
 /// A macro to send a message to the game message log. The syntax is
-/// similar to format!, but with an ident and '=' before the
-/// expression, like:
+/// similar to format!.
 ///
 /// ```no_run
-/// mes!(world, "{}: {}", a=world.some_immut_fn(), b=world.some_mut_fn());
+/// mes!(world, "{}: {}", world.some_immut_fn(), world.some_mut_fn());
 /// ```
-///
-/// It would be better if some temporary names could be dynamically generated
-/// instead of having to provide them each time.
 macro_rules! mes {
     ($w:expr) => {
         $w.next_message();
@@ -142,8 +138,35 @@ pub trait Getter<T: Default> {
     fn get_for(table: &toml::value::Table) -> Result<T, ()>;
 }
 
-pub struct Get;
+pub struct TomlInstantiate;
 
+/// A macro for allowing structs to be deserialized from TOML, like so:
+///
+///```toml
+/// [Meta]
+/// parent="mob"
+///
+/// [Components.Name]
+/// name="putit"
+/// proper_name="Dood"
+///
+/// [Components.Health]
+/// max_hit_points=100
+/// hit_points=100
+///```
+///
+/// The only requirement is that the struct has to implement Default. Omitted fields use the
+/// values supplied by Default.
+///
+/// # Usage
+///
+///```no_run
+/// make_getter!(Name {
+///     name: String,
+///     proper_name: Option<String>,
+///     gender: Gender,
+/// });
+///```
 #[macro_export]
 macro_rules! make_getter {
     ($s:ident { $( $x:ident: $y:ty ),+ $(,)* } ) => {
@@ -152,19 +175,19 @@ macro_rules! make_getter {
             $( pub $x: $y ),+
         }
 
-        impl Getter<$s> for Get {
+        impl Getter<$s> for TomlInstantiate {
             fn get_for(table: &toml::value::Table) -> Result<$s, ()> {
-                let mut default: $s = Default::default();
+                let mut component: $s = Default::default();
                 $(
                     if table.contains_key(stringify!($x)) {
                         match table[stringify!($x)].clone().try_into::<$y>() {
-                            Ok(val) => default.$x = val,
+                            Ok(val) => component.$x = val,
                             Err(_) => return Err(())
                         }
                     }
                 )*
 
-                    Ok(default)
+                    Ok(component)
             }
         }
     }

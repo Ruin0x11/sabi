@@ -6,12 +6,13 @@ use ecs::traits::*;
 use engine::keys::{Key, KeyCode};
 use glium::glutin::{VirtualKeyCode, ElementState};
 use glium::glutin;
-use graphics::Color;
+use graphics::color::{self, Color};
 use graphics::cell::StairDir;
 use logic::Action;
 use logic::entity::EntityQuery;
-use point::{Direction, Point, LineIter};
+use point::{Direction, Point, LineIter, SquareIter};
 use renderer;
+use renderer::ui::layers::*;
 use world::traits::*;
 use world::World;
 
@@ -35,6 +36,7 @@ pub enum Command {
     Pickup,
     Drop,
     Inventory,
+    Map,
     Wait,
     Quit,
 
@@ -70,7 +72,8 @@ impl From<Key> for Command {
             Key { code: KeyCode::Period, .. } => Command::UseStairs(StairDir::Ascending),
             Key { code: KeyCode::Comma, .. } => Command::UseStairs(StairDir::Descending),
 
-            Key { code: KeyCode::M, .. } => Command::Look,
+            Key { code: KeyCode::M, .. } => Command::Map,
+            Key { code: KeyCode::P, .. } => Command::Look,
             Key { code: KeyCode::G, .. } => Command::Pickup,
             Key { code: KeyCode::D, .. } => Command::Drop,
             Key { code: KeyCode::I, .. } => Command::Inventory,
@@ -92,6 +95,7 @@ pub fn process_player_command(context: &mut GameContext, command: Command) -> Co
         Command::Pickup => cmd_pickup(context),
         Command::Drop => cmd_drop(context),
         Command::Inventory => cmd_inventory(context),
+        Command::Map => cmd_map(context),
 
         Command::Move(dir) => cmd_player_move(context, dir),
         Command::Wait => cmd_add_action(context, Action::Wait),
@@ -102,13 +106,13 @@ pub fn process_player_command(context: &mut GameContext, command: Command) -> Co
 }
 
 fn cmd_player_move(context: &mut GameContext, dir: Direction) -> CommandResult<()> {
-    // Check if we're bumping into something interactive, and if so don't consume a turn.
     let position = player_pos(context)?;
     let new_pos = position + dir;
     let mob_opt = context.state
                          .world
                          .find_entity(new_pos, |e| context.state.world.is_mob(*e));
     if let Some(mob) = mob_opt {
+        // Check if we're bumping into an NPC, and if so don't consume a turn.
         if context.state.world.is_npc(mob) {
             mes!(context.state.world, "{}: Hello!", mob.name(&context.state.world));
             return Ok(());
@@ -116,8 +120,7 @@ fn cmd_player_move(context: &mut GameContext, dir: Direction) -> CommandResult<(
 
         let player = context.state.world.player().unwrap();
         if mob.is_friendly(player, &context.state.world) {
-            mes!(context.state.world, "Don't do that to {}.", mob.name(&context.state.world));
-            return Ok(());
+            return cmd_add_action(context, Action::SwitchPlaces(mob));
         }
     }
 
@@ -188,6 +191,31 @@ fn cmd_inventory(context: &mut GameContext) -> CommandResult<()> {
 
     mes!(context.state.world, "You chose: {}", choose);
     Err(CommandError::Cancel)
+}
+
+fn terrain_region(context: &mut GameContext, center: Point, radius: i32) -> Vec<Color> {
+    let mut tiles = Vec::new();
+    for point in SquareIter::new(center, radius) {
+        let cell = context.state.world.cell(&point);
+        let color = match cell {
+            Some(c) => renderer::with(|r| r.cell_to_color(c)),
+            None => color::BLACK,
+        };
+        tiles.push(color);
+    }
+    tiles
+}
+
+fn cmd_map(context: &mut GameContext) -> CommandResult<()> {
+    let center = player_pos(context)?;
+    let map = terrain_region(context, center, 16);
+
+    renderer::with_mut(|renderer| {
+        renderer.update(&context.state);
+        renderer.query(&mut MapLayer::new(map, (33, 33)));
+    });
+
+    Ok(())
 }
 
 pub(super) fn player_pos(context: &GameContext) -> CommandResult<Point> {
@@ -284,8 +312,6 @@ where
         Err(CommandError::Cancel)
     }
 }
-
-use renderer::ui::layers::{ChoiceLayer, InputLayer};
 
 pub fn menu_choice(context: &mut GameContext, choices: Vec<String>) -> Option<usize> {
     renderer::with_mut(|renderer| {

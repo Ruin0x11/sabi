@@ -2,7 +2,7 @@ use std::f64;
 
 pub type Color = RGB;
 
-#[derive (PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum Color16 {
     Black,
     Red,
@@ -15,14 +15,15 @@ pub enum Color16 {
     Default,
 }
 
-const LOOKUP_16 : [(RGB, Color16); 8] = [(BLACK,   Color16::Black),
-                                         (RED,     Color16::Red),
-                                         (GREEN,   Color16::Green),
-                                         (YELLOW,  Color16::Yellow),
-                                         (BLUE,    Color16::Blue),
-                                         (MAGENTA, Color16::Magenta),
-                                         (CYAN,    Color16::Cyan),
-                                         (WHITE,   Color16::White),
+const LOOKUP_16: [(RGB, Color16); 8] = [
+    (BLACK, Color16::Black),
+    (RED, Color16::Red),
+    (GREEN, Color16::Green),
+    (YELLOW, Color16::Yellow),
+    (BLUE, Color16::Blue),
+    (MAGENTA, Color16::Magenta),
+    (CYAN, Color16::Cyan),
+    (WHITE, Color16::White),
 ];
 
 impl From<Color256> for Color16 {
@@ -71,20 +72,20 @@ impl Color256 {
             232...255 => {
                 let c = (self.0 - 232) / 4;
                 Color216::new(c, c, c)
-            }
+            },
             _ => panic!("Unimplemented color {}", self.0),
         }
     }
 }
 
 impl From<Color216> for Color256 {
-    fn from(rgb : Color216) -> Self {
+    fn from(rgb: Color216) -> Self {
         Color256(rgb.to_u8())
     }
 }
 
 impl From<u8> for Color256 {
-    fn from(u : u8) -> Self {
+    fn from(u: u8) -> Self {
         Color256(u)
     }
 }
@@ -96,7 +97,7 @@ pub struct Color216 {
 }
 
 impl Color216 {
-    pub fn new(r : u8, g : u8, b : u8) -> Self {
+    pub fn new(r: u8, g: u8, b: u8) -> Self {
         assert!(r < 6);
         assert!(g < 6);
         assert!(b < 6);
@@ -107,10 +108,9 @@ impl Color216 {
     pub fn to_u8(&self) -> u8 {
         16 + self.r * 36 + self.g * 6 + self.b
     }
-
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct RGB {
     pub r: u8,
     pub g: u8,
@@ -118,7 +118,7 @@ pub struct RGB {
 }
 
 impl RGB {
-    pub fn new(r : u8, g : u8, b : u8) -> Self {
+    pub fn new(r: u8, g: u8, b: u8) -> Self {
         RGB { r: r, g: g, b: b }
     }
 
@@ -131,14 +131,30 @@ impl RGB {
     }
 }
 
-pub const BLACK:   Color =  Color{ r: 0,    g: 0,   b: 0 };
-pub const RED:     Color =  Color{ r: 255,  g: 0,   b: 0 };
-pub const GREEN:   Color =  Color{ r: 0,    g: 255, b: 0 };
-pub const YELLOW:  Color =  Color{ r: 255,  g: 255, b: 0 };
-pub const BLUE:    Color =  Color{ r: 0,    g: 0,   b: 255 };
-pub const MAGENTA: Color =  Color{ r: 255,  g: 0,   b: 255 };
-pub const CYAN:    Color =  Color{ r: 0,    g: 255, b: 255 };
-pub const WHITE:   Color =  Color{ r: 255,  g: 255, b: 255 };
+pub const BLACK: Color = Color { r: 0, g: 0, b: 0 };
+pub const RED: Color = Color { r: 255, g: 0, b: 0 };
+pub const GREEN: Color = Color { r: 0, g: 255, b: 0 };
+pub const YELLOW: Color = Color {
+    r: 255,
+    g: 255,
+    b: 0,
+};
+pub const BLUE: Color = Color { r: 0, g: 0, b: 255 };
+pub const MAGENTA: Color = Color {
+    r: 255,
+    g: 0,
+    b: 255,
+};
+pub const CYAN: Color = Color {
+    r: 0,
+    g: 255,
+    b: 255,
+};
+pub const WHITE: Color = Color {
+    r: 255,
+    g: 255,
+    b: 255,
+};
 
 #[cfg(test)]
 mod tests {
@@ -146,13 +162,13 @@ mod tests {
 
     #[test]
     fn test_rgb_to_16() {
-        assert_eq!(Color16::from(BLACK),   Color16::Black);
-        assert_eq!(Color16::from(RED),     Color16::Red);
-        assert_eq!(Color16::from(GREEN),   Color16::Green);
-        assert_eq!(Color16::from(YELLOW),  Color16::Yellow);
-        assert_eq!(Color16::from(BLUE),    Color16::Blue);
+        assert_eq!(Color16::from(BLACK), Color16::Black);
+        assert_eq!(Color16::from(RED), Color16::Red);
+        assert_eq!(Color16::from(GREEN), Color16::Green);
+        assert_eq!(Color16::from(YELLOW), Color16::Yellow);
+        assert_eq!(Color16::from(BLUE), Color16::Blue);
         assert_eq!(Color16::from(MAGENTA), Color16::Magenta);
-        assert_eq!(Color16::from(CYAN),    Color16::Cyan);
-        assert_eq!(Color16::from(WHITE),   Color16::White);
+        assert_eq!(Color16::from(CYAN), Color16::Cyan);
+        assert_eq!(Color16::from(WHITE), Color16::White);
     }
 }

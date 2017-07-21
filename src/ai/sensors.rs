@@ -7,7 +7,7 @@ use logic::entity::EntityQuery;
 use world::traits::Query;
 use world::World;
 
-use super::{Ai, AiData, AiFacts};
+use super::{Ai, AiFacts};
 
 macro_rules! generate_sensors {
     ( $( $prop:ident, $default:expr, $sensor:ident );+ $(;)*) => {
@@ -81,7 +81,10 @@ fn sense_target_visible(world: &World, entity: Entity, ai: &Ai) -> bool {
 }
 
 fn sense_target_dead(world: &World, _entity: Entity, ai: &Ai) -> bool {
-    ai.data.target.borrow().map_or(false, |t| !world.is_alive(t))
+    ai.data
+      .target
+      .borrow()
+      .map_or(false, |t| !world.is_alive(t))
 }
 
 fn sense_next_to_target(world: &World, entity: Entity, ai: &Ai) -> bool {
@@ -91,9 +94,7 @@ fn sense_next_to_target(world: &World, entity: Entity, ai: &Ai) -> bool {
             None => return false,
         };
 
-        world.position(entity)
-            .unwrap()
-            .is_next_to(pos)
+        world.position(entity).unwrap().is_next_to(pos)
     })
 }
 
@@ -128,9 +129,10 @@ fn sense_target_in_inventory(world: &World, entity: Entity, ai: &Ai) -> bool {
 }
 
 fn sense_at_position(world: &World, entity: Entity, ai: &Ai) -> bool {
-    ai.data.important_pos.borrow().map_or(false, |pos| {
-        world.position(entity).map_or(false, |ep| ep == pos)
-    })
+    ai.data
+      .important_pos
+      .borrow()
+      .map_or(false, |pos| world.position(entity).map_or(false, |ep| ep == pos))
 }
 
 fn sense_has_target(_world: &World, _entity: Entity, ai: &Ai) -> bool {
@@ -139,12 +141,14 @@ fn sense_has_target(_world: &World, _entity: Entity, ai: &Ai) -> bool {
 
 fn sense_health_low(world: &World, entity: Entity, _ai: &Ai) -> bool {
     world.ecs()
-        .healths
-        .map_or(false, |h| h.percent() < 0.2, entity)
+         .healths
+         .map_or(false, |h| h.percent() < 0.2, entity)
 }
 
 fn sense_found_item(world: &World, entity: Entity, _ai: &Ai) -> bool {
-    world.seen_entities(entity).iter().any(|i| world.is_item(*i))
+    world.seen_entities(entity)
+         .iter()
+         .any(|i| world.is_item(*i))
 }
 
 fn sense_always_true(_world: &World, _entity: Entity, _ai: &Ai) -> bool {
@@ -162,7 +166,7 @@ pub struct Sensor {
 
 impl Sensor {
     pub fn new<F>(callback: F) -> Self
-        where
+    where
         F: 'static + Fn(&World, Entity, &Ai) -> bool,
     {
         Sensor { callback: Box::new(callback) }

@@ -10,7 +10,7 @@ use rand::{self, Rng};
 use world::traits::*;
 use world::World;
 
-use super::{Ai, AiData, AiProp};
+use super::{Ai, AiProp};
 
 macro_rules! generate_ai_actions {
     ( $( $action:ident, $func:ident );+ $(;)*) => {
@@ -152,15 +152,25 @@ fn direction_towards_target(entity: Entity, world: &World) -> Option<Direction> 
 fn warn_of_unreachable_states(entity: Entity, world: &World, ai: &Ai) {
     warn_ecs!(world, entity, "AI stuck: {}", ai.data.debug_info());
     if let Err(failed_state) = ai.data.get_plan() {
-        let mut needed: Vec<AiProp> = ai.data.goal.borrow().facts.iter().filter(|&(cond, val)| {
-            failed_state.facts.get(cond).map_or(false, |f| f != val)
-        }).map(|(cond, _)| cond.clone()).collect();
+        let mut needed: Vec<AiProp> =
+            ai.data
+              .goal
+              .borrow()
+              .facts
+              .iter()
+              .filter(|&(cond, val)| failed_state.facts.get(cond).map_or(false, |f| f != val))
+              .map(|(cond, _)| cond.clone())
+              .collect();
 
         for action in ai.data.planner.get_actions().into_iter() {
             let effects = ai.data.planner.actions(action);
-            let satisfied: Vec<AiProp> = effects.postconditions.iter().filter(|&(cond, val)| {
+            let satisfied: Vec<AiProp> = effects.postconditions
+                                                .iter()
+                                                .filter(|&(cond, val)| {
                 failed_state.facts.get(cond).map_or(true, |f| f == val)
-            }).map(|(cond, _)| cond.clone()).collect();
+            })
+                                                .map(|(cond, _)| cond.clone())
+                                                .collect();
 
             for s in satisfied {
                 needed.retain(|u| *u != s);

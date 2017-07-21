@@ -1,10 +1,8 @@
 use calx_ecs::Entity;
-use rand::{self, Rng};
 
 use ai::*;
 use ecs::traits::ComponentQuery;
 use logic::entity::EntityQuery;
-use point::Point;
 use world::World;
 use world::traits::Query;
 

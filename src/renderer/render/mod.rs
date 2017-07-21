@@ -15,6 +15,8 @@ use glium::backend::glutin_backend::GlutinFacade;
 use glium::backend::Facade;
 use glium::index::PrimitiveType;
 
+use graphics::cell::Cell;
+use graphics::color::Color;
 use renderer::RenderUpdate;
 use renderer::ui::*;
 use state::GameState;
@@ -188,7 +190,8 @@ impl RenderContext {
         self.shadowmap
             .render(&self.backend, &mut target, &self.viewport, millis);
 
-        self.ui.render(&self.backend, &mut target, &self.viewport, millis);
+        self.ui
+            .render(&self.backend, &mut target, &self.viewport, millis);
 
         target.finish().unwrap();
     }
@@ -244,6 +247,11 @@ impl RenderContext {
         }
 
         None
+    }
+
+    pub fn cell_to_color(&self, tile: &Cell) -> Color {
+        let tile_glyph = tile.glyph();
+        self.tilemap.get_tile(tile_glyph).color
     }
 }
 
