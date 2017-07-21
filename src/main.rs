@@ -103,30 +103,37 @@ fn game_loop() {
     'outer: loop {
         let mut keys = Vec::new();
         let mut resize = None;
-        let quit = renderer::with(|rc| {
-            for event in rc.poll_events() {
-                match event {
-                    glutin::Event::Closed => return true,
-                    glutin::Event::Resized(w, h) => {
-                        resize = Some((w, h));
-                        continue;
-                    },
-                    _ => (),
-                }
+        let mut quit = false;
+        renderer::with_mut(|rc| {
+            rc.poll_events(|event| match event {
+                               glutin::Event::WindowEvent { event, .. } => {
+                                   match event {
+                                       glutin::WindowEvent::Closed => quit = true,
+                                       glutin::WindowEvent::Resized(w, h) => {
+                                           resize = Some((w, h));
+                                       },
+                                       _ => (),
+                                   }
 
-                match event {
-                    glutin::Event::KeyboardInput(ElementState::Pressed, _, Some(code)) => {
-                        match code {
-                            VirtualKeyCode::Escape => return true,
-                            _ => {
-                                let key = Key::from(KeyCode::from(code));
-                                keys.push(key);
-                            },
-                        }
-                    },
-                    _ => (),
-                }
-            }
+                                   match event {
+                                       glutin::WindowEvent::KeyboardInput { input, .. } => {
+                                           if let ElementState::Pressed = input.state {
+                                               if let Some(code) = input.virtual_keycode {
+                                                   match code {
+                                                       VirtualKeyCode::Escape => quit = true,
+                                                       _ => {
+                                                           let key = Key::from(KeyCode::from(code));
+                                                           keys.push(key);
+                                                       },
+                                                   }
+                                               }
+                                           }
+                                       },
+                                       _ => (),
+                                   }
+                               },
+                               _ => (),
+                           });
 
             false
         });

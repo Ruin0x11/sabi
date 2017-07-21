@@ -27,22 +27,27 @@ impl UiElement for ChoiceLayer {
 }
 
 impl UiLayer for ChoiceLayer {
-    fn on_event(&mut self, event: glutin::Event) -> EventResult {
+    fn on_event(&mut self, event: glutin::WindowEvent) -> EventResult {
         match event {
-            glutin::Event::KeyboardInput(ElementState::Pressed, _, Some(code)) => {
-                match code {
-                    VirtualKeyCode::Escape => EventResult::Canceled,
-                    VirtualKeyCode::Return => EventResult::Done,
-                    VirtualKeyCode::Up => {
-                        self.list.select_prev();
-                        EventResult::Consumed(None)
-                    },
-                    VirtualKeyCode::Down => {
-                        self.list.select_next();
-                        EventResult::Consumed(None)
-                    },
-                    _ => EventResult::Ignored,
+            glutin::WindowEvent::KeyboardInput { input, .. } => {
+                if ElementState::Pressed == input.state {
+                    if let Some(code) = input.virtual_keycode {
+                        match code {
+                            VirtualKeyCode::Escape => return EventResult::Canceled,
+                            VirtualKeyCode::Return => return EventResult::Done,
+                            VirtualKeyCode::Up => {
+                                self.list.select_prev();
+                                return EventResult::Consumed(None);
+                            },
+                            VirtualKeyCode::Down => {
+                                self.list.select_next();
+                                return EventResult::Consumed(None);
+                            },
+                            _ => return EventResult::Ignored,
+                        }
+                    }
                 }
+                EventResult::Ignored
             },
             _ => EventResult::Ignored,
         }

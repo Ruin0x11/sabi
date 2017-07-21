@@ -193,8 +193,12 @@ fn cmd_inventory(context: &mut GameContext) -> CommandResult<()> {
     Err(CommandError::Cancel)
 }
 
-fn terrain_region(context: &mut GameContext, center: Point, radius: i32) -> Vec<Color> {
+fn terrain_region(context: &mut GameContext,
+                  center: Point,
+                  radius: i32)
+                  -> (Vec<Color>, (u32, u32)) {
     let mut tiles = Vec::new();
+
     for point in SquareIter::new(center, radius) {
         let cell = context.state.world.cell(&point);
         let color = match cell {
@@ -203,16 +207,19 @@ fn terrain_region(context: &mut GameContext, center: Point, radius: i32) -> Vec<
         };
         tiles.push(color);
     }
-    tiles
+
+    let true_radius = (tiles.len() as f32).sqrt() as u32;
+
+    (tiles, (true_radius, true_radius))
 }
 
 fn cmd_map(context: &mut GameContext) -> CommandResult<()> {
     let center = player_pos(context)?;
-    let map = terrain_region(context, center, 16);
+    let (map, size) = terrain_region(context, center, 32);
 
     renderer::with_mut(|renderer| {
         renderer.update(&context.state);
-        renderer.query(&mut MapLayer::new(map, (33, 33)));
+        renderer.query(&mut MapLayer::new(map, size));
     });
 
     Ok(())
@@ -272,31 +279,44 @@ where
 
         rc.start_loop(|renderer, event| {
             match event {
-                glutin::Event::KeyboardInput(ElementState::Pressed, _, Some(code)) => {
-                    println!("Key: {:?}", code);
-                    {
-                        let world = &mut context.state.world;
-                        match code {
-                            VirtualKeyCode::Up => world.flags_mut().camera.y -= 1,
-                            VirtualKeyCode::Down => world.flags_mut().camera.y += 1,
-                            VirtualKeyCode::Left => world.flags_mut().camera.x -= 1,
-                            VirtualKeyCode::Right => world.flags_mut().camera.x += 1,
-                            VirtualKeyCode::Escape => return Some(renderer::Action::Stop),
-                            VirtualKeyCode::Return => {
-                                selected = true;
-                                return Some(renderer::Action::Stop);
-                            },
-                            _ => (),
-                        }
-                        let camera = world.flags().camera;
-                        result = camera;
-                        callback(camera, world);
+                glutin::Event::WindowEvent { event, .. } => {
+                    match event {
+                        glutin::WindowEvent::KeyboardInput { input, .. } => {
+                            if ElementState::Pressed == input.state {
+                                if let Some(code) = input.virtual_keycode {
+                                    println!("Key: {:?}", code);
+                                    {
+                                        let world = &mut context.state.world;
+                                        match code {
+                                            VirtualKeyCode::Up => world.flags_mut().camera.y -= 1,
+                                            VirtualKeyCode::Down => world.flags_mut().camera.y += 1,
+                                            VirtualKeyCode::Left => world.flags_mut().camera.x -= 1,
+                                            VirtualKeyCode::Right => {
+                                                world.flags_mut().camera.x += 1
+                                            },
+                                            VirtualKeyCode::Escape => {
+                                                return Some(renderer::Action::Stop)
+                                            },
+                                            VirtualKeyCode::Return => {
+                                                selected = true;
+                                                return Some(renderer::Action::Stop);
+                                            },
+                                            _ => (),
+                                        }
+                                        let camera = world.flags().camera;
+                                        result = camera;
+                                        callback(camera, world);
 
-                        draw_targeting_line(player_pos, world);
+                                        draw_targeting_line(player_pos, world);
+                                    }
+
+                                    renderer.update(&context.state);
+
+                                }
+                            }
+                        },
+                        _ => (),
                     }
-
-                    renderer.update(&context.state);
-
                 },
                 _ => (),
             }

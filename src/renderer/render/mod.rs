@@ -10,8 +10,7 @@ use std::time::{Duration, Instant};
 
 use glium;
 use glium::glutin;
-use glium::{DisplayBuild, Surface};
-use glium::backend::glutin_backend::GlutinFacade;
+use glium::Surface;
 use glium::backend::Facade;
 use glium::index::PrimitiveType;
 
@@ -66,7 +65,8 @@ pub struct Vertex {
 implement_vertex!(Vertex, position);
 
 pub struct RenderContext {
-    backend: GlutinFacade,
+    backend: glium::Display,
+    events_loop: glutin::EventsLoop,
     ui: Ui,
 
     background: Background,
@@ -80,14 +80,17 @@ pub struct RenderContext {
 
 impl RenderContext {
     pub fn new() -> Self {
-        let display = glutin::WindowBuilder::new()
-            .with_vsync()
-            .with_dimensions(SCREEN_WIDTH, SCREEN_HEIGHT)
-            .with_title("sabi")
-            .build_glium()
-            .unwrap();
+        let mut events_loop = glutin::EventsLoop::new();
 
-        let scale = display.get_window().unwrap().hidpi_factor();
+        let window = glutin::WindowBuilder::new()
+            .with_dimensions(SCREEN_WIDTH, SCREEN_HEIGHT)
+            .with_title("sabi");
+
+        let context = glutin::ContextBuilder::new();
+
+        let display = glium::Display::new(window, context, &events_loop).unwrap();
+
+        let scale = display.gl_window().hidpi_factor();
 
         let viewport = Viewport {
             position: (0, 0),
@@ -106,8 +109,10 @@ impl RenderContext {
 
         RenderContext {
             backend: display,
-            background: bg,
+            events_loop: events_loop,
             ui: ui,
+
+            background: bg,
             shadowmap: shadow,
             spritemap: sprite,
             tilemap: tile,
@@ -120,18 +125,14 @@ impl RenderContext {
     where
         F: FnMut(&mut RenderContext, glutin::Event) -> Option<Action>,
     {
-        let mut closure = |renderer: &mut RenderContext| {
-            // TODO: Push events into keycodes and use Key instead of glutin::Event
-            let events: Vec<glutin::Event> = renderer.poll_events().collect();
-            if !events.is_empty() {
-                for event in events {
-                    if let Some(a) = callback(renderer, event) {
-                        return a;
-                    }
-                    renderer.render();
+        let mut closure = |renderer: &mut RenderContext| -> Action {
+            let mut events = Vec::new();
+            renderer.poll_events(|event| { events.push(event); });
+
+            for event in events {
+                if let Some(a) = callback(renderer, event) {
+                    return a;
                 }
-            } else {
-                renderer.render();
             }
             Action::Continue
         };
@@ -197,7 +198,7 @@ impl RenderContext {
     }
 
     pub fn set_viewport(&mut self, w: u32, h: u32) {
-        let scale = self.backend.get_window().unwrap().hidpi_factor();
+        let scale = self.backend.gl_window().hidpi_factor();
         self.viewport = Viewport {
             position: (0, 0),
             size: (w, h),
@@ -208,8 +209,11 @@ impl RenderContext {
         self.ui = Ui::new(&self.backend, &self.viewport);
     }
 
-    pub fn poll_events(&self) -> glium::backend::glutin_backend::PollEventsIter {
-        self.backend.poll_events()
+    pub fn poll_events<F>(&mut self, callback: F)
+    where
+        F: FnMut(glutin::Event),
+    {
+        self.events_loop.poll_events(callback)
     }
 
     // pub fn update_ui(&mut self, event: &glutin::Event) -> bool {
@@ -225,21 +229,34 @@ impl RenderContext {
 
     pub fn query<R, T: 'static + UiQuery<QueryResult = R>>(&mut self, layer: &mut T) -> Option<R> {
         loop {
-            for event in self.backend.poll_events() {
-                match layer.on_event(event) {
-                    EventResult::Done => {
-                        // self.ui.render_all();
-                        return layer.result();
-                    },
-                    EventResult::Canceled => {
-                        // self.ui.render_all();
-                        return None;
-                    },
-                    _ => {
-                        self.ui.render_all();
-                        self.ui.draw_layer(layer);
-                    },
-                }
+            let mut result = None;
+            let mut found = false;
+            let mut update = false;
+            self.events_loop.poll_events(|event| match event {
+                                             glutin::Event::WindowEvent { event, .. } => {
+                                                 match layer.on_event(event) {
+                                                     EventResult::Done => {
+                                                         result = layer.result();
+                                                         found = true;
+                                                     },
+                                                     EventResult::Canceled => {
+                                                         result = None;
+                                                         found = true;
+                                                     },
+                                                     _ => update = true,
+                                                 }
+                                             },
+                                             _ => update = true,
+                                         });
+
+            if found {
+                return result;
+            }
+
+            // Don't redraw every frame if it can be helped
+            if update {
+                self.ui.render_all();
+                self.ui.draw_layer(layer);
             }
 
             self.render();

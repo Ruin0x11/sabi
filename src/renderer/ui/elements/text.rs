@@ -27,7 +27,6 @@ impl UiElement for UiText {
     fn draw<'a>(&self, renderer: &UiSubRenderer<'a>) {
         for (idx, line) in self.text_lines.iter().enumerate() {
             let pos = (0, (idx as u32 * renderer.get_font_size()) as i32);
-            println!("line: {:?}", pos);
             renderer.with_color((0, 0, 0, 255), |r| { r.add_string(pos, None, line); });
         }
     }

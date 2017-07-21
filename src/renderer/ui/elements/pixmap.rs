@@ -1,5 +1,3 @@
-use rand::{thread_rng, Rng};
-
 use graphics::color::Color;
 use renderer::ui::elements::*;
 
@@ -33,8 +31,8 @@ impl UiElement for UiPixmap {
         for x in 0..self.size.0 {
             for y in 0..self.size.1 {
                 let color = self.get(x, y);
-                let px = x as i32 * 8;
-                let py = y as i32 * 8;
+                let px = x as i32 * 4;
+                let py = y as i32 * 4;
 
                 renderer.with_color((color.r, color.g, color.b, 255), |r| {
                     r.add_tex_stretch("pixel", (px, py, px + 8, py + 8), None, (0, 0), (1, 1));

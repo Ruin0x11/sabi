@@ -400,7 +400,7 @@ fn get_add_offset(rect: &AtlasRect, tile_size: &(u32, u32)) -> (u32, u32) {
 
 pub fn make_texture<F: Facade>(display: &F, image: DynamicImage) -> Texture2d {
     let dimensions = image.dimensions();
-    let image = glium::texture::RawImage2d::from_raw_rgba_reversed(image.to_rgba().into_raw(),
+    let image = glium::texture::RawImage2d::from_raw_rgba_reversed(&image.to_rgba().into_raw(),
                                                                    dimensions);
     Texture2d::new(display, image).unwrap()
 }

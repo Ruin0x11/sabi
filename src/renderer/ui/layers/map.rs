@@ -24,18 +24,25 @@ impl UiElement for MapLayer {
         let pos = (120, 120);
         let size = (420, 420);
         self.window.draw(&mut renderer.sub_renderer(pos, size));
-        self.map.draw(&mut renderer.sub_renderer((240, 240), size));
+        self.map.draw(&mut renderer.sub_renderer(pos, size));
     }
 }
 
 impl UiLayer for MapLayer {
-    fn on_event(&mut self, event: glutin::Event) -> EventResult {
+    fn on_event(&mut self, event: glutin::WindowEvent) -> EventResult {
         match event {
-            glutin::Event::KeyboardInput(ElementState::Pressed, _, Some(code)) => {
-                match code {
-                    VirtualKeyCode::Escape | VirtualKeyCode::Return => EventResult::Done,
-                    _ => EventResult::Ignored,
+            glutin::WindowEvent::KeyboardInput { input, .. } => {
+                if ElementState::Pressed == input.state {
+                    if let Some(code) = input.virtual_keycode {
+                        match code {
+                            VirtualKeyCode::Escape | VirtualKeyCode::Return => {
+                                return EventResult::Done
+                            },
+                            _ => return EventResult::Ignored,
+                        }
+                    }
                 }
+                EventResult::Ignored
             },
             _ => EventResult::Ignored,
         }

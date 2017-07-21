@@ -15,7 +15,7 @@ regex = "0.2"
 rodio = "0.5"
 
 # Drawing
-glium = "0.16.0"
+glium = "0.17.0"
 image = "0.13.0"
 cgmath = "0.14.1"
 texture_packer = {version = "0.9.0", git = "https://github.com/Ruin0x11/texture_packer" }

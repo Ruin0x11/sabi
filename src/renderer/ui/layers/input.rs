@@ -22,47 +22,53 @@ impl InputLayer {
 impl UiElement for InputLayer {
     fn draw<'a>(&self, renderer: &UiSubRenderer<'a>) {
         {
-            let mut sub = renderer.sub_renderer((0, 0), (0, 0));
+            let mut sub = renderer.sub_renderer((100, 100), (0, 0));
             self.win.draw(&mut sub);
         }
         {
-            let mut sub = renderer.sub_renderer((0, 0), (0, 0));
+            let mut sub = renderer.sub_renderer((100, 100), (0, 0));
             self.prompt.draw(&mut sub);
         }
         {
-            let mut sub = renderer.sub_renderer((0, 0), (0, 0));
+            let mut sub = renderer.sub_renderer((100, 100), (0, 0));
             self.text.draw(&mut sub);
         }
     }
 }
 
 impl UiLayer for InputLayer {
-    fn on_event(&mut self, event: glutin::Event) -> EventResult {
+    fn on_event(&mut self, event: glutin::WindowEvent) -> EventResult {
         match event {
-            glutin::Event::KeyboardInput(ElementState::Pressed, _, Some(code)) => {
-                match code {
-                    VirtualKeyCode::Escape => EventResult::Canceled,
-                    VirtualKeyCode::Return => EventResult::Done,
-                    VirtualKeyCode::Back => {
-                        let mut t = self.text.text();
-                        if !t.is_empty() {
-                            t.pop();
-                        }
-                        self.text.set(&t);
-                        EventResult::Consumed(None)
-                    },
-                    keycode => {
-                        match keycode_to_char(keycode) {
-                            Some(ch) => {
+            glutin::WindowEvent::KeyboardInput { input, .. } => {
+                if ElementState::Pressed == input.state {
+                    if let Some(code) = input.virtual_keycode {
+                        match code {
+                            VirtualKeyCode::Escape => return EventResult::Canceled,
+                            VirtualKeyCode::Return => return EventResult::Done,
+                            VirtualKeyCode::Back => {
                                 let mut t = self.text.text();
-                                t.push(ch);
+                                if !t.is_empty() {
+                                    t.pop();
+                                }
                                 self.text.set(&t);
-                                EventResult::Consumed(None)
+                                return EventResult::Consumed(None);
                             },
-                            None => EventResult::Ignored,
+                            keycode => {
+                                match keycode_to_char(keycode) {
+                                    Some(ch) => {
+                                        let mut t = self.text.text();
+                                        t.push(ch);
+                                        self.text.set(&t);
+                                        return EventResult::Consumed(None);
+                                    },
+                                    None => return EventResult::Ignored,
+                                }
+                            },
+                            _ => return EventResult::Ignored,
                         }
-                    },
+                    }
                 }
+                EventResult::Ignored
             },
             _ => EventResult::Ignored,
         }

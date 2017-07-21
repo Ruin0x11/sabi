@@ -7,7 +7,7 @@ use renderer::ui::Ui;
 use renderer::ui::elements::*;
 
 pub trait UiLayer: UiElement {
-    fn on_event(&mut self, event: glutin::Event) -> EventResult;
+    fn on_event(&mut self, event: glutin::WindowEvent) -> EventResult;
 }
 
 pub trait UiQuery: UiLayer {

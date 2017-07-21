@@ -10,7 +10,7 @@ use world::traits::*;
 use world::flags::GlobalFlags;
 
 #[derive(Debug)]
-struct TransitionLoadout {
+pub struct TransitionLoadout {
     parent: Loadout,
     children: Vec<TransitionLoadout>,
 }
@@ -46,7 +46,7 @@ impl TransitionLoadout {
     }
 }
 
-struct TransitionData {
+pub struct TransitionData {
     pub globals: GlobalFlags,
 
     pub player_data: TransitionLoadout,

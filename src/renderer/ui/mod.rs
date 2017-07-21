@@ -43,7 +43,7 @@ impl UiElement for MainLayer {
 }
 
 impl UiLayer for MainLayer {
-    fn on_event(&mut self, _event: glutin::Event) -> EventResult {
+    fn on_event(&mut self, _event: glutin::WindowEvent) -> EventResult {
         EventResult::Ignored
     }
 }
@@ -84,7 +84,7 @@ impl Ui {
         self.valid = true;
     }
 
-    pub fn on_event(&mut self, event: glutin::Event) {
+    pub fn on_event(&mut self, event: glutin::WindowEvent) {
         let result = match self.layers.last_mut() {
             None => EventResult::Ignored,
             Some(layer) => layer.on_event(event),

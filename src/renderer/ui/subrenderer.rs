@@ -136,7 +136,6 @@ impl<'a> UiRenderable for UiSubRenderer<'a> {
                   text: &str) {
         let offset_screen_pos = self.offset_screen_pos(screen_pos);
         let offset_clipping_rect = clipping_rect.map(|rect| self.offset_clipping_rect(rect));
-        println!("offset: {:?} {:?}", offset_screen_pos, offset_clipping_rect);
         self.backend
             .add_string(offset_screen_pos, offset_clipping_rect, text);
     }
