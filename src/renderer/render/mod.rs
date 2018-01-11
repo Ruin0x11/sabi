@@ -143,6 +143,7 @@ impl RenderContext {
                 Action::Continue => (),
             };
 
+            self.render();
             self.step_frame();
         }
     }

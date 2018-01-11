@@ -390,10 +390,16 @@ where
                                     {
                                         let world = &mut context.state.world;
                                         match code {
-                                            VirtualKeyCode::Up => world.flags_mut().camera.y -= 1,
-                                            VirtualKeyCode::Down => world.flags_mut().camera.y += 1,
-                                            VirtualKeyCode::Left => world.flags_mut().camera.x -= 1,
-                                            VirtualKeyCode::Right => {
+                                            VirtualKeyCode::Up | VirtualKeyCode::K => {
+                                                world.flags_mut().camera.y -= 1
+                                            },
+                                            VirtualKeyCode::Down | VirtualKeyCode::J => {
+                                                world.flags_mut().camera.y += 1
+                                            },
+                                            VirtualKeyCode::Left | VirtualKeyCode::H => {
+                                                world.flags_mut().camera.x -= 1
+                                            },
+                                            VirtualKeyCode::Right | VirtualKeyCode::L => {
                                                 world.flags_mut().camera.x += 1
                                             },
                                             VirtualKeyCode::Escape => {
@@ -411,9 +417,7 @@ where
 
                                         draw_targeting_line(player_pos, world);
                                     }
-
                                     renderer.update(&context.state);
-
                                 }
                             }
                         },
