@@ -51,12 +51,6 @@ impl From<Rect> for AtlasRect {
 
 pub type AtlasTextureRegion = (f32, f32, f32, f32);
 
-pub enum TileShape {
-    Static,
-    Autotile,
-    Wall,
-}
-
 #[derive(Serialize, Deserialize, Clone)]
 pub struct AtlasTileData {
     pub offset: (u32, u32),

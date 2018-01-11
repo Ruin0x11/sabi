@@ -216,7 +216,7 @@ impl EntityQuery for Entity {
         }
 
         if world.is_npc(*self) {
-            Attitude::Friendly;
+            return Attitude::Friendly;
         }
 
         Attitude::Hostile

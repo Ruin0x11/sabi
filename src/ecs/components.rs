@@ -255,10 +255,6 @@ lazy_static! {
     static ref MOB_LOG: Logger = log::make_logger("mob");
 }
 
-fn get_mob_log() -> Logger {
-    MOB_LOG.new(o!())
-}
-
 impl Default for Log {
     fn default() -> Self {
         Log::new("mob")

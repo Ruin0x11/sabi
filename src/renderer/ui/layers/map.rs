@@ -13,7 +13,7 @@ pub struct MapLayer {
 impl MapLayer {
     pub fn new(tiles: Vec<Color>, size: (u32, u32)) -> Self {
         MapLayer {
-            window: UiWindow::new((120, 120)),
+            window: UiWindow::new(),
             map: UiPixmap::new(tiles, size),
         }
     }

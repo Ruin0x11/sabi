@@ -42,6 +42,8 @@ pub enum Command {
     Wait,
     Quit,
 
+    Zap,
+
     DebugMenu,
     Teleport,
 }
@@ -80,6 +82,8 @@ impl From<Key> for Command {
             Key { code: KeyCode::D, .. } => Command::Drop,
             Key { code: KeyCode::I, .. } => Command::Inventory,
 
+            Key { code: KeyCode::Z, .. } => Command::Zap,
+
             Key { code: KeyCode::E, .. } => Command::Teleport,
             Key { code: KeyCode::F1, .. } => Command::DebugMenu,
 
@@ -102,6 +106,8 @@ pub fn process_player_command(context: &mut GameContext, command: Command) -> Co
         Command::Move(dir) => cmd_player_move(context, dir),
         Command::Wait => cmd_add_action(context, Action::Wait),
 
+        Command::Zap => cmd_zap(context),
+
         Command::DebugMenu => cmd_debug_menu(context),
         Command::Teleport => cmd_teleport(context),
     }
@@ -114,7 +120,7 @@ fn quest_window(context: &mut GameContext, npc: Uuid) -> CommandResult<()> {
         let (map, size) = terrain_region(context, center, 32);
         let idx = renderer::with_mut(|renderer| {
             renderer.update(&context.state);
-            renderer.query(&mut QuestLayer::new(quests.clone(), map, size, center))
+            renderer.query(&mut QuestLayer::new(quests.clone(), map, size))
         });
 
         if let Some(idx) = idx {
@@ -247,6 +253,14 @@ fn cmd_map(context: &mut GameContext) -> CommandResult<()> {
     Ok(())
 }
 
+fn cmd_zap(context: &mut GameContext) -> CommandResult<()> {
+    mes!(&context.state.world, "Zap where?");
+
+    let dir = select_direction(context)?;
+
+    cmd_add_action(context, Action::Missile(dir))
+}
+
 pub(super) fn player_pos(context: &GameContext) -> CommandResult<Point> {
     let world = &context.state.world;
     let player = world.player()
@@ -280,6 +294,72 @@ fn draw_line(start: Point, end: Point, world: &mut World) {
         world.marks.add(pos, Color::new(255, 255, 255));
     }
     world.marks.add(end, Color::new(255, 255, 255));
+}
+
+/// Allow the player to choose a direction.
+pub fn select_direction(context: &mut GameContext) -> CommandResult<Direction> {
+    let mut selected = false;
+    let mut result = Direction::N;
+
+    renderer::with_mut(|rc| {
+        rc.update(&context.state);
+
+        rc.start_loop(|renderer, event| {
+            match event {
+                glutin::Event::WindowEvent { event, .. } => {
+                    match event {
+                        glutin::WindowEvent::KeyboardInput { input, .. } => {
+                            if ElementState::Pressed == input.state {
+                                if let Some(code) = input.virtual_keycode {
+                                    println!("Key: {:?}", code);
+                                    {
+                                        match code {
+                                            VirtualKeyCode::Left | VirtualKeyCode::H => {
+                                                result = Direction::W;
+                                                selected = true;
+                                            },
+                                            VirtualKeyCode::Down | VirtualKeyCode::J => {
+                                                result = Direction::S;
+                                                selected = true;
+                                            },
+                                            VirtualKeyCode::Up | VirtualKeyCode::K => {
+                                                result = Direction::N;
+                                                selected = true;
+                                            },
+                                            VirtualKeyCode::Right | VirtualKeyCode::L => {
+                                                result = Direction::E;
+                                                selected = true;
+                                            },
+                                            VirtualKeyCode::Escape => {
+                                                return Some(renderer::Action::Stop)
+                                            },
+                                            _ => (),
+                                        }
+                                    }
+                                    renderer.update(&context.state);
+
+                                    if selected {
+                                        return Some(renderer::Action::Stop);
+                                    }
+                                }
+                            }
+                        },
+                        _ => (),
+                    }
+                },
+                _ => (),
+            }
+            None
+        });
+    });
+
+    context.state.world.marks.clear();
+
+    if selected {
+        Ok(result)
+    } else {
+        Err(CommandError::Cancel)
+    }
 }
 
 /// Allow the player to choose a tile.

@@ -1,4 +1,3 @@
-#![feature(associated_consts)]
 #![feature(conservative_impl_trait)]
 #![feature(test)]
 

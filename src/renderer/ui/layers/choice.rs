@@ -11,8 +11,8 @@ pub struct ChoiceLayer {
 impl ChoiceLayer {
     pub fn new(choices: Vec<String>) -> Self {
         ChoiceLayer {
-            window: UiWindow::new((120, 120)),
-            list: UiList::new((120, 120), choices),
+            window: UiWindow::new(),
+            list: UiList::new(choices),
         }
     }
 }
@@ -32,7 +32,8 @@ impl UiLayer for ChoiceLayer {
             glutin::WindowEvent::KeyboardInput { input, .. } => {
                 if ElementState::Pressed == input.state {
                     if let Some(code) = input.virtual_keycode {
-                        UiList::update(&code, &mut self.list);
+                        let res = UiList::update(&code, &mut self.list);
+                        return res;
                     }
                 }
                 EventResult::Ignored

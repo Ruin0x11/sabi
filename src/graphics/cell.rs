@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use calx_ecs::Entity;
-
 use toml::Value;
 
 use point::Point;
@@ -29,7 +27,7 @@ impl CellTable {
     pub fn get_index(&self, type_: &str) -> usize {
         match self.indices.get(type_) {
             Some(idx) => *idx,
-            None      => *self.indices.get("error").unwrap()
+            None => *self.indices.get("error").unwrap(),
         }
     }
 }
@@ -41,12 +39,12 @@ fn make_cell_data_table() -> CellTable {
 
     let cell_table = match val {
         Value::Table(ref table) => table,
-        _           => panic!("Cell table wasn't a table."),
+        _ => panic!("Cell table wasn't a table."),
     };
 
     let cell_array = match cell_table["cells"] {
         Value::Array(ref array) => array,
-        _           => panic!("Cell array wasn't an array."),
+        _ => panic!("Cell array wasn't an array."),
     };
 
     for (idx, cell) in cell_array.iter().enumerate() {
@@ -84,8 +82,8 @@ pub enum StairDir {
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Copy, Clone)]
 pub enum StairKind {
-    Dungeon(Entity),
-    DungeonBranch(Entity, usize),
+    Dungeon(u64),
+    DungeonBranch(u64, usize),
     Unconnected,
 }
 
@@ -100,7 +98,7 @@ use self::StairDir::*;
 impl StairDir {
     pub fn reverse(&self) -> StairDir {
         match *self {
-            Ascending  => Descending,
+            Ascending => Descending,
             Descending => Ascending,
         }
     }
@@ -158,7 +156,7 @@ impl Cell {
     pub fn stair_dest_pos(&self) -> Option<Point> {
         match self.feature {
             Some(Stairs(_, StairDest::Generated(_, pos))) => Some(pos),
-            _                                             => None,
+            _ => None,
         }
     }
 

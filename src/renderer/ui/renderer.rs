@@ -436,7 +436,7 @@ fn make_scissor(clip_rect: (f32, f32, f32, f32), height: f32, scale: f32) -> Rec
 }
 
 impl<'a> Renderable for UiRenderer {
-    fn render<F, S>(&self, display: &F, target: &mut S, viewport: &Viewport, time: u64)
+    fn render<F, S>(&self, display: &F, target: &mut S, viewport: &Viewport, _time: u64)
     where
         F: glium::backend::Facade,
         S: glium::Surface,

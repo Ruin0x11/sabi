@@ -45,40 +45,40 @@ impl GameState {
     pub fn try_globals_update(&mut self) {
         if self.is_overworld() {
             debug!(self.world.logger, "This is apparently the overworld, updating globals...");
-            for dungeon in self.globals.dungeons() {
-                let stair_pos = dungeon.position(&self.globals).unwrap();
-                let dungeon_compo = self.globals.ecs.dungeons.get_mut(dungeon).unwrap();
-                if !dungeon_compo.placed {
+            for (id, dungeon) in &mut self.globals.dungeons {
+                let stair_pos = dungeon.pos;
+                if !dungeon.placed {
                     if self.world.pos_loaded(&stair_pos) {
                         self.world
-                            .place_stairs_down(stair_pos, StairKind::Dungeon(dungeon));
+                            .place_stairs_down(stair_pos, StairKind::Dungeon(*id));
                     }
-                    dungeon_compo.placed = true;
+                    dungeon.placed = true;
                 }
             }
 
-            for town in self.globals.towns() {
+            let mut unplaced_towns = Vec::new();
+            for town in &self.globals.towns {
                 let mut place = false;
-                let town_pos = town.position(&self.globals).unwrap();
                 {
-                    let town_compo = self.globals.ecs.towns.get(town).unwrap();
-                    if !town_compo.placed {
-                        if town_compo.spanning_chunks(town_pos)
-                                     .iter()
-                                     .any(|ci| self.world.chunk_loaded(ci))
+                    if !town.placed {
+                        if town.spanning_chunks(town.pos)
+                               .iter()
+                               .any(|ci| self.world.chunk_loaded(ci))
                         {
                             place = true;
                         }
                     }
                 }
-
-                if place {
-                    let mut town_compo_mut = self.globals.ecs.towns.get_mut(town).unwrap();
-                    let prefab = town_compo_mut.generate(town_pos);
-                    town_compo_mut.size = prefab.size();
-                    self.world.deploy_prefab(prefab, town_pos);
+                unplaced_towns.push(place);
+            }
+            for (i, town) in self.globals.towns.iter_mut().enumerate() {
+                let should_place = unplaced_towns[i];
+                if should_place {
+                    let prefab = town.generate(town.pos);
+                    town.size = prefab.size();
+                    self.world.deploy_prefab(prefab, town.pos);
                     self.world.reify_markers();
-                    town_compo_mut.placed = true;
+                    town.placed = true;
                 }
             }
         }
@@ -266,7 +266,7 @@ pub fn load_context() -> GameContext {
 }
 
 pub fn restart_game(context: &mut GameContext) {
-    world::serial::wipe_save();
+    world::serial::wipe_save().unwrap();
     *context = load_context();
 }
 

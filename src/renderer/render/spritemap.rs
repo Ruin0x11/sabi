@@ -27,8 +27,6 @@ pub struct SpriteMap {
 
     tile_atlas: TileAtlas,
     valid: bool,
-
-    i: u32,
 }
 
 struct DrawSprite {
@@ -54,7 +52,6 @@ impl SpriteMap {
             shadow_program: shadow_program,
             tile_atlas: tile_atlas,
             valid: false,
-            i: 0,
         };
 
         spritemap.redraw(display, 0);
@@ -74,7 +71,7 @@ impl SpriteMap {
     }
 
     fn make_instances<F>(&mut self, display: &F, msecs: u64)
-        where
+    where
         F: glium::backend::Facade,
     {
 
@@ -82,34 +79,33 @@ impl SpriteMap {
 
         for pass in 0..self.tile_atlas.passes() {
             let data = self.sprites
-                .iter()
-                .filter(|&&(ref sprite, _)| {
-                    let texture_idx =
-                        self.tile_atlas.get_tile_texture_idx(&sprite.kind);
-                    texture_idx == pass
-                })
-                .map(|&(ref sprite, pos)| {
-                    let (x, y) = pos;
+                           .iter()
+                           .filter(|&&(ref sprite, _)| {
+                let texture_idx = self.tile_atlas.get_tile_texture_idx(&sprite.kind);
+                texture_idx == pass
+            })
+                           .map(|&(ref sprite, pos)| {
+                let (x, y) = pos;
 
-                    let (tx, ty) = self.tile_atlas.get_texture_offset(&sprite.kind, msecs);
-                    let (sx, sy) = self.tile_atlas.get_tile_texture_size(&sprite.kind);
-                    let tex_ratio = self.tile_atlas.get_sprite_tex_ratio(&sprite.kind);
+                let (tx, ty) = self.tile_atlas.get_texture_offset(&sprite.kind, msecs);
+                let (sx, sy) = self.tile_atlas.get_tile_texture_size(&sprite.kind);
+                let tex_ratio = self.tile_atlas.get_sprite_tex_ratio(&sprite.kind);
 
-                    // To store the tile kind without putting a string in the
-                    // index vertex, a mapping from a numeric index to a string
-                    // is used in the tile atlas. Then, when the tile kind needs
-                    // to be checked, the numeric index can retrieve a tile kind.
-                    let tile_idx = self.tile_atlas.get_tile_index(&sprite.kind);
+                // To store the tile kind without putting a string in the
+                // index vertex, a mapping from a numeric index to a string
+                // is used in the tile atlas. Then, when the tile kind needs
+                // to be checked, the numeric index can retrieve a tile kind.
+                let tile_idx = self.tile_atlas.get_tile_index(&sprite.kind);
 
-                    Instance {
-                        tile_idx: tile_idx,
-                        map_coord: [x, y],
-                        tex_offset: [tx, ty],
-                        tex_ratio: tex_ratio,
-                        sprite_size: [sx, sy],
-                    }
-                })
-                .collect::<Vec<Instance>>();
+                Instance {
+                    tile_idx: tile_idx,
+                    map_coord: [x, y],
+                    tex_offset: [tx, ty],
+                    tex_ratio: tex_ratio,
+                    sprite_size: [sx, sy],
+                }
+            })
+                           .collect::<Vec<Instance>>();
             let result = if !data.is_empty() {
                 Some(glium::VertexBuffer::dynamic(display, &data).unwrap())
             } else {
@@ -127,7 +123,7 @@ impl SpriteMap {
                 for instance in buffer.map().iter_mut() {
                     let (tx, ty) =
                         self.tile_atlas
-                        .get_texture_offset_indexed(instance.tile_idx, msecs);
+                            .get_texture_offset_indexed(instance.tile_idx, msecs);
 
                     instance.tex_offset = [tx, ty];
                 }
@@ -138,7 +134,7 @@ impl SpriteMap {
 
 impl<'a> Renderable for SpriteMap {
     fn render<F, S>(&self, _display: &F, target: &mut S, viewport: &Viewport, time: u64)
-        where
+    where
         F: glium::backend::Facade,
         S: glium::Surface,
     {
@@ -172,14 +168,14 @@ impl<'a> Renderable for SpriteMap {
                             &self.shadow_program,
                             &uniforms,
                             &params)
-                    .unwrap();
+                      .unwrap();
 
                 target.draw((&self.vertices, instances.per_instance().unwrap()),
                             &self.indices,
                             &self.program,
                             &uniforms,
                             &params)
-                    .unwrap();
+                      .unwrap();
 
             }
         }
@@ -193,7 +189,11 @@ use world::{Bounds, World};
 use world::traits::Query;
 use infinigen::ChunkedWorld;
 
-fn tile_in_viewport(viewport: &Viewport, camera: Point, tile: Point, bounds: Option<Point>) -> bool {
+fn tile_in_viewport(viewport: &Viewport,
+                    camera: Point,
+                    tile: Point,
+                    bounds: Option<Point>)
+                    -> bool {
     let min: Point = viewport.min_tile_pos(camera, bounds).into();
     let max: Point = viewport.max_tile_pos(camera, bounds).into();
 

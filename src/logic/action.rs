@@ -148,7 +148,57 @@ fn action_shoot_at(world: &mut World, attacker: Entity, other: Entity) -> Action
 }
 
 fn action_missile(world: &mut World, attacker: Entity, dir: Direction) -> ActionResult {
-    mes!(world, "Firing in {}.", dir);
+    mes!(world, "You zap to the {}.", dir);
+
+    let mut missile_pos = world.position(attacker).expect("No entity position") + dir;
+    let mut missile_dir = dir;
+    let mut steps = 10;
+    let mut hits = 0;
+
+    while steps > 0 && hits < 5 {
+        // step graphics once
+
+        // check and damage what's on the space
+        if let Some(entity_under) = world.mob_at(missile_pos) {
+            mes!(world, "The bolt strikes {}!", entity_under.name(world));
+            hurt(world, entity_under, attacker, 10);
+            hits += 1;
+        }
+
+        // try to bounce
+        let mut next_pos = missile_pos + missile_dir;
+        let passable = |p: &Point| world.cell_const(p).map_or(false, |c| c.can_see_through());
+        let is_passable = passable(&next_pos);
+
+        if !is_passable {
+            next_pos = missile_pos;
+
+            if missile_dir.is_straight() {
+                missile_dir = missile_dir.reverse();
+            } else {
+                // Consider the cell in front and the cells next to it in the direction.
+                let left = missile_pos + missile_dir.neighbor(-1);
+                let right = missile_pos + missile_dir.neighbor(1);
+                let left_pass = passable(&left);
+                let right_pass = passable(&right);
+
+                if left_pass && !right_pass {
+                    missile_dir = missile_dir.neighbor(-2);
+                    next_pos = left;
+                } else if !left_pass && right_pass {
+                    missile_dir = missile_dir.neighbor(2);
+                    next_pos = right;
+                } else {
+                    missile_dir = missile_dir.reverse();
+                }
+            }
+            mes!(world, "The bolt bounces!");
+        }
+
+        missile_pos = next_pos;
+
+        steps -= 1;
+    }
 
     Ok(())
 }

@@ -67,11 +67,11 @@ impl UiList {
         match *code {
             VirtualKeyCode::Escape => return EventResult::Canceled,
             VirtualKeyCode::Return => return EventResult::Done,
-            VirtualKeyCode::Up => {
+            VirtualKeyCode::Up | VirtualKeyCode::K => {
                 list.select_prev();
                 return EventResult::Consumed(None);
             },
-            VirtualKeyCode::Down => {
+            VirtualKeyCode::Down | VirtualKeyCode::J => {
                 list.select_next();
                 return EventResult::Consumed(None);
             },
@@ -85,7 +85,6 @@ impl UiElement for UiList {
         let item_height = 20;
         for (idx, item) in self.items.iter().enumerate() {
             let pos = (32, 32 + (item_height * idx as u32) as i32);
-            println!("pos {:?}", pos);
             item.draw(&renderer.sub_renderer(pos, (item_height, renderer.size.1)));
         }
         if let Some(idx) = self.get_selected_idx() {

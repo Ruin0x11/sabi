@@ -21,5 +21,5 @@ pub trait UiElement {
     fn required_size(&self, _constraint: Point) -> Point {
         Point::new(1, 1)
     }
-    fn layout(&mut self, constraint: Point) {}
+    fn layout(&mut self, _constraint: Point) {}
 }

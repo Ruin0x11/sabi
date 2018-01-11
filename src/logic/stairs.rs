@@ -1,5 +1,3 @@
-use calx_ecs::Entity;
-
 use GameContext;
 use ecs::globals;
 use graphics::cell::{CellFeature, StairDest, StairDir, StairKind};
@@ -72,11 +70,10 @@ fn load_stair_dest(state: &mut GameState,
     }
 }
 
-fn generate_dungeon_floor(state: &mut GameState, dungeon_entity: Entity) -> CommandResult<World> {
+fn generate_dungeon_floor(state: &mut GameState, dungeon_id: u64) -> CommandResult<World> {
     let dungeon = state.globals
-                       .ecs
                        .dungeons
-                       .get_mut(dungeon_entity)
+                       .get_mut(&dungeon_id)
                        .expect("Invalid dungeon!");
     let mut new_floor =
         dungeon.data
@@ -84,7 +81,7 @@ fn generate_dungeon_floor(state: &mut GameState, dungeon_entity: Entity) -> Comm
         //TODO: Don't crash, just report error
                .ok_or(CommandError::Bug("Failed to generate stair!"))?;
 
-    integrate_world_with_dungeon(&mut new_floor, dungeon, dungeon_entity)?;
+    integrate_world_with_dungeon(&mut new_floor, dungeon, dungeon_id)?;
 
     debug!(state.world.logger, "Dungeon status: {:?}", dungeon);
 
@@ -92,13 +89,12 @@ fn generate_dungeon_floor(state: &mut GameState, dungeon_entity: Entity) -> Comm
 }
 
 fn generate_dungeon_branch(state: &mut GameState,
-                           dungeon_entity: Entity,
+                           dungeon_id: u64,
                            branch: usize)
                            -> CommandResult<World> {
     let dungeon = state.globals
-                       .ecs
                        .dungeons
-                       .get_mut(dungeon_entity)
+                       .get_mut(&dungeon_id)
                        .expect("Invalid dungeon!");
     let mut new_floor =
         dungeon.data
@@ -106,7 +102,7 @@ fn generate_dungeon_branch(state: &mut GameState,
         //TODO: Don't crash, just report error
                .ok_or(CommandError::Bug("Failed to generate stair!"))?;
 
-    integrate_world_with_dungeon(&mut new_floor, dungeon, dungeon_entity)?;
+    integrate_world_with_dungeon(&mut new_floor, dungeon, dungeon_id)?;
 
     debug!(state.world.logger, "Dungeon status: {:?}", dungeon);
 
@@ -116,7 +112,7 @@ fn generate_dungeon_branch(state: &mut GameState,
 /// Connects the given world to a dungeon as a dungeon floor.
 fn integrate_world_with_dungeon(new_floor: &mut World,
                                 dungeon: &globals::Dungeon,
-                                dungeon_entity: Entity)
+                                dungeon_id: u64)
                                 -> CommandResult<()> {
     let floor_id = new_floor.flags().map_id;
     assert!(dungeon.data.has_floor(floor_id));
@@ -142,7 +138,7 @@ fn integrate_world_with_dungeon(new_floor: &mut World,
     // Now, connect the stairs to the next floor
     for (pos, marker) in new_floor.terrain().markers.clone().iter() {
         if marker == "stairs_out" {
-            debug!(new_floor.logger, "Connecting stairs to entity {:?}", dungeon_entity);
+            debug!(new_floor.logger, "Connecting stairs to dungeon {:?}", dungeon_id);
             let mut stairs_mut = new_floor.cell_mut(&pos).unwrap();
 
             if let Some(CellFeature::Stairs(_, StairDest::Ungenerated(ref mut kind))) =
@@ -152,9 +148,9 @@ fn integrate_world_with_dungeon(new_floor: &mut World,
                     let branch =
                         branches.pop()
                                 .expect("More stairs on floor than branches in section!");
-                    StairKind::DungeonBranch(dungeon_entity, *branch)
+                    StairKind::DungeonBranch(dungeon_id, *branch)
                 } else {
-                    StairKind::Dungeon(dungeon_entity)
+                    StairKind::Dungeon(dungeon_id)
                 };
                 *kind = stair_kind
             }
@@ -171,9 +167,9 @@ fn generate_stair_dest(state: &mut GameState,
                        stair_kind: StairKind)
                        -> CommandResult<(World, Point)> {
     let mut new_world = match stair_kind {
-        StairKind::Dungeon(dungeon_entity) => generate_dungeon_floor(state, dungeon_entity)?,
-        StairKind::DungeonBranch(dungeon_entity, branch) => {
-            generate_dungeon_branch(state, dungeon_entity, branch)?
+        StairKind::Dungeon(dungeon_id) => generate_dungeon_floor(state, dungeon_id)?,
+        StairKind::DungeonBranch(dungeon_id, branch) => {
+            generate_dungeon_branch(state, dungeon_id, branch)?
         },
         StairKind::Unconnected => {
             return Err(CommandError::Bug("Stair was left in an unconnected state!"));

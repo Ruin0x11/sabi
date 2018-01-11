@@ -12,7 +12,7 @@ pub struct InputLayer {
 impl InputLayer {
     pub fn new(prompt: &str) -> Self {
         InputLayer {
-            win: UiWindow::new((100, 100)),
+            win: UiWindow::new(),
             prompt: UiText::new(prompt.to_string()), //TODO
             text: UiText::new(String::new()),
         }

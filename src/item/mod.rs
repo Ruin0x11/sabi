@@ -15,15 +15,6 @@ fn same_object<T>(a: &T, b: &T) -> bool {
 
 pub type ItemIdx = usize;
 
-#[derive(Debug)]
-pub enum ItemErr {
-    CannotPutInContainer,
-}
-
-pub use self::ItemErr::*;
-
-pub type ItemResult<T> = Result<T, ItemErr>;
-
 #[derive(Clone, Debug)]
 pub struct ItemDesc {
     pub name: &'static str,

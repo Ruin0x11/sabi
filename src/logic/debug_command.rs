@@ -42,7 +42,8 @@ fn debug_ai_menu(context: &mut GameContext) -> CommandResult<()> {
 fn make_pet(context: &mut GameContext, pos: Point) {
     let world = &mut context.state.world;
 
-    let e = world.create(ecs::load_mob("putit").unwrap().c(Ai::new(AiKind::Follow)), pos).unwrap();
+    let e = world.create(ecs::load_mob("putit").unwrap().c(Ai::new(AiKind::Follow)), pos)
+                 .unwrap();
     let uuid = e.uuid(world).unwrap();
     world.flags_mut().globals.party.add_member(uuid);
 }
@@ -56,9 +57,13 @@ fn debug_pet(context: &mut GameContext) -> CommandResult<()> {
 }
 
 fn debug_loadout(context: &mut GameContext) -> CommandResult<()> {
-    goto_new_world(context, get_debug_world("blank", Some(prefab_args! { width: 100, height: 100, })).unwrap());
+    goto_new_world(context,
+                   get_debug_world("blank", Some(prefab_args! { width: 100, height: 100, }))
+                       .unwrap());
 
-    context.state.world.create(ecs::load_mob("putit").unwrap(), Point::new(1, 1));
+    context.state
+           .world
+           .create(ecs::load_mob("putit").unwrap(), Point::new(1, 1));
 
     Ok(())
 }
@@ -67,7 +72,7 @@ fn debug_loadout(context: &mut GameContext) -> CommandResult<()> {
 fn debug_print_entity_info(context: &mut GameContext) -> CommandResult<()> {
     mes!(context.state.world, "Which?");
     let pos = select_tile(context, |_, _| ())?;
-    if let Some(mob) = context.state.world.mob_at(pos) {
+    if let Some(_mob) = context.state.world.mob_at(pos) {
         // let ai = context.state.world.ecs().ais.get_or_err(mob).debug_info();
         // mes!(context.state.world, "{:?} inv: {:?}  Ai: {}",
         //      mob.name(&context.state.world),
@@ -79,27 +84,51 @@ fn debug_print_entity_info(context: &mut GameContext) -> CommandResult<()> {
 }
 
 fn debug_scav(context: &mut GameContext) -> CommandResult<()> {
-    goto_new_world(context, get_debug_world("blank", Some(prefab_args! { width: 100, height: 100, })).unwrap());
+    goto_new_world(context,
+                   get_debug_world("blank", Some(prefab_args! { width: 100, height: 100, }))
+                       .unwrap());
 
     for pos in RectangleIter::new(Point::new(0, 0), Point::new(100, 100)) {
         if rand::thread_rng().next_f32() < 0.1 {
-            context.state.world.create(ecs::prefab::item("cola", "cola"), pos);
+            context.state
+                   .world
+                   .create(ecs::prefab::item("cola", "cola"), pos);
         }
     }
 
-    context.state.world.create(ecs::prefab::mob("putit", 100, "putit").c(Ai::new(AiKind::Scavenge)), Point::new(1, 1));
-    context.state.world.create(ecs::prefab::mob("putit", 100, "putit").c(Ai::new(AiKind::Scavenge)), Point::new(1, 2));
-    context.state.world.create(ecs::prefab::mob("putit", 100, "putit").c(Ai::new(AiKind::Scavenge)), Point::new(2, 1));
-    context.state.world.create(ecs::prefab::mob("putit", 100, "putit").c(Ai::new(AiKind::Scavenge)), Point::new(2, 2));
+    context.state
+           .world
+           .create(ecs::prefab::mob("putit", 100, "putit").c(Ai::new(AiKind::Scavenge)),
+                   Point::new(1, 1));
+    context.state
+           .world
+           .create(ecs::prefab::mob("putit", 100, "putit").c(Ai::new(AiKind::Scavenge)),
+                   Point::new(1, 2));
+    context.state
+           .world
+           .create(ecs::prefab::mob("putit", 100, "putit").c(Ai::new(AiKind::Scavenge)),
+                   Point::new(2, 1));
+    context.state
+           .world
+           .create(ecs::prefab::mob("putit", 100, "putit").c(Ai::new(AiKind::Scavenge)),
+                   Point::new(2, 2));
 
     Ok(())
 }
 
 fn debug_guard(context: &mut GameContext) -> CommandResult<()> {
-    goto_new_world(context, get_debug_world("blank", Some(prefab_args! { width: 10, height: 30, })).unwrap());
+    goto_new_world(context,
+                   get_debug_world("blank", Some(prefab_args! { width: 10, height: 30, }))
+                       .unwrap());
 
-    context.state.world.create(ecs::prefab::mob("putit", 100, "putit").c(Ai::new(AiKind::SeekTarget)), Point::new(5, 20));
-    context.state.world.create(ecs::prefab::mob("guard", 1000, "npc").c(Ai::new(AiKind::Guard)), Point::new(1, 1));
+    context.state
+           .world
+           .create(ecs::prefab::mob("putit", 100, "putit").c(Ai::new(AiKind::SeekTarget)),
+                   Point::new(5, 20));
+    context.state
+           .world
+           .create(ecs::prefab::mob("guard", 1000, "npc").c(Ai::new(AiKind::Guard)),
+                   Point::new(1, 1));
 
     Ok(())
 }
@@ -109,10 +138,14 @@ fn debug_item_test(context: &mut GameContext) -> CommandResult<()> {
     goto_new_world(context, get_debug_world("blank", None).unwrap());
 
     for pos in RectangleIter::new(Point::new(0, 0), Point::new(3, 3)) {
-        context.state.world.create(ecs::prefab::item("cola", "cola"), pos);
+        context.state
+               .world
+               .create(ecs::prefab::item("cola", "cola"), pos);
     }
 
-    context.state.world.create(ecs::prefab::mob("putit", 100, "putit"), Point::new(5, 5));
+    context.state
+           .world
+           .create(ecs::prefab::mob("putit", 100, "putit"), Point::new(5, 5));
 
     Ok(())
 }
@@ -148,8 +181,10 @@ fn debug_list_entities(context: &mut GameContext) -> CommandResult<()> {
     {
         let world = &context.state.world;
         for e in world.entities() {
-            let name =
-                world.ecs().names.get(*e).map_or("(unknown)".to_string(), |n| n.name.clone());
+            let name = world.ecs()
+                            .names
+                            .get(*e)
+                            .map_or("(unknown)".to_string(), |n| n.name.clone());
             let pos = match world.position(*e) {
                 Some(pos) => pos.to_string(),
                 None => "(unknown)".to_string(),
@@ -178,7 +213,9 @@ fn select_rect(context: &mut GameContext) -> CommandResult<RectangleIter> {
 
 fn debug_place_enemies(context: &mut GameContext) -> CommandResult<()> {
     for pos in select_rect(context)? {
-        context.state.world.create(ecs::prefab::mob("putit", 50, "putit"), pos);
+        context.state
+               .world
+               .create(ecs::prefab::mob("putit", 50, "putit"), pos);
     }
 
     Ok(())
@@ -193,14 +230,14 @@ fn get_debug_world(prefab: &str, args: Option<PrefabArgs>) -> Result<World, Stri
                 .with_id(TEST_WORLD_ID)
                 .with_prefab_args(a)
                 .build()
-        }
+        },
         None => {
             World::new()
                 .with_prefab(prefab)
                 .with_randomized_seed()
                 .with_id(TEST_WORLD_ID)
                 .build()
-        }
+        },
     }
 }
 
@@ -212,10 +249,11 @@ fn debug_regen_prefab(context: &mut GameContext, prefab_name: &str) -> CommandRe
 }
 
 fn debug_goto_world(context: &mut GameContext) -> CommandResult<()> {
-    let input = player_input(context, "Which id?").ok_or(CommandError::Cancel)?;
+    let input = player_input(context, "Which id?")
+        .ok_or(CommandError::Cancel)?;
 
     let id = input.parse::<u32>()
-        .map_err(|_| CommandError::Invalid("That's not a valid id."))?;
+                  .map_err(|_| CommandError::Invalid("That's not a valid id."))?;
 
     let new_world = world::serial::load_world(id)
         .map_err(|_| CommandError::Invalid("That world doesn't exist."))?;

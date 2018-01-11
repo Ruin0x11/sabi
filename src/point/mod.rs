@@ -18,7 +18,7 @@ pub struct Point {
 
 impl Point {
     pub fn new(x: i32, y: i32) -> Self {
-        Point{x: x, y: y}
+        Point { x: x, y: y }
     }
 
     pub fn distance<P: Into<Point>>(&self, other: P) -> f32 {
@@ -33,7 +33,7 @@ impl Point {
         let other = other.into();
         let res = *self - other;
         if *self == other {
-            return false
+            return false;
         }
         res.x.abs() <= 1 && res.y.abs() <= 1
     }
@@ -57,7 +57,10 @@ pub const POINT_ZERO: Point = Point { x: 0, y: 0 };
 
 impl Into<Point> for (i32, i32) {
     fn into(self) -> Point {
-        Point{ x: self.0, y: self.1 }
+        Point {
+            x: self.0,
+            y: self.1,
+        }
     }
 }
 
@@ -77,7 +80,10 @@ impl Add for Point {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self {
-        Point{ x: self.x + rhs.x, y: self.y + rhs.y }
+        Point {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        }
     }
 }
 
@@ -190,67 +196,66 @@ impl Div<i32> for Point {
 
 #[cfg(test)]
 mod test {
-    use std::iter::FromIterator;
     use std::f32::EPSILON;
     use super::Point;
 
     #[test]
     fn test_tile_distance() {
-        assert_eq!(Point{x: 0, y: 0}.tile_distance((0, 0)), 0);
+        assert_eq!(Point { x: 0, y: 0 }.tile_distance((0, 0)), 0);
 
-        assert_eq!(Point{x: 0, y: 0}.tile_distance(( 1, 0)), 1);
-        assert_eq!(Point{x: 0, y: 0}.tile_distance((-1, 0)), 1);
-        assert_eq!(Point{x: 0, y: 0}.tile_distance(( 1, 1)), 1);
-        assert_eq!(Point{x: 0, y: 0}.tile_distance((-1, 1)), 1);
-        assert_eq!(Point{x: 0, y: 0}.tile_distance((0,  1)), 1);
-        assert_eq!(Point{x: 0, y: 0}.tile_distance((0, -1)), 1);
-        assert_eq!(Point{x: 0, y: 0}.tile_distance((1,  1)), 1);
-        assert_eq!(Point{x: 0, y: 0}.tile_distance((1, -1)), 1);
+        assert_eq!(Point { x: 0, y: 0 }.tile_distance((1, 0)), 1);
+        assert_eq!(Point { x: 0, y: 0 }.tile_distance((-1, 0)), 1);
+        assert_eq!(Point { x: 0, y: 0 }.tile_distance((1, 1)), 1);
+        assert_eq!(Point { x: 0, y: 0 }.tile_distance((-1, 1)), 1);
+        assert_eq!(Point { x: 0, y: 0 }.tile_distance((0, 1)), 1);
+        assert_eq!(Point { x: 0, y: 0 }.tile_distance((0, -1)), 1);
+        assert_eq!(Point { x: 0, y: 0 }.tile_distance((1, 1)), 1);
+        assert_eq!(Point { x: 0, y: 0 }.tile_distance((1, -1)), 1);
 
-        assert_eq!(Point{x: 0, y: 0}.tile_distance((2, 2)), 2);
-        assert_eq!(Point{x: 0, y: 0}.tile_distance((-2, -2)), 2);
-        assert_eq!(Point{x: 0, y: 0}.tile_distance((0, 2)), 2);
-        assert_eq!(Point{x: 0, y: 0}.tile_distance((2, 0)), 2);
+        assert_eq!(Point { x: 0, y: 0 }.tile_distance((2, 2)), 2);
+        assert_eq!(Point { x: 0, y: 0 }.tile_distance((-2, -2)), 2);
+        assert_eq!(Point { x: 0, y: 0 }.tile_distance((0, 2)), 2);
+        assert_eq!(Point { x: 0, y: 0 }.tile_distance((2, 0)), 2);
 
-        assert_eq!(Point{x: -3, y: -3}.tile_distance((10, 10)), 13);
-        assert_eq!(Point{x: -3, y: -3}.tile_distance((5, -2)), 8);
+        assert_eq!(Point { x: -3, y: -3 }.tile_distance((10, 10)), 13);
+        assert_eq!(Point { x: -3, y: -3 }.tile_distance((5, -2)), 8);
     }
 
     #[test]
     fn test_euclidean_distance() {
-        let actual = Point{x: 0, y: 0}.distance((0, 0));
+        let actual = Point { x: 0, y: 0 }.distance((0, 0));
         let expected = 0.0;
         assert!((actual - expected).abs() <= EPSILON);
 
-        let actual = Point{x: 0, y: 0}.distance((10, 10));
+        let actual = Point { x: 0, y: 0 }.distance((10, 10));
         let expected = 14.142136;
         assert!((actual - expected).abs() <= EPSILON);
 
-        let actual = Point{x: 0, y: 0}.distance((10, -10));
+        let actual = Point { x: 0, y: 0 }.distance((10, -10));
         let expected = 14.142136;
         assert!((actual - expected).abs() <= EPSILON);
 
-        let actual = Point{x: 0, y: 0}.distance((-10, 10));
+        let actual = Point { x: 0, y: 0 }.distance((-10, 10));
         let expected = 14.142136;
         assert!((actual - expected).abs() <= EPSILON);
 
-        let actual = Point{x: 0, y: 0}.distance((10, -10));
+        let actual = Point { x: 0, y: 0 }.distance((10, -10));
         let expected = 14.142136;
         assert!((actual - expected).abs() <= EPSILON);
 
-        let actual = Point{x: 0, y: 0}.distance((3, 4));
+        let actual = Point { x: 0, y: 0 }.distance((3, 4));
         let expected = 5.0;
         assert!((actual - expected).abs() <= EPSILON);
 
-        let actual = Point{x: 0, y: 0}.distance((-3, 4));
+        let actual = Point { x: 0, y: 0 }.distance((-3, 4));
         let expected = 5.0;
         assert!((actual - expected).abs() <= EPSILON);
 
-        let actual = Point{x: 0, y: 0}.distance((3, -4));
+        let actual = Point { x: 0, y: 0 }.distance((3, -4));
         let expected = 5.0;
         assert!((actual - expected).abs() <= EPSILON);
 
-        let actual = Point{x: 0, y: 0}.distance((-3, -4));
+        let actual = Point { x: 0, y: 0 }.distance((-3, -4));
         let expected = 5.0;
         assert!((actual - expected).abs() <= EPSILON);
     }
@@ -333,8 +338,8 @@ mod test {
         assert_eq!(center.is_next_to(Point::new(1, 1)), false);
         assert_eq!(center.is_next_to(Point::new(-1, 2)), false);
         assert_eq!(center.is_next_to(Point::new(-1, -1)), false);
-        assert_eq!(center.is_next_to(Point::new(1, 10)),  false);
-        assert_eq!(center.is_next_to(Point::new(10, 1)),  false);
+        assert_eq!(center.is_next_to(Point::new(1, 10)), false);
+        assert_eq!(center.is_next_to(Point::new(10, 1)), false);
         assert_eq!(center.is_next_to(Point::new(10, 10)), false);
     }
 }
