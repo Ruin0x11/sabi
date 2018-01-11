@@ -183,7 +183,7 @@ fn generate_stair_dest(state: &mut GameState,
     let prev_id = state.world.flags().map_id;
     let dest_id = new_world.flags().map_id;
 
-    let mut stairs_mut = state.world.cell_mut(&stair_pos).unwrap();
+    let stairs_mut = state.world.cell_mut(&stair_pos).unwrap();
 
     if let Some(CellFeature::Stairs(stair_dir, ref mut dest @ StairDest::Ungenerated(..))) =
         stairs_mut.feature

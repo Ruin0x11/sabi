@@ -23,8 +23,8 @@ rusttype = "0.2"
 
 # Logging
 backtrace = "0.3.0" # REMOVE?
-slog = "1.2"
-slog-stream = "1.2"
+slog = "2"
+slog-term = "2"
 env_logger = "0.3"
 chrono = "0.3.0" # REMOVE?
 

@@ -122,7 +122,7 @@ impl<'a> TileAtlasBuilder<'a> {
         assert!(self.frames.contains_key(&path_str.to_string()));
 
         {
-            let mut frame = self.frames.get_mut(&key).unwrap();
+            let frame = self.frames.get_mut(&key).unwrap();
             assert!(!frame.offsets.contains_key(&index));
 
             let tile = AtlasTile {
@@ -163,7 +163,7 @@ impl<'a> TileAtlasBuilder<'a> {
             // len mut packer = self.newest_packer_mut();
 
             let packer_idx = self.packers.len() - 1;
-            let mut packer = &mut self.packers[packer_idx];
+            let packer = &mut self.packers[packer_idx];
             packer.pack_own(path_string.to_string(), texture).unwrap();
             let rect = packer.get_frame(&path_string).unwrap().frame;
             self.frames

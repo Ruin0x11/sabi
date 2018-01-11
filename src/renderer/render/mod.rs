@@ -80,7 +80,7 @@ pub struct RenderContext {
 
 impl RenderContext {
     pub fn new() -> Self {
-        let mut events_loop = glutin::EventsLoop::new();
+        let events_loop = glutin::EventsLoop::new();
 
         let window = glutin::WindowBuilder::new()
             .with_dimensions(SCREEN_WIDTH, SCREEN_HEIGHT)

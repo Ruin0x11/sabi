@@ -1,9 +1,10 @@
 mod action;
+mod debug_command;
+mod equipment;
+mod stairs;
 pub mod command;
 pub mod entity;
-mod equipment;
-mod debug_command;
-mod stairs;
+pub mod quest;
 
 pub use self::action::Action;
 pub use self::command::{Command, CommandResult};

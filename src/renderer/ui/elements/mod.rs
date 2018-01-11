@@ -1,6 +1,3 @@
-use renderer::ui::*;
-use renderer::ui::renderer::*;
-
 mod bar;
 mod message;
 mod list;

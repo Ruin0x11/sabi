@@ -1,4 +1,4 @@
-use glium::glutin::{VirtualKeyCode, ElementState};
+use glium::glutin::ElementState;
 
 use renderer::ui::*;
 use renderer::ui::elements::*;
@@ -32,19 +32,7 @@ impl UiLayer for ChoiceLayer {
             glutin::WindowEvent::KeyboardInput { input, .. } => {
                 if ElementState::Pressed == input.state {
                     if let Some(code) = input.virtual_keycode {
-                        match code {
-                            VirtualKeyCode::Escape => return EventResult::Canceled,
-                            VirtualKeyCode::Return => return EventResult::Done,
-                            VirtualKeyCode::Up => {
-                                self.list.select_prev();
-                                return EventResult::Consumed(None);
-                            },
-                            VirtualKeyCode::Down => {
-                                self.list.select_next();
-                                return EventResult::Consumed(None);
-                            },
-                            _ => return EventResult::Ignored,
-                        }
+                        UiList::update(&code, &mut self.list);
                     }
                 }
                 EventResult::Ignored

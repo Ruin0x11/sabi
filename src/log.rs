@@ -1,4 +1,4 @@
-use std::fmt::{self, Display};
+use std::fmt;
 use std::panic;
 use std::thread;
 
@@ -7,18 +7,16 @@ use backtrace::Backtrace;
 use std::io;
 use std::fs::File;
 
-use chrono::Local;
-use slog::{self, Logger, DrainExt};
-use slog::ser::Result as SerResult;
-use slog_stream;
+use slog::{self, Logger, Drain};
+use slog_term;
 
 const VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
 
 const DISABLE: bool = false;
 
-macro_rules! now {
-    () => ( Local::now().format("%m-%d %H:%M:%S%.3f") )
-}
+//macro_rules! now {
+//    () => ( Local::now().format("%m-%d %H:%M:%S%.3f") )
+//}
 
 #[cfg(unix)]
 fn log_path(system_name: &str) -> String {
@@ -35,14 +33,17 @@ fn log_path(system_name: &str) -> String {
 /// within systems, use log.new(o!(...)) instead.
 pub fn make_logger(system_name: &str) -> Logger {
     let path = log_path(system_name);
-    let root_logfile = File::create(path)
-        .expect("Couldn't open log file");
+    let root_logfile = File::create(path).expect("Couldn't open log file");
 
     let logger = if DISABLE {
         Logger::root(slog::Discard, o!())
     } else {
         let version = VERSION.unwrap_or("unknown");
-        let drain = slog_stream::stream(root_logfile, SabiLogFormat).fuse();
+
+        let decorator = slog_term::PlainSyncDecorator::new(root_logfile);
+        let drain = slog_term::FullFormat::new(decorator).build().fuse();
+        //let drain = slog_stream::stream(root_logfile, SabiLogFormat).fuse();
+
         Logger::root(drain, o!("v" => version, "system" => system_name.to_string()))
     };
 
@@ -61,16 +62,21 @@ impl fmt::Debug for Shim {
 
 pub fn init_panic_hook() {
     panic::set_hook(Box::new(|info| {
-        let stdout_drain = slog_stream::stream(io::stdout(), SabiLogFormat);
+
+        let decorator = slog_term::PlainSyncDecorator::new(io::stdout());
+        let stdout_drain = slog_term::FullFormat::new(decorator).build().fuse();
+        //klet stdout_drain = slog_stream::stream(io::stdout(), SabiLogFormat);
 
         let path = format!("sabi-error.log");
         let err_logfile = File::create(path).expect("Couldn't open log file");
 
-        let file_drain = slog_stream::stream(err_logfile, SabiLogFormat);
+        let decorator = slog_term::PlainSyncDecorator::new(err_logfile);
+        let file_drain = slog_term::FullFormat::new(decorator).build().fuse();
+        //let file_drain = slog_stream::stream(err_logfile, SabiLogFormat);
 
-        let both_drain = slog::Duplicate::new(stdout_drain, file_drain).ignore_err();
+        let both_drain = slog::Duplicate::new(stdout_drain, file_drain);
 
-        let logger = Logger::root(both_drain, o!());
+        let logger = Logger::root(both_drain.fuse(), o!());
 
         let backtrace = Backtrace::new();
 
@@ -108,100 +114,99 @@ pub fn init_panic_hook() {
     }));
 }
 
-struct SabiLogFormat;
+// struct SabiLogFormat;
+//
+// impl slog_stream::Format for SabiLogFormat {
+// fn format(&self,
+// io: &mut io::Write,
+// rinfo: &slog::Record,
+// logger_values: &slog::OwnedKeyValueList)
+// -> io::Result<()> {
+// let mut serializer = Serializer::new();
+// for (k, v) in logger_values.iter() {
+// try!(v.serialize(rinfo, k, &mut serializer));
+// }
+// let pairs = serializer.fields.join(", ");
+// let msg = format!("{} {} - {} ({})\n", now!(), rinfo.level(), rinfo.msg(), pairs);
+// io.write_all(msg.as_bytes())?;
+//
+// Ok(())
+// }
+// }
 
-impl slog_stream::Format for SabiLogFormat {
-    fn format(
-        &self,
-        io: &mut io::Write,
-        rinfo: &slog::Record,
-        logger_values: &slog::OwnedKeyValueList,
-    ) -> io::Result<()> {
-        let mut serializer = Serializer::new();
-        for (k, v) in logger_values.iter() {
-            try!(v.serialize(rinfo, k, &mut serializer));
-        }
-        let pairs = serializer.fields.join(", ");
-        let msg = format!("{} {} - {} ({})\n", now!(), rinfo.level(), rinfo.msg(), pairs);
-        io.write_all(msg.as_bytes())?;
-
-        Ok(())
-    }
-}
-
-struct Serializer {
-    fields: Vec<String>,
-}
-
-impl Serializer {
-    fn new() -> Serializer {
-        Serializer { fields: Vec::new() }
-    }
-    /// Add field without sanitizing the key
-    ///
-    /// Note: if the key isn't a valid journald key name, it will be ignored.
-    fn add_field(&mut self, field: String) {
-        self.fields.push(field);
-    }
-    fn emit<T: Display>(&mut self, key: &str, val: T) -> SerResult {
-        self.add_field(format!("{}={}", key, val));
-        Ok(())
-    }
-}
-
-impl slog::Serializer for Serializer {
-    fn emit_bool(&mut self, key: &str, val: bool) -> SerResult {
-        self.emit(key, val)
-    }
-    fn emit_unit(&mut self, key: &str) -> SerResult {
-        self.emit(key, "")
-    }
-    fn emit_none(&mut self, key: &str) -> SerResult {
-        self.emit(key, "None")
-    }
-    fn emit_char(&mut self, key: &str, val: char) -> SerResult {
-        self.emit(key, val)
-    }
-    fn emit_u8(&mut self, key: &str, val: u8) -> SerResult {
-        self.emit(key, val)
-    }
-    fn emit_i8(&mut self, key: &str, val: i8) -> SerResult {
-        self.emit(key, val)
-    }
-    fn emit_u16(&mut self, key: &str, val: u16) -> SerResult {
-        self.emit(key, val)
-    }
-    fn emit_i16(&mut self, key: &str, val: i16) -> SerResult {
-        self.emit(key, val)
-    }
-    fn emit_u32(&mut self, key: &str, val: u32) -> SerResult {
-        self.emit(key, val)
-    }
-    fn emit_i32(&mut self, key: &str, val: i32) -> SerResult {
-        self.emit(key, val)
-    }
-    fn emit_u64(&mut self, key: &str, val: u64) -> SerResult {
-        self.emit(key, val)
-    }
-    fn emit_i64(&mut self, key: &str, val: i64) -> SerResult {
-        self.emit(key, val)
-    }
-    fn emit_f32(&mut self, key: &str, val: f32) -> SerResult {
-        self.emit(key, val)
-    }
-    fn emit_f64(&mut self, key: &str, val: f64) -> SerResult {
-        self.emit(key, val)
-    }
-    fn emit_usize(&mut self, key: &str, val: usize) -> SerResult {
-        self.emit(key, val)
-    }
-    fn emit_isize(&mut self, key: &str, val: isize) -> SerResult {
-        self.emit(key, val)
-    }
-    fn emit_str(&mut self, key: &str, val: &str) -> SerResult {
-        self.emit(key, val)
-    }
-    fn emit_arguments(&mut self, key: &str, val: &fmt::Arguments) -> SerResult {
-        self.emit(key, val)
-    }
-}
+// struct Serializer {
+//     fields: Vec<String>,
+// }
+//
+// impl Serializer {
+//     fn new() -> Serializer {
+//         Serializer { fields: Vec::new() }
+//     }
+//     /// Add field without sanitizing the key
+//     ///
+//     /// Note: if the key isn't a valid journald key name, it will be ignored.
+//     fn add_field(&mut self, field: String) {
+//         self.fields.push(field);
+//     }
+//     fn emit<T: Display>(&mut self, key: &str, val: T) -> SerResult {
+//         self.add_field(format!("{}={}", key, val));
+//         Ok(())
+//     }
+// }
+//
+// impl slog::Serializer for Serializer {
+//     fn emit_bool(&mut self, key: &str, val: bool) -> SerResult {
+//         self.emit(key, val)
+//     }
+//     fn emit_unit(&mut self, key: &str) -> SerResult {
+//         self.emit(key, "")
+//     }
+//     fn emit_none(&mut self, key: &str) -> SerResult {
+//         self.emit(key, "None")
+//     }
+//     fn emit_char(&mut self, key: &str, val: char) -> SerResult {
+//         self.emit(key, val)
+//     }
+//     fn emit_u8(&mut self, key: &str, val: u8) -> SerResult {
+//         self.emit(key, val)
+//     }
+//     fn emit_i8(&mut self, key: &str, val: i8) -> SerResult {
+//         self.emit(key, val)
+//     }
+//     fn emit_u16(&mut self, key: &str, val: u16) -> SerResult {
+//         self.emit(key, val)
+//     }
+//     fn emit_i16(&mut self, key: &str, val: i16) -> SerResult {
+//         self.emit(key, val)
+//     }
+//     fn emit_u32(&mut self, key: &str, val: u32) -> SerResult {
+//         self.emit(key, val)
+//     }
+//     fn emit_i32(&mut self, key: &str, val: i32) -> SerResult {
+//         self.emit(key, val)
+//     }
+//     fn emit_u64(&mut self, key: &str, val: u64) -> SerResult {
+//         self.emit(key, val)
+//     }
+//     fn emit_i64(&mut self, key: &str, val: i64) -> SerResult {
+//         self.emit(key, val)
+//     }
+//     fn emit_f32(&mut self, key: &str, val: f32) -> SerResult {
+//         self.emit(key, val)
+//     }
+//     fn emit_f64(&mut self, key: &str, val: f64) -> SerResult {
+//         self.emit(key, val)
+//     }
+//     fn emit_usize(&mut self, key: &str, val: usize) -> SerResult {
+//         self.emit(key, val)
+//     }
+//     fn emit_isize(&mut self, key: &str, val: isize) -> SerResult {
+//         self.emit(key, val)
+//     }
+//     fn emit_str(&mut self, key: &str, val: &str) -> SerResult {
+//         self.emit(key, val)
+//     }
+//     fn emit_arguments(&mut self, key: &str, val: &fmt::Arguments) -> SerResult {
+//         self.emit(key, val)
+//     }
+// }

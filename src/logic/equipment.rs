@@ -1,12 +1,9 @@
-use calx_ecs::Entity;
-
-use logic::action::ActionResult;
-use logic::entity::*;
-use world::traits::*;
-use world::World;
-
 #[cfg(never)]
-pub(super) fn equip(entity: Entity, equipment: Entity, slot: usize, world: &mut World) -> ActionResult {
+pub(super) fn equip(entity: Entity,
+                    equipment: Entity,
+                    slot: usize,
+                    world: &mut World)
+                    -> ActionResult {
     // After validating that the thing is equippable
     let should_equip = {
         let equipment_compo = world.ecs().equipments.get(entity).ok_or(())?;

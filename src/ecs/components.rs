@@ -217,7 +217,7 @@ impl Item {
         self.count as f32 * self.weight
     }
 
-    pub fn can_merge(&self, other: &Item) -> bool {
+    pub fn can_merge(&self, _other: &Item) -> bool {
         false
     }
 
@@ -327,7 +327,7 @@ impl Equipment {
     }
 
     pub fn can_equip(&self, slot_idx: usize) -> bool {
-        let slot = match self.slots.get(slot_idx) {
+        let _slot = match self.slots.get(slot_idx) {
             Some(s) => s,
             None => return false,
         };

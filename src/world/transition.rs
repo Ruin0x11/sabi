@@ -2,7 +2,6 @@ use calx_ecs::Entity;
 use infinigen::*;
 
 use ecs::Loadout;
-use logic::entity::*;
 use point::Point;
 use world::serial;
 use world::{World, MapId};

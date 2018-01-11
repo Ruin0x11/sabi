@@ -1,16 +1,10 @@
-use calx_ecs::Entity;
 use infinigen::*;
 
 use chunk::ChunkIndex;
 use data::Walkability;
-use ecs::Loadout;
 use graphics::cell::Cell;
-use graphics::cell::{CellFeature, StairDest, StairDir};
-use prefab;
 use terrain::traits::*;
 use world::World;
-use world::MapId;
-use world::WorldPosition;
 use world::traits::*;
 
 use point::{Point, RectangleIter};
@@ -28,10 +22,9 @@ pub trait WorldQuery {
     /// FOV/line of sight.
     fn light_passes_through(&self, pos: &Point) -> bool;
 
-    fn with_cells<F>(&self, top_left: Point,
-                     dimensions: Point,
-                     callback: F)
-        where F: FnMut(Point, &Cell);
+    fn with_cells<F>(&self, top_left: Point, dimensions: Point, callback: F)
+    where
+        F: FnMut(Point, &Cell);
 
     fn cell_const(&self, pos: &Point) -> Option<&Cell>;
 }
@@ -39,7 +32,9 @@ pub trait WorldQuery {
 
 impl WorldQuery for World {
     fn can_walk(&self, pos: Point, walkability: Walkability) -> bool {
-        let cell_walkable = self.terrain.cell(&pos).map_or(false, |c| c.can_pass_through());
+        let cell_walkable = self.terrain
+                                .cell(&pos)
+                                .map_or(false, |c| c.can_pass_through());
         // TODO: Should be anything blocking, like blocking terrain features
         let no_mob = walkability.can_walk(self, &pos);
         cell_walkable && no_mob
@@ -57,9 +52,10 @@ impl WorldQuery for World {
         self.cell_const(&pos).map_or(false, |c| c.can_see_through())
     }
 
-    fn with_cells<F>(&self, top_left: Point,
-                     dimensions: Point,
-                     mut callback: F) where F: FnMut(Point, &Cell) {
+    fn with_cells<F>(&self, top_left: Point, dimensions: Point, mut callback: F)
+    where
+        F: FnMut(Point, &Cell),
+    {
         for point in RectangleIter::new(top_left, dimensions) {
             if let Some(cell) = self.terrain.cell(&point) {
                 callback(point, cell);

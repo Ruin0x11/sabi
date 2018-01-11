@@ -1,15 +1,3 @@
-use std::fs::File;
-use std::path::Path;
-
-use glium;
-use glium::backend::Facade;
-use glium::index::PrimitiveType;
-use glium::Rect;
-
-use renderer::atlas::AtlasRect;
-use renderer::atlas::font::FontTexture;
-use renderer::atlas::texture_atlas::*;
-use renderer::render::{self, Renderable, Viewport};
 use super::renderer::*;
 use super::traits::*;
 

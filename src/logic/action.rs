@@ -22,6 +22,7 @@ pub enum Action {
     ShootAt(Entity),
     Pickup(Entity),
     Drop(Entity),
+    Missile(Direction),
 
     Teleport(WorldPosition),
     TeleportUnchecked(WorldPosition),
@@ -38,6 +39,7 @@ pub fn run_entity_action(world: &mut World, entity: Entity, action: Action) -> A
         Action::TeleportUnchecked(pos) => action_teleport_unchecked(world, entity, pos),
         Action::SwingAt(target) => action_swing_at(world, entity, target),
         Action::ShootAt(target) => action_shoot_at(world, entity, target),
+        Action::Missile(dir) => action_missile(world, entity, dir),
         Action::Wait => Ok(()),
     }
 }
@@ -141,6 +143,12 @@ fn action_shoot_at(world: &mut World, attacker: Entity, other: Entity) -> Action
 
     format_mes!(world, attacker, "%U <shoot at> {}! ({})", other.name(world), damage);
     hurt(world, other, attacker, damage);
+
+    Ok(())
+}
+
+fn action_missile(world: &mut World, attacker: Entity, dir: Direction) -> ActionResult {
+    mes!(world, "Firing in {}.", dir);
 
     Ok(())
 }

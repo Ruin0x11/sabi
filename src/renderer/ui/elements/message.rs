@@ -1,7 +1,6 @@
 use renderer::ui::elements::UiElement;
-use renderer::ui::renderer::{TexDir, UiRenderer};
+use renderer::ui::renderer::TexDir;
 use renderer::ui::subrenderer::UiSubRenderer;
-use renderer::render::{SCREEN_WIDTH, SCREEN_HEIGHT};
 use renderer::render::Viewport;
 use renderer::ui::traits::*;
 

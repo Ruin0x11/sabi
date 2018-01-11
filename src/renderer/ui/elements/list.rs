@@ -1,3 +1,5 @@
+use glium::glutin::VirtualKeyCode;
+
 use renderer::ui::*;
 use renderer::ui::renderer::*;
 use renderer::ui::elements::UiText;
@@ -8,10 +10,10 @@ pub struct UiList {
 }
 
 impl UiList {
-    pub fn new(pos: (u32, u32), items: Vec<String>) -> Self {
+    pub fn new(items: Vec<String>) -> Self {
         let mut text_items = Vec::new();
         for item in items.into_iter() {
-            let text = UiText::new(&item);
+            let text = UiText::new(item.clone());
             text_items.push(text);
         }
 
@@ -60,6 +62,22 @@ impl UiList {
 
         Some(self.selected)
     }
+
+    pub fn update(code: &VirtualKeyCode, list: &mut UiList) -> EventResult {
+        match *code {
+            VirtualKeyCode::Escape => return EventResult::Canceled,
+            VirtualKeyCode::Return => return EventResult::Done,
+            VirtualKeyCode::Up => {
+                list.select_prev();
+                return EventResult::Consumed(None);
+            },
+            VirtualKeyCode::Down => {
+                list.select_next();
+                return EventResult::Consumed(None);
+            },
+            _ => return EventResult::Ignored,
+        }
+    }
 }
 
 impl UiElement for UiList {
@@ -68,7 +86,7 @@ impl UiElement for UiList {
         for (idx, item) in self.items.iter().enumerate() {
             let pos = (32, 32 + (item_height * idx as u32) as i32);
             println!("pos {:?}", pos);
-            item.draw(&renderer.sub_renderer(pos, (0, 0)));
+            item.draw(&renderer.sub_renderer(pos, (item_height, renderer.size.1)));
         }
         if let Some(idx) = self.get_selected_idx() {
             renderer.add_tex("win",

@@ -12,7 +12,6 @@ use infinigen::ChunkedWorld;
 use logic::command::{self, Command, CommandError};
 use logic::{self, Action};
 use stats;
-use terrain::traits::*;
 use world::serial::SaveManifest;
 use world::traits::*;
 use world::{self, Bounds, World, WorldPosition};
@@ -82,6 +81,10 @@ impl GameState {
                     town_compo_mut.placed = true;
                 }
             }
+        }
+
+        for quest in self.globals.quests.iter_mut() {
+            quest.process(&self.world)
         }
     }
 

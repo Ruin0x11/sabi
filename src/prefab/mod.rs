@@ -9,7 +9,7 @@ use hlua;
 
 use graphics::cell::Cell;
 use graphics::Color;
-use point::{Point};
+use point::Point;
 
 #[derive(Debug)]
 pub enum PrefabError {
@@ -32,7 +32,7 @@ impl fmt::Display for PrefabError {
     }
 }
 
-impl From<hlua::LuaError>for PrefabError {
+impl From<hlua::LuaError> for PrefabError {
     fn from(err: hlua::LuaError) -> PrefabError {
         LuaException(err)
     }
@@ -81,7 +81,8 @@ pub fn mark_to_color(mark: &str) -> Color {
 }
 
 impl<'lua, L> hlua::LuaRead<L> for Prefab
-    where L: hlua::AsMutLua<'lua>
+where
+    L: hlua::AsMutLua<'lua>,
 {
     fn lua_read_at_position(lua: L, index: i32) -> Result<Prefab, L> {
         let val: Result<hlua::UserdataOnStack<Prefab, _>, _> =
@@ -116,7 +117,7 @@ impl Prefab {
     pub fn set(&mut self, pt: &Point, val: Cell) {
         if self.in_bounds(pt) {
             let idx = self.index(pt);
-            let mut v = &mut self.cells[idx];
+            let v = &mut self.cells[idx];
             *v = val;
         }
     }
@@ -168,7 +169,7 @@ impl Prefab {
         }
     }
 
-    pub fn markers<'a>(&'a self) -> impl Iterator<Item=(&'a Point, &'a String)> {
+    pub fn markers<'a>(&'a self) -> impl Iterator<Item = (&'a Point, &'a String)> {
         self.markers.iter()
     }
 
@@ -205,9 +206,7 @@ impl<'a> Iterator for PrefabIter<'a> {
         let level_position = Point::new(x, y);
         self.index += 1;
         match self.inner.next() {
-            Some(cell) => {
-                Some((level_position, cell))
-            }
+            Some(cell) => Some((level_position, cell)),
             None => None,
         }
     }

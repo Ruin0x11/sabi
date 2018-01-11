@@ -1,4 +1,5 @@
 use graphics::color::Color;
+use renderer::ui::traits::UiRenderable;
 use renderer::ui::elements::*;
 
 pub struct UiPixmap {

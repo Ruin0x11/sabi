@@ -43,7 +43,7 @@ impl AiKind {
     }
 
     fn check_trigger(&self,
-                     entity: Entity,
+                     _entity: Entity,
                      world: &World,
                      goal: AiGoal,
                      trigger: AiTrigger)

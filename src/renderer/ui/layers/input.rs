@@ -13,8 +13,8 @@ impl InputLayer {
     pub fn new(prompt: &str) -> Self {
         InputLayer {
             win: UiWindow::new((100, 100)),
-            prompt: UiText::new(prompt),
-            text: UiText::new(""),
+            prompt: UiText::new(prompt.to_string()), //TODO
+            text: UiText::new(String::new()),
         }
     }
 }
@@ -46,19 +46,19 @@ impl UiLayer for InputLayer {
                             VirtualKeyCode::Escape => return EventResult::Canceled,
                             VirtualKeyCode::Return => return EventResult::Done,
                             VirtualKeyCode::Back => {
-                                let mut t = self.text.text();
+                                let mut t = self.text.text.clone();
                                 if !t.is_empty() {
                                     t.pop();
                                 }
-                                self.text.set(&t);
+                                self.text.text = t;
                                 return EventResult::Consumed(None);
                             },
                             keycode => {
                                 match keycode_to_char(keycode) {
                                     Some(ch) => {
-                                        let mut t = self.text.text();
+                                        let mut t = self.text.text.clone();
                                         t.push(ch);
-                                        self.text.set(&t);
+                                        self.text.text = t;
                                         return EventResult::Consumed(None);
                                     },
                                     None => return EventResult::Ignored,
@@ -79,7 +79,7 @@ impl UiQuery for InputLayer {
     type QueryResult = String;
 
     fn result(&self) -> Option<String> {
-        Some(self.text.text())
+        Some(self.text.text.clone())
     }
 }
 

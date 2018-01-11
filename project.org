@@ -100,6 +100,10 @@ _Theme_
 - Stairs are items, but not normally takeable
 ** Things to determine if fun
 - TP/charge system of skills
+- Gem affinity system
+  + It is possible to slot gems into any old weapon, for special effects (flail with dark triangle spawning large AoE in front)
+  + Certain combinations of gem can cause certain things (MxN crafting grid)
+  + Gem drops decrease with every subsequent drop and only recover over a long time (to prevent grinding)
 - Player may balance between any amount of melee/shooting/magic
 - Creation of temporary dungeons/dungeons from items
 - Customization of home base

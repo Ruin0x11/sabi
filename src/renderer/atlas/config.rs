@@ -11,7 +11,6 @@ use glob;
 use image;
 use toml::Value;
 
-use graphics::color::Color;
 use renderer::atlas::*;
 use util;
 

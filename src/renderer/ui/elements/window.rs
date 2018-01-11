@@ -4,7 +4,7 @@ use renderer::ui::renderer::*;
 pub struct UiWindow {}
 
 impl UiWindow {
-    pub fn new(pos: (u32, u32)) -> Self {
+    pub fn new() -> Self {
         UiWindow {}
     }
 }

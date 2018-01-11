@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use uuid::Uuid;
+
 use GameContext;
 use data::Walkability;
 use ecs::traits::*;
@@ -105,6 +107,26 @@ pub fn process_player_command(context: &mut GameContext, command: Command) -> Co
     }
 }
 
+fn quest_window(context: &mut GameContext, npc: Uuid) -> CommandResult<()> {
+    let center = player_pos(context)?;
+    let mut quests = super::quest::quests(npc);
+    loop {
+        let (map, size) = terrain_region(context, center, 32);
+        let idx = renderer::with_mut(|renderer| {
+            renderer.update(&context.state);
+            renderer.query(&mut QuestLayer::new(quests.clone(), map, size, center))
+        });
+
+        if let Some(idx) = idx {
+            quests.remove(idx);
+        } else {
+            break;
+        }
+    }
+
+    Ok(())
+}
+
 fn cmd_player_move(context: &mut GameContext, dir: Direction) -> CommandResult<()> {
     let position = player_pos(context)?;
     let new_pos = position + dir;
@@ -114,8 +136,8 @@ fn cmd_player_move(context: &mut GameContext, dir: Direction) -> CommandResult<(
     if let Some(mob) = mob_opt {
         // Check if we're bumping into an NPC, and if so don't consume a turn.
         if context.state.world.is_npc(mob) {
-            mes!(context.state.world, "{}: Hello!", mob.name(&context.state.world));
-            return Ok(());
+            let uuid = mob.uuid(&context.state.world).unwrap();
+            return quest_window(context, uuid);
         }
 
         let player = context.state.world.player().unwrap();

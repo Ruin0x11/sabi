@@ -33,7 +33,7 @@ extern crate regex;
 extern crate rodio;
 extern crate rusttype;
 extern crate serde;
-extern crate slog_stream;
+extern crate slog_term;
 extern crate texture_packer;
 extern crate toml;
 extern crate uuid;

@@ -133,6 +133,7 @@ fn build_ui_atlas<F: Facade>(display: &F) -> TextureAtlas {
         .add_texture("win")
         .add_texture("textwin")
         .add_texture("bar")
+        .add_texture("mikan")
         .build(display)
 }
 

@@ -1,3 +1,4 @@
+use std::fmt;
 use std::ops::Add;
 use std::slice::Iter;
 
@@ -5,14 +6,16 @@ use rand::{self, Rng};
 
 use point::Point;
 
-pub static DIRECTIONS: [Direction; 8] = [Direction::N,
-                                         Direction::NE,
-                                         Direction::E,
-                                         Direction::SE,
-                                         Direction::S,
-                                         Direction::SW,
-                                         Direction::W,
-                                         Direction::NW];
+pub static DIRECTIONS: [Direction; 8] = [
+    Direction::N,
+    Direction::NE,
+    Direction::E,
+    Direction::SE,
+    Direction::S,
+    Direction::SW,
+    Direction::W,
+    Direction::NW,
+];
 
 
 #[derive(Debug, Clone, Copy)]
@@ -25,6 +28,22 @@ pub enum Direction {
     SW,
     W,
     NW,
+}
+
+impl fmt::Display for Direction {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        let s = match *self {
+            Direction::N => "north",
+            Direction::NE => "northeast",
+            Direction::E => "east",
+            Direction::SE => "southeast",
+            Direction::S => "south",
+            Direction::SW => "southwest",
+            Direction::W => "west",
+            Direction::NW => "northwest",
+        };
+        write!(f, "{}", s)
+    }
 }
 
 impl Direction {

@@ -3,7 +3,6 @@ use hlua::{self, Lua};
 
 use point::Point;
 use graphics::cell::Cell;
-use prefab;
 use prefab::*;
 use lua;
 
