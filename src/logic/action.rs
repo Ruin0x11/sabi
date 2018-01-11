@@ -5,6 +5,7 @@ use data::Walkability;
 use ecs::traits::*;
 use logic::entity::*;
 use point::{Direction, Point};
+use renderer;
 use sound;
 use stats;
 use world::traits::*;
@@ -147,58 +148,69 @@ fn action_shoot_at(world: &mut World, attacker: Entity, other: Entity) -> Action
     Ok(())
 }
 
+use ecs::Loadout;
+use ecs::components::Appearance;
+
 fn action_missile(world: &mut World, attacker: Entity, dir: Direction) -> ActionResult {
     mes!(world, "You zap to the {}.", dir);
 
-    let mut missile_pos = world.position(attacker).expect("No entity position") + dir;
+    let missile_pos = world.position(attacker).expect("No entity position");
     let mut missile_dir = dir;
     let mut steps = 10;
     let mut hits = 0;
 
-    while steps > 0 && hits < 5 {
-        // step graphics once
+    let arrow = Loadout::new().c(Appearance::new("arrow"));
+    let arrow = world.create(arrow, missile_pos).unwrap();
 
-        // check and damage what's on the space
-        if let Some(entity_under) = world.mob_at(missile_pos) {
-            mes!(world, "The bolt strikes {}!", entity_under.name(world));
-            hurt(world, entity_under, attacker, 10);
-            hits += 1;
-        }
+    while steps > 0 && hits < 5 {
+        let cur_pos = world.position(arrow).unwrap();
 
         // try to bounce
-        let mut next_pos = missile_pos + missile_dir;
-        let passable = |p: &Point| world.cell_const(p).map_or(false, |c| c.can_see_through());
-        let is_passable = passable(&next_pos);
+        let mut next_pos = cur_pos + missile_dir;
+        let passable =
+            |world: &World, p: &Point| world.cell_const(p).map_or(false, |c| c.can_see_through());
+        let is_passable = passable(world, &next_pos);
 
         if !is_passable {
-            next_pos = missile_pos;
+            next_pos = cur_pos;
 
             if missile_dir.is_straight() {
                 missile_dir = missile_dir.reverse();
             } else {
                 // Consider the cell in front and the cells next to it in the direction.
-                let left = missile_pos + missile_dir.neighbor(-1);
-                let right = missile_pos + missile_dir.neighbor(1);
-                let left_pass = passable(&left);
-                let right_pass = passable(&right);
+                let left = cur_pos + missile_dir.neighbor(-1);
+                let right = cur_pos + missile_dir.neighbor(1);
+                let left_pass = passable(world, &left);
+                let right_pass = passable(world, &right);
 
-                if left_pass && !right_pass {
-                    missile_dir = missile_dir.neighbor(-2);
-                    next_pos = left;
+                missile_dir = if left_pass && !right_pass {
+                    missile_dir.neighbor(-2)
                 } else if !left_pass && right_pass {
-                    missile_dir = missile_dir.neighbor(2);
-                    next_pos = right;
+                    missile_dir.neighbor(2)
                 } else {
-                    missile_dir = missile_dir.reverse();
-                }
+                    missile_dir.reverse()
+                };
             }
             mes!(world, "The bolt bounces!");
         }
 
-        missile_pos = next_pos;
+        world.set_entity_location(arrow, next_pos);
+
+        // step graphics once
+        renderer::with_mut(|renderer| renderer.update(world));
+        renderer::wait(1);
+
+        // check and damage what's on the space
+        if let Some(entity_under) = world.mob_at(next_pos) {
+            mes!(world, "The bolt strikes {}!", entity_under.name(world));
+            hurt(world, entity_under, attacker, 10);
+            hits += 1;
+        }
 
         steps -= 1;
     }
+
+    world.kill_entity(arrow);
 
     Ok(())
 }

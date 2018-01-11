@@ -241,7 +241,6 @@ impl<'a> Renderable for TileMap {
     }
 }
 
-use state::GameState;
 use renderer::RenderUpdate;
 use world::{Bounds, World};
 use world::traits::{Query, WorldQuery};
@@ -280,12 +279,11 @@ fn make_map(world: &World, viewport: &Viewport) -> Vec<(DrawTile, Point)> {
 }
 
 impl RenderUpdate for TileMap {
-    fn should_update(&self, _state: &GameState) -> bool {
+    fn should_update(&self, _world: &World) -> bool {
         true
     }
 
-    fn update(&mut self, state: &GameState, viewport: &Viewport) {
-        let world = &state.world;
+    fn update(&mut self, world: &World, viewport: &Viewport) {
         self.tiles = make_map(world, viewport);
         self.valid = false;
     }

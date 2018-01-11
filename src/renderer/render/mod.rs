@@ -18,7 +18,7 @@ use graphics::cell::Cell;
 use graphics::color::Color;
 use renderer::RenderUpdate;
 use renderer::ui::*;
-use state::GameState;
+use world::World;
 
 use self::background::Background;
 use self::shadowmap::ShadowMap;
@@ -164,11 +164,11 @@ impl RenderContext {
         self.shadowmap.reload_shaders(&self.backend);
     }
 
-    pub fn update(&mut self, state: &GameState) {
-        self.tilemap.update(state, &self.viewport);
-        self.spritemap.update(state, &self.viewport);
-        self.shadowmap.update(state, &self.viewport);
-        self.ui.update(state, &self.viewport);
+    pub fn update(&mut self, world: &World) {
+        self.tilemap.update(world, &self.viewport);
+        self.spritemap.update(world, &self.viewport);
+        self.shadowmap.update(world, &self.viewport);
+        self.ui.update(world, &self.viewport);
     }
 
     pub fn render(&mut self) {

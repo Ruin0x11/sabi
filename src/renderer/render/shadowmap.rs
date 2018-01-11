@@ -35,7 +35,7 @@ pub struct ShadowMap {
 enum ShadowKind {
     Light,
     Dark,
-    Marker
+    Marker,
 }
 
 struct Shadow {
@@ -154,7 +154,7 @@ impl ShadowMap {
     pub fn reload_shaders<F: Facade>(&mut self, display: &F) {
         match render::load_program(display, "shadow.vert", "shadow.frag") {
             Ok(program) => self.program = program,
-            Err(e)      => println!("Shader error: {:?}", e),
+            Err(e) => println!("Shader error: {:?}", e),
         }
     }
 
@@ -171,10 +171,10 @@ impl ShadowMap {
             };
 
             instances.push(Instance {
-                map_coord: [x, y],
-                color: [r, g, b, a],
-                tile_index: tile_index,
-            })
+                               map_coord: [x, y],
+                               color: [r, g, b, a],
+                               tile_index: tile_index,
+                           })
         }
         self.instances = glium::VertexBuffer::immutable(display, &instances).unwrap();
     }
@@ -182,7 +182,7 @@ impl ShadowMap {
 
 impl Renderable for ShadowMap {
     fn render<F, S>(&self, _display: &F, target: &mut S, viewport: &Viewport, _time: u64)
-        where
+    where
         F: glium::backend::Facade,
         S: glium::Surface,
     {
@@ -204,20 +204,17 @@ impl Renderable for ShadowMap {
             ..Default::default()
         };
 
-        target.draw(
-            (&self.vertices, self.instances.per_instance().unwrap()),
-            &self.indices,
-            &self.program,
-            &uniforms,
-            &params,
-        )
-            .unwrap();
+        target.draw((&self.vertices, self.instances.per_instance().unwrap()),
+                    &self.indices,
+                    &self.program,
+                    &uniforms,
+                    &params)
+              .unwrap();
     }
 }
 
 use world::{Bounds, World};
 use world::traits::Query;
-use state::GameState;
 use point::Point;
 use renderer::RenderUpdate;
 use infinigen::ChunkedWorld;
@@ -247,9 +244,7 @@ fn make_shadows(world: &World, viewport: &Viewport, bound: Option<Point>) -> Vec
 
     let explored = &world.flags().explored;
     for pos in area {
-        let edges = get_neighboring_edges(pos, |point| {
-            !visible.contains(&point)
-        });
+        let edges = get_neighboring_edges(pos, |point| !visible.contains(&point));
 
         if !visible.contains(&pos) {
             let color = if !explored.contains(&pos) {
@@ -330,12 +325,11 @@ fn make_map(world: &World, viewport: &Viewport) -> Vec<Shadow> {
 }
 
 impl RenderUpdate for ShadowMap {
-    fn should_update(&self, _state: &GameState) -> bool {
+    fn should_update(&self, _world: &World) -> bool {
         true
     }
 
-    fn update(&mut self, state: &GameState, viewport: &Viewport) {
-        let world = &state.world;
+    fn update(&mut self, world: &World, viewport: &Viewport) {
         self.shadows = make_map(world, viewport);
         self.valid = false;
     }

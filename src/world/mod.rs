@@ -246,6 +246,7 @@ pub struct World {
     #[serde(default = "get_message_log")]
     messages: RefCell<MessageLog>,
 
+    // TODO: Graphics only, could be separated
     #[serde(skip_serializing)]
     #[serde(skip_deserializing)]
     #[serde(default = "Marks::new")]

@@ -49,3 +49,9 @@ name="shadow"
 atlas="shad.png"
 offset=[0, 0]
 is_autotile=false
+
+[[tiles]]
+name="arrow"
+atlas="sprite.png"
+offset=[10, 27]
+is_autotile=false

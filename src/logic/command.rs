@@ -119,7 +119,7 @@ fn quest_window(context: &mut GameContext, npc: Uuid) -> CommandResult<()> {
     loop {
         let (map, size) = terrain_region(context, center, 32);
         let idx = renderer::with_mut(|renderer| {
-            renderer.update(&context.state);
+            renderer.update(&context.state.world);
             renderer.query(&mut QuestLayer::new(quests.clone(), map, size))
         });
 
@@ -246,7 +246,7 @@ fn cmd_map(context: &mut GameContext) -> CommandResult<()> {
     let (map, size) = terrain_region(context, center, 32);
 
     renderer::with_mut(|renderer| {
-        renderer.update(&context.state);
+        renderer.update(&context.state.world);
         renderer.query(&mut MapLayer::new(map, size));
     });
 
@@ -302,7 +302,7 @@ pub fn select_direction(context: &mut GameContext) -> CommandResult<Direction> {
     let mut result = Direction::N;
 
     renderer::with_mut(|rc| {
-        rc.update(&context.state);
+        rc.update(&context.state.world);
 
         rc.start_loop(|renderer, event| {
             match event {
@@ -330,13 +330,29 @@ pub fn select_direction(context: &mut GameContext) -> CommandResult<Direction> {
                                                 result = Direction::E;
                                                 selected = true;
                                             },
+                                            VirtualKeyCode::Y => {
+                                                result = Direction::NW;
+                                                selected = true;
+                                            },
+                                            VirtualKeyCode::U => {
+                                                result = Direction::NE;
+                                                selected = true;
+                                            },
+                                            VirtualKeyCode::B => {
+                                                result = Direction::SW;
+                                                selected = true;
+                                            },
+                                            VirtualKeyCode::N => {
+                                                result = Direction::SE;
+                                                selected = true;
+                                            },
                                             VirtualKeyCode::Escape => {
                                                 return Some(renderer::Action::Stop)
                                             },
                                             _ => (),
                                         }
                                     }
-                                    renderer.update(&context.state);
+                                    renderer.update(&context.state.world);
 
                                     if selected {
                                         return Some(renderer::Action::Stop);
@@ -377,7 +393,7 @@ where
 
     renderer::with_mut(|rc| {
         draw_targeting_line(player_pos, &mut context.state.world);
-        rc.update(&context.state);
+        rc.update(&context.state.world);
 
         rc.start_loop(|renderer, event| {
             match event {
@@ -417,7 +433,7 @@ where
 
                                         draw_targeting_line(player_pos, world);
                                     }
-                                    renderer.update(&context.state);
+                                    renderer.update(&context.state.world);
                                 }
                             }
                         },
@@ -441,7 +457,7 @@ where
 
 pub fn menu_choice(context: &mut GameContext, choices: Vec<String>) -> Option<usize> {
     renderer::with_mut(|renderer| {
-        renderer.update(&context.state);
+        renderer.update(&context.state.world);
         renderer.query(&mut ChoiceLayer::new(choices))
     })
 }
@@ -456,7 +472,7 @@ pub fn menu_choice_indexed<T: Display + Clone>(context: &mut GameContext,
 
 pub fn player_input(context: &mut GameContext, prompt: &str) -> Option<String> {
     renderer::with_mut(|renderer| {
-        renderer.update(&context.state);
+        renderer.update(&context.state.world);
         renderer.query(&mut InputLayer::new(prompt))
     })
 }

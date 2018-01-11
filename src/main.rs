@@ -97,7 +97,7 @@ fn game_loop() {
     world::serial::init_save_paths().unwrap();
 
     let mut context = state::load_context();
-    renderer::with_mut(|rc| rc.update(&context.state));
+    renderer::with_mut(|rc| rc.update(&context.state.world));
 
     'outer: loop {
         let mut keys = Vec::new();
@@ -144,7 +144,7 @@ fn game_loop() {
         if let Some((w, h)) = resize {
             renderer::with_mut(|renderer| {
                 renderer.set_viewport(w, h);
-                renderer.update(&context.state);
+                renderer.update(&context.state.world);
                 renderer.render();
             });
         }
@@ -154,7 +154,7 @@ fn game_loop() {
             // the middle of any game routine (like querying the player for input)
             state::game_step(&mut context, Some(*key));
 
-            renderer::with_mut(|renderer| renderer.update(&context.state));
+            renderer::with_mut(|renderer| renderer.update(&context.state.world));
         }
 
         renderer::with_mut(|renderer| {
