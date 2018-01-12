@@ -69,7 +69,7 @@ pub struct AtlasTile {
 pub struct AtlasFrame {
     tile_size: (u32, u32),
     texture_idx: usize,
-    rect: AtlasRect,
+    pub rect: AtlasRect,
     offsets: HashMap<String, AtlasTile>,
 }
 
@@ -256,7 +256,7 @@ impl TileAtlas {
     }
 
     /// Precalculates the UV rectangles for individual tiles to avoid the
-    /// overhead of recalculationg them on lookup. It must be done before the
+    /// overhead of recalculating them on lookup. It must be done before the
     /// tile atlas can be used.
     fn cache_tile_regions(&mut self) {
         for frame in self.config.frames.values() {
@@ -266,13 +266,13 @@ impl TileAtlas {
                 let tex_ratio = self.get_sprite_tex_ratio(tile_type);
                 let add_offset = get_add_offset(&frame.rect, &frame.tile_size);
 
-                let ratio = if tile.data.is_autotile { 2 } else { 1 };
+                let ratio = if tile.data.is_autotile { 2.0 } else { 1.0 };
 
-                let tx = ((tile.data.offset.0 + add_offset.0) * ratio) as f32 * tex_ratio[0];
-                let ty = ((tile.data.offset.1 + add_offset.1) * ratio) as f32 * tex_ratio[1];
+                let tx = ((tile.data.offset.0 as f32 + add_offset.0) * ratio) * tex_ratio[0];
+                let ty = ((tile.data.offset.1 as f32 + add_offset.1) * ratio) * tex_ratio[1];
 
-                let tw = (frame.tile_size.0 * ratio) as f32 / frame_w as f32;
-                let th = (frame.tile_size.1 * ratio) as f32 / frame_h as f32;
+                let tw = (frame.tile_size.0 as f32 * ratio) / frame_w as f32;
+                let th = (frame.tile_size.1 as f32 * ratio) / frame_h as f32;
 
                 *tile.cached_rect.borrow_mut() = Some((tx, ty, tw, th));
             }
@@ -385,10 +385,11 @@ impl TileAtlas {
     }
 }
 
-fn get_add_offset(rect: &AtlasRect, tile_size: &(u32, u32)) -> (u32, u32) {
-    let ceil = |a, b| (a + b - 1) / b;
-    let cols: u32 = ceil(rect.x, tile_size.0);
-    let rows: u32 = ceil(rect.y, tile_size.1);
+/// Returns the number of tiles by which an atlas frame is offset. Note that this could be a
+/// fractional value if the tile sizes differ.
+fn get_add_offset(rect: &AtlasRect, tile_size: &(u32, u32)) -> (f32, f32) {
+    let cols = rect.x as f32 / tile_size.0 as f32;
+    let rows = rect.y as f32 / tile_size.1 as f32;
     (cols, rows)
 }
 

@@ -116,7 +116,7 @@ impl fmt::Display for Dungeon {
             writeln!(f,
                      "section: {} ({}) len: {} children: {:?}",
                      i,
-                     section.kind,
+                     section.prefab,
                      section.floor_ids.len(),
                      self.adjacencies[i])?;
         }
@@ -128,16 +128,16 @@ pub struct DungeonPlan {
     prufer_code: Vec<usize>,
     min_section_length: usize,
     max_section_length: usize,
-    kind: String,
+    prefab: String,
 }
 
 impl DungeonPlan {
-    pub fn new(prufer_code: Vec<usize>, len: usize, kind: String) -> Self {
+    pub fn new(prufer_code: Vec<usize>, len: usize, prefab: String) -> Self {
         DungeonPlan {
             prufer_code: prufer_code,
             min_section_length: len,
             max_section_length: len + 1,
-            kind: kind,
+            prefab: prefab,
         }
     }
 
@@ -146,7 +146,7 @@ impl DungeonPlan {
             prufer_code: generate_prufer_code(2, 4, 20, 10),
             min_section_length: 2,
             max_section_length: 5,
-            kind: "dood".to_string(),
+            prefab: "dood".to_string(),
         }
     }
 
@@ -162,7 +162,7 @@ impl DungeonPlan {
         for _ in 0..vertex_count {
             sections.push(generate_section(self.min_section_length,
                                            self.max_section_length,
-                                           &self.kind));
+                                           &self.prefab));
         }
 
         let edges = prufer_to_edges(&self.prufer_code);
@@ -185,15 +185,15 @@ impl DungeonPlan {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct DungeonSection {
-    kind: String,
+    prefab: String,
     floor_ids: Vec<Option<MapId>>,
 }
 
 impl DungeonSection {
-    pub fn new(kind: &str, length: usize) -> Self {
+    pub fn new(prefab: &str, length: usize) -> Self {
         assert!(length > 0);
         DungeonSection {
-            kind: kind.to_string(),
+            prefab: prefab.to_string(),
             floor_ids: vec![None; length],
         }
     }
@@ -206,7 +206,7 @@ impl DungeonSection {
         self.next_ungenerated_floor_idx().and_then(|idx| {
             let world = World::new()
                 .from_other_world(current_floor)
-                .with_prefab(&self.kind)
+                .with_prefab(&self.prefab)
                 .build()
                 .unwrap();
 
@@ -243,8 +243,8 @@ impl DungeonSection {
     }
 }
 
-fn generate_section(min_len: usize, max_len: usize, kind: &str) -> DungeonSection {
-    DungeonSection::new(kind, rand::thread_rng().gen_range(min_len, max_len))
+fn generate_section(min_len: usize, max_len: usize, prefab: &str) -> DungeonSection {
+    DungeonSection::new(prefab, rand::thread_rng().gen_range(min_len, max_len))
 }
 
 fn generate_prufer_code(min_len: usize, max_len: usize, weight: u32, step: u32) -> Vec<usize> {

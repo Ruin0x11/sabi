@@ -44,6 +44,16 @@ const QUAD_SE: i8 = 3;
 
 use point::Direction::*;
 
+fn get_tile_index(quadrant: i8) -> i8 {
+    match quadrant {
+        QUAD_NW => 0,
+        QUAD_NE => 1,
+        QUAD_SW => 4,
+        QUAD_SE => 5,
+        _ => 0,
+    }
+}
+
 fn get_autotile_index(edges: u8, quadrant: i8) -> i8 {
     let is_connected = |dir: Direction| (edges & (1 << dir_to_bit(dir))) > 0;
 
@@ -99,16 +109,6 @@ fn get_autotile_index(edges: u8, quadrant: i8) -> i8 {
         QUAD_SW => lookup_idx(S, W, SW, [20, 21, 16, 17], 6),
         QUAD_SE => lookup_idx(S, E, SE, [23, 22, 19, 18], 7),
         _ => -1,
-    }
-}
-
-fn get_tile_index(quadrant: i8) -> i8 {
-    match quadrant {
-        QUAD_NW => 0,
-        QUAD_NE => 1,
-        QUAD_SW => 4,
-        QUAD_SE => 5,
-        _ => 0,
     }
 }
 

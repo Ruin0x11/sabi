@@ -67,6 +67,9 @@ impl TileAtlas {
         // so, saving startup time.
 
         let cached_config = load_tile_atlas_config(packed_folder);
+        for (name, frame) in cached_config.frames.iter() {
+            println!("name: {}  rect: {:?}", name, frame.rect);
+        }
 
         let hash = hash_str(&toml_str);
 

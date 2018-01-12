@@ -95,3 +95,4 @@ name="carpet"
 atlas="tile.png"
 offset=[0, 1]
 is_autotile=false
+

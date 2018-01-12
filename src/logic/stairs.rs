@@ -1,11 +1,16 @@
+use std::collections::HashSet;
 use GameContext;
+use data::Walkability;
 use ecs::globals;
+use ecs::prefab;
 use graphics::cell::{CellFeature, StairDest, StairDir, StairKind};
 use infinigen::ChunkedWorld;
-use point::Point;
+use point::{Point, POINT_ZERO};
 use state::GameState;
 use world::traits::*;
-use world::{self, World};
+use world::{self, World, Bounds};
+use rand::{self, Rng};
+use util::rand_util;
 
 use super::command::*;
 
@@ -16,6 +21,12 @@ pub(super) fn cmd_use_stairs(context: &mut GameContext, dir: StairDir) -> Comman
 
     let (true_next, dest) = load_stair_dest(state, pos, next)?;
     state.world.move_to_map(true_next, dest).unwrap();
+
+    for pos in random_positions(&state.world, 50, &mut rand::thread_rng()).iter() {
+        let item = prefab::random_item();
+        println!("Creat {}", pos);
+        state.world.spawn(item, *pos);
+    }
 
     debug!(state.world.logger, "map id: {:?}", state.world.map_id());
     Ok(())
@@ -78,7 +89,6 @@ fn generate_dungeon_floor(state: &mut GameState, dungeon_id: u64) -> CommandResu
     let mut new_floor =
         dungeon.data
                .generate_next_floor(&state.world)
-        //TODO: Don't crash, just report error
                .ok_or(CommandError::Bug("Failed to generate stair!"))?;
 
     integrate_world_with_dungeon(&mut new_floor, dungeon, dungeon_id)?;
@@ -86,6 +96,50 @@ fn generate_dungeon_floor(state: &mut GameState, dungeon_id: u64) -> CommandResu
     debug!(state.world.logger, "Dungeon status: {:?}", dungeon);
 
     Ok(new_floor)
+}
+
+fn random_positions<F: Rng>(world: &World, count: u16, rng: &mut F) -> HashSet<Point> {
+    let mut i = 0;
+    let mut positions = HashSet::new();
+    let mut tries = 0;
+
+    while i < count && tries < 1000 {
+        match random_open_tile(world, rng) {
+            Some(pos) => {
+                if positions.contains(&pos) {
+                    tries += 1
+                } else {
+                    positions.insert(pos);
+                    i += 1;
+                }
+            },
+            None => tries += 1,
+        }
+    }
+
+    positions
+}
+
+fn random_open_tile<F: Rng>(world: &World, rng: &mut F) -> Option<Point> {
+    let mut bound = POINT_ZERO;
+    if let Bounds::Bounded(w, h) = *world.terrain().bounds() {
+        bound = Point::new(w, h)
+    } else {
+        return None;
+    };
+
+    let mut i = 0;
+    while i < 1000 {
+        let x = rand_util::between(0, bound.x, rng);
+        let y = rand_util::between(0, bound.y, rng);
+
+        let point = Point::new(x, y);
+        if world.can_walk(point, Walkability::MonstersWalkable) {
+            return Some(point);
+        }
+    }
+
+    None
 }
 
 fn generate_dungeon_branch(state: &mut GameState,
@@ -99,7 +153,6 @@ fn generate_dungeon_branch(state: &mut GameState,
     let mut new_floor =
         dungeon.data
                .generate_branch(&state.world, branch)
-        //TODO: Don't crash, just report error
                .ok_or(CommandError::Bug("Failed to generate stair!"))?;
 
     integrate_world_with_dungeon(&mut new_floor, dungeon, dungeon_id)?;

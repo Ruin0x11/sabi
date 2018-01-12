@@ -9,6 +9,7 @@ pub mod grammar;
 pub mod toml;
 #[macro_use]
 pub mod format;
+pub mod rand_util;
 
 use std::time::Duration;
 
