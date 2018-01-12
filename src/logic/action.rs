@@ -142,6 +142,7 @@ fn action_shoot_at(world: &mut World, attacker: Entity, other: Entity) -> Action
         damage = stats::formulas::calculate_damage(world, attacker, other);
     }
 
+    sound::play("fire");
     format_mes!(world, attacker, "%U <shoot at> {}! ({})", other.name(world), damage);
     hurt(world, other, attacker, damage);
 
@@ -152,6 +153,7 @@ use ecs::Loadout;
 use ecs::components::Appearance;
 
 fn action_missile(world: &mut World, attacker: Entity, dir: Direction) -> ActionResult {
+    sound::play("fire");
     mes!(world, "You zap to the {}.", dir);
 
     let missile_pos = world.position(attacker).expect("No entity position");
@@ -202,6 +204,7 @@ fn action_missile(world: &mut World, attacker: Entity, dir: Direction) -> Action
 
         // check and damage what's on the space
         if let Some(entity_under) = world.mob_at(next_pos) {
+            sound::play("bullet21");
             mes!(world, "The bolt strikes {}!", entity_under.name(world));
             hurt(world, entity_under, attacker, 10);
             hits += 1;
@@ -230,8 +233,15 @@ fn hurt(world: &mut World, target: Entity, attacker: Entity, damage: u32) {
          .map_mut(|h| { h.adjust_tp(1); }, attacker);
 
     if target.is_dead(world) {
+        sound::play("death1");
         format_mes!(world, attacker, "%U <kill> {}!", target.name(world));
         target.on_death(world);
+
+        if !world.is_player(target) {
+            world.kill_entity(target);
+        }
+
+        world.purge_dead();
     }
 }
 

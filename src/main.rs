@@ -1,3 +1,4 @@
+#![allow(warnings)]
 #![feature(conservative_impl_trait)]
 #![feature(test)]
 

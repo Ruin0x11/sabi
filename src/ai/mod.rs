@@ -299,6 +299,32 @@ pub fn make_planner() -> AiPlanner {
     effects.set_postcondition(AiProp::TargetDead, true);
     actions.insert(AiAction::SwingAt, effects);
 
+
+    // let mut effects = GoapEffects::new(10);
+    // effects.set_precondition(AiProp::HasTarget, true);
+    // effects.set_precondition(AiProp::ThorwableNearby, true);
+    // effects.set_precondition(AiProp::HasThrowable, false);
+    // effects.set_precondition(AiProp::AtThrowable, false);
+    // effects.set_postcondition(AiProp::AtThrowable, true);
+    // actions.insert(AiAction::GetThrowable, effects);
+
+    // let mut effects = GoapEffects::new(10);
+    // effects.set_precondition(AiProp::HasTarget, true);
+    // effects.set_precondition(AiProp::AtThrowable, true);
+    // effects.set_precondition(AiProp::HasThrowable, false);
+    // effects.set_postcondition(AiProp::HasThrowable, true);
+    // actions.insert(AiAction::PickupThrowable, effects);
+
+    // let mut effects = GoapEffects::new(9);
+    // effects.set_precondition(AiProp::HasTarget, true);
+    // effects.set_precondition(AiProp::TargetVisible, true);
+    // effects.set_precondition(AiProp::TargetInRange, true);
+    // effects.set_precondition(AiProp::HasThrowable, true);
+    // effects.set_precondition(AiProp::TargetDead, false);
+    // effects.set_postcondition(AiProp::TargetDead, true);
+    // actions.insert(AiAction::ShootAt, effects);
+
+
     let mut effects = GoapEffects::new(8);
     effects.set_precondition(AiProp::HasTarget, true);
     effects.set_precondition(AiProp::TargetVisible, true);
@@ -315,4 +341,66 @@ pub fn make_planner() -> AiPlanner {
     actions.insert(AiAction::RunAway, effects);
 
     GoapPlanner { actions: actions }
+}
+
+use std::collections::BinaryHeap;
+use std::cmp::Ordering;
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+enum TargetKind {
+    Attack,
+    Obtain,
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+struct Target {
+    entity: Entity,
+    priority: u32,
+    kind: TargetKind,
+}
+
+impl Ord for Target {
+    fn cmp(&self, other: &Target) -> Ordering {
+        self.priority.cmp(&other.priority)
+        //.then_with(|| self.position.cmp(&other.position))
+    }
+}
+
+impl PartialOrd for Target {
+    fn partial_cmp(&self, other: &Target) -> Option<Ordering> {
+        Some(other.cmp(self))
+    }
+}
+
+struct Targets {
+    targets: BinaryHeap<Target>,
+}
+
+impl Targets {
+    pub fn new() -> Self {
+        Targets { targets: BinaryHeap::new() }
+    }
+
+    pub fn peek() -> Option<&Target> {
+        self.targets.peek()
+    }
+
+    pub fn pop() -> Option<Target> {
+        self.targets.pop()
+    }
+
+    pub fn push(&mut self, target: Target) {
+        self.targets.push(target);
+    }
+
+    pub fn forget_all(&mut self) {
+        let mut targets = BinaryHeap::new();
+        {
+            let target_opt = self.targets.iter().find(|i| i.kind == TargetKind::Attack);
+            if let Some(target) = target_opt {
+                targets.push(*target);
+            }
+        }
+        self.targets = targets;
+    }
 }

@@ -43,7 +43,7 @@ impl GameState {
     /// Try various things based on the world terrain being loaded at certain places, like
     /// inserting dungeon entrances onto the world.
     pub fn try_globals_update(&mut self) {
-        if self.is_overworld() {
+        if self.world.is_overworld() {
             debug!(self.world.logger, "This is apparently the overworld, updating globals...");
             for (id, dungeon) in &mut self.globals.dungeons {
                 let stair_pos = dungeon.pos;
@@ -86,10 +86,6 @@ impl GameState {
         for quest in self.globals.quests.iter_mut() {
             quest.process(&self.world)
         }
-    }
-
-    pub fn is_overworld(&self) -> bool {
-        *self.world.terrain().bounds() == Bounds::Unbounded
     }
 
     pub fn clear_actions(&mut self) {
@@ -200,8 +196,6 @@ fn process_actors(world: &mut World) {
             break;
         }
     }
-
-    world.purge_dead();
 }
 
 fn process_events(_world: &mut World) {
@@ -216,10 +210,44 @@ fn process_events(_world: &mut World) {
     // }
 }
 
+use rand::{self, Rng};
+use util::rand_util;
+use ecs::prefab;
+use point::{Point, POINT_ZERO};
+use data::Walkability;
+use logic::entity::EntityQuery;
+
+fn spawn_enemy<F: Rng>(context: &mut GameContext, rng: &mut F) {
+    let mut found = false;
+    let mut pos = POINT_ZERO;
+    let mut rng = rand::thread_rng();
+
+    if let Some(player) = context.state.world.player() {
+        let callback = |world: &World, point: Point| {
+            world.can_walk(point, Walkability::MonstersWalkable) &&
+                !player.can_see_pos(point, world)
+        };
+        if let Some(point) = rand_util::random_tile(&context.state.world, &mut rng, callback) {
+            pos = point;
+            found = true;
+        }
+    }
+
+    if found {
+        context.state.world.spawn(prefab::random_mob(), pos);
+    }
+}
 
 fn update_world(context: &mut GameContext) {
     context.state.world.update_terrain();
     context.state.world.update_camera();
+
+    if !context.state.world.is_overworld() {
+        let mut rng = rand::thread_rng();
+        if rand_util::chance(0.05, &mut rng) {
+            spawn_enemy(context, &mut rng);
+        }
+    }
 
     context.state.try_globals_update();
 }
@@ -256,7 +284,7 @@ pub fn load_context() -> GameContext {
         // props.props.set::<bool>("omniscient", true);
         let player = context.state
                             .world
-                            .spawn(::ecs::prefab::mob("player", 10000000, "player").c(props),
+                            .spawn(::ecs::prefab::mob("player", 2000, "player").c(props),
                                    WorldPosition::new(0, 0));
         context.state.world.set_player(Some(player));
     }

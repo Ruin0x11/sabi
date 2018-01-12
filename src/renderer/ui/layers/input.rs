@@ -64,7 +64,6 @@ impl UiLayer for InputLayer {
                                     None => return EventResult::Ignored,
                                 }
                             },
-                            _ => return EventResult::Ignored,
                         }
                     }
                 }

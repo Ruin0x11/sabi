@@ -53,20 +53,28 @@ generate_sensors! {
 
     HealthLow, false, sense_health_low;
 
-    CanDoRanged, false, sense_always_false;
-    CanDoMelee, false, sense_always_true;
+    CanDoRanged, false, sense_always_false; //TODO
+    CanDoMelee, false, sense_always_true; //TODO
+    HasThrowable, false, sense_has_throwable;
     AtPosition, false, sense_at_position;
     TargetInInventory, false, sense_target_in_inventory;
     OnTopOfTarget, false, sense_on_top_of_target;
     HasHealing, false, sense_always_false;
     FoundItem, false, sense_found_item;
     HealingItemNearby, false, sense_always_false;
+    ThrowableNearby, false, sense_throwable_nearby;
 
     TargetClose, false, sense_always_false;
     TargetInRange, false, sense_target_in_range;
 
     Exists, true, sense_always_true;
     Moving, false, sense_always_false;
+}
+
+fn sense_has_throwable(world: &World, entity: Entity, ai: &Ai) -> bool {
+    entity.inventory(world)
+          .iter()
+          .any(|item| item.basename(world) == "watermelon")
 }
 
 fn sense_target_visible(world: &World, entity: Entity, ai: &Ai) -> bool {
@@ -149,6 +157,12 @@ fn sense_found_item(world: &World, entity: Entity, _ai: &Ai) -> bool {
     world.seen_entities(entity)
          .iter()
          .any(|i| world.is_item(*i))
+}
+
+fn sense_throwable_nearby(world: &World, entity: Entity, ai: &Ai) -> bool {
+    world.seen_entities(entity)
+         .iter()
+         .any(|i| world.is_item(*i) && i.basename(world) == "watermelon")
 }
 
 fn sense_always_true(_world: &World, _entity: Entity, _ai: &Ai) -> bool {

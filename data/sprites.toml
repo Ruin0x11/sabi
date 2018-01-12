@@ -33,13 +33,13 @@ is_autotile=false
 [[tiles]]
 name="npc"
 atlas="chara.png"
-offset=[2, 0]
+offset=[3, 0]
 is_autotile=false
 
 [[tiles]]
 name="player"
 atlas="chara.png"
-offset=[0, 1]
+offset=[1, 1]
 is_autotile=false
 
 [[tiles]]
@@ -117,51 +117,50 @@ is_autotile=false
 [[tiles]]
 name="amazon"
 atlas="item48.png"
-offset=[4, 9]
+offset=[9, 4]
 is_autotile=false
 
 [[tiles]]
 name="panty"
 atlas="item48.png"
-offset=[4, 7]
+offset=[9, 2]
 is_autotile=false
 
 [[tiles]]
 name="glove"
 atlas="item48.png"
-offset=[9, 7]
+offset=[14, 2]
 is_autotile=false
 
 [[tiles]]
 name="glove2"
 atlas="item48.png"
-offset=[10, 7]
+offset=[15, 2]
 is_autotile=false
 
 [[tiles]]
 name="glove3"
 atlas="item48.png"
-offset=[11, 7]
+offset=[16, 2]
 is_autotile=false
 
 [[tiles]]
 name="shield"
 atlas="item48.png"
-offset=[8, 8]
+offset=[13, 3]
 is_autotile=false
 
 [[tiles]]
 name="shield2"
 atlas="item48.png"
-offset=[9, 8]
+offset=[14, 3]
 is_autotile=false
 
 [[tiles]]
 name="shield3"
 atlas="item48.png"
-offset=[10, 8]
+offset=[15, 3]
 is_autotile=false
-
 
 [[tiles]]
 name="bass"
@@ -185,4 +184,214 @@ is_autotile=false
 name="sword"
 atlas="item48.png"
 offset=[0, 0]
+is_autotile=false
+
+[[tiles]]
+name="wolf"
+atlas="chara.png"
+offset=[2, 1]
+is_autotile=false
+
+[[tiles]]
+name="dog"
+atlas="chara.png"
+offset=[5, 5]
+is_autotile=false
+
+[[tiles]]
+name="fuzzball"
+atlas="chara.png"
+offset=[4, 5]
+is_autotile=false
+
+[[tiles]]
+name="owl"
+atlas="chara.png"
+offset=[3, 5]
+is_autotile=false
+
+[[tiles]]
+name="duck"
+atlas="chara.png"
+offset=[2, 5]
+is_autotile=false
+
+[[tiles]]
+name="pigeon"
+atlas="chara.png"
+offset=[2, 2]
+is_autotile=false
+
+[[tiles]]
+name="snow_bird"
+atlas="chara.png"
+offset=[2, 4]
+is_autotile=false
+
+[[tiles]]
+name="cockatrice"
+atlas="chara.png"
+offset=[2, 6]
+is_autotile=false
+
+[[tiles]]
+name="thing"
+atlas="chara.png"
+offset=[3, 6]
+is_autotile=false
+
+[[tiles]]
+name="cow"
+atlas="chara.png"
+offset=[0, 4]
+is_autotile=false
+
+[[tiles]]
+name="pig"
+atlas="chara.png"
+offset=[1, 4]
+is_autotile=false
+
+[[tiles]]
+name="yeek"
+atlas="chara.png"
+offset=[0, 3]
+is_autotile=false
+
+[[tiles]]
+name="prawn"
+atlas="chara.png"
+offset=[0, 2]
+is_autotile=false
+
+[[tiles]]
+name="mage"
+atlas="chara.png"
+offset=[4, 2]
+is_autotile=false
+
+[[tiles]]
+name="dog_walker"
+atlas="chara.png"
+offset=[4, 1]
+is_autotile=false
+
+[[tiles]]
+name="hitman"
+atlas="chara.png"
+offset=[5, 1]
+is_autotile=false
+
+[[tiles]]
+name="miko"
+atlas="chara.png"
+offset=[5, 2]
+is_autotile=false
+
+[[tiles]]
+name="maid"
+atlas="chara.png"
+offset=[1, 5]
+is_autotile=false
+
+[[tiles]]
+name="blade"
+atlas="chara.png"
+offset=[1, 3]
+is_autotile=false
+
+[[tiles]]
+name="bike"
+atlas="chara.png"
+offset=[2, 3]
+is_autotile=false
+
+[[tiles]]
+name="sandwich"
+atlas="chara.png"
+offset=[2, 3]
+is_autotile=false
+
+[[tiles]]
+name="archer"
+atlas="chara.png"
+offset=[1, 6]
+is_autotile=false
+
+[[tiles]]
+name="candle"
+atlas="chara.png"
+offset=[6, 6]
+is_autotile=false
+
+[[tiles]]
+name="knight"
+atlas="chara.png"
+offset=[6, 5]
+is_autotile=false
+
+[[tiles]]
+name="kusanagi"
+atlas="chara.png"
+offset=[6, 3]
+is_autotile=false
+
+[[tiles]]
+name="mage2"
+atlas="chara.png"
+offset=[5, 3]
+is_autotile=false
+
+[[tiles]]
+name="street_sweeper"
+atlas="chara.png"
+offset=[6, 2]
+is_autotile=false
+
+[[tiles]]
+name="markswoman"
+atlas="chara.png"
+offset=[6, 0]
+is_autotile=false
+
+[[tiles]]
+name="king"
+atlas="chara.png"
+offset=[4, 0]
+is_autotile=false
+
+[[tiles]]
+name="queen"
+atlas="chara.png"
+offset=[5, 0]
+is_autotile=false
+
+[[tiles]]
+name="lawyer"
+atlas="chara.png"
+offset=[1, 2]
+is_autotile=false
+
+[[tiles]]
+name="guard_m"
+atlas="chara.png"
+offset=[0, 7]
+is_autotile=false
+
+[[tiles]]
+name="guard_f"
+atlas="chara.png"
+offset=[0, 8]
+is_autotile=false
+
+[[tiles]]
+name="hair_woman"
+atlas="chara.png"
+offset=[5, 6]
+is_autotile=false
+
+[[tiles]]
+name="gladiator"
+atlas="chara.png"
+offset=[4, 6]
 is_autotile=false

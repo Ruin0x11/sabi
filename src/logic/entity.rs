@@ -20,6 +20,7 @@ use world::traits::*;
 use world::World;
 
 pub trait EntityQuery {
+    fn basename(&self, world: &World) -> String;
     fn name(&self, world: &World) -> String;
     fn name_with_article(&self, world: &World) -> String;
     fn verb_person(&self, world: &World) -> VerbPerson;
@@ -64,6 +65,15 @@ impl EntityQuery for Entity {
         }
 
         true
+    }
+
+    fn basename(&self, world: &World) -> String {
+        let name_compo = match world.ecs().names.get(*self) {
+            Some(n) => n,
+            None => return "something".to_string(),
+        };
+
+        name_compo.name.to_string()
     }
 
     fn name(&self, world: &World) -> String {

@@ -16,6 +16,75 @@ pub fn mob(name: &str, health: i32, sprite: &str) -> Loadout {
         .c(Log::new("mob"))
 }
 
+fn mob_unnamed(name: &str, health: i32, sprite: &str) -> Loadout {
+    Loadout::new()
+        .c(Name::new(name.to_string()))
+        .c(Health::new(health))
+        .c(Appearance::new(sprite))
+        .c(Turn::new(100))
+        .c(Ai::new(AiKind::SeekTarget))
+        .c(Fov::new())
+        .c(Log::new("mob"))
+}
+
+static MOBS_COMMON: [(&str, &str); 12] = [
+    ("wolf", "wolf"),
+    ("dog", "dog"),
+    ("fuzzball", "fuzzball"),
+    ("owl", "owl"),
+    ("duck", "duck"),
+    ("pigeon", "pigeon"),
+    ("snow_bird", "snow bird"),
+    ("cow", "cow"),
+    ("pig", "pig"),
+    ("putit", "putit"),
+    ("prawn", "prawn"),
+    ("yeek", "yeek"),
+];
+
+static MOBS_RARE: [(&str, &str); 8] = [
+    ("blade", "blade"),
+    ("bike", "bike"),
+    ("sandwich", "living sandwich"),
+    ("candle", "candle"),
+    ("thing", "thing"),
+    ("street_sweeper", "street sweeper"),
+    ("hair_woman", "hair woman"),
+    ("cockatrice", "cockatrice"),
+];
+
+static MOBS_HUMANOID: [(&str, &str); 8] = [
+    ("mage", "mage"),
+    ("hitman", "hitman"),
+    ("miko", "miko"),
+    ("maid", "maid"),
+    ("archer", "archer"),
+    ("mage2", "oriental mage"),
+    ("markswoman", "markswoman"),
+    ("lawyer", "lawyer"),
+];
+
+pub fn random_mob() -> Loadout {
+    let mut rng = rand::thread_rng();
+    let mut named = false;
+    let &(sprite, name) = if rand_util::chance(0.1, &mut rng) {
+        if rand_util::chance(0.3, &mut rng) {
+            rng.choose(&MOBS_RARE).unwrap()
+        } else {
+            named = true;
+            rng.choose(&MOBS_HUMANOID).unwrap()
+        }
+    } else {
+        rng.choose(&MOBS_COMMON).unwrap()
+    };
+
+    if named {
+        mob(name, 250, sprite)
+    } else {
+        mob_unnamed(name, 30, sprite)
+    }
+}
+
 pub fn npc(name: &str) -> Loadout {
     mob(name, 1000, "npc")
         .c(Npc::new())
@@ -46,22 +115,23 @@ static ITEMS_COMMON: [(&str, &str); 13] = [
     ("shield2", "shield"),
 ];
 
-static ITEMS_RARE: [(&str, &str); 6] = [
+static ITEMS_RARE: [(&str, &str); 7] = [
     ("bass", "bass guitar"),
     ("violin", "violin"),
     ("shield3", "large shield"),
     ("glove3", "pair of decent gloves"),
     ("winchester", "Winchester premium"),
     ("amazon", "amazon.co.jp delivery"),
+    ("sword", "nice sword"),
 ];
 
 pub fn random_item() -> Loadout {
     let mut rng = rand::thread_rng();
-    let &(sprite, name) = if rand_util::chance(0.15, &mut rng) {
+    let &(sprite, name) = if rand_util::chance(0.1, &mut rng) {
         rng.choose(&ITEMS_RARE).unwrap()
     } else {
         rng.choose(&ITEMS_COMMON).unwrap()
     };
 
-    item(name, "sword")
+    item(name, sprite)
 }

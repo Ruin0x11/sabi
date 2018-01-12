@@ -385,6 +385,10 @@ impl Query for World {
     fn turn_order(&self) -> &TurnOrder {
         &self.turn_order
     }
+
+    fn is_overworld(&self) -> bool {
+        *self.terrain().bounds() == Bounds::Unbounded
+    }
 }
 
 impl Mutate for World {

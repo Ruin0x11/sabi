@@ -49,6 +49,8 @@ pub trait Query {
 
     fn seen_entities(&self, viewer: Entity) -> Vec<Entity>;
 
+    fn is_overworld(&self) -> bool;
+
     fn find_entities<F>(&self, loc: Point, condition: F) -> Vec<Entity>
     where
         F: FnMut(&Entity) -> bool,
