@@ -4,7 +4,7 @@ use ecs::traits::*;
 use world::traits::Query;
 use world::World;
 
-use super::{AiGoal, AiKind};
+use super::{AiGoal, AiKind, Target, TargetKind};
 
 // TODO: If something strange happens during an unrelated AI goal, the AI should be able to react.
 // The obvious example is a neutral entity being attacked by something, in which case they could
@@ -26,7 +26,7 @@ impl AiKind {
     pub fn check_triggers(&self,
                           entity: Entity,
                           world: &World)
-                          -> Option<(AiGoal, Option<Entity>)> {
+                          -> Option<(AiGoal, Option<Target>)> {
         let ai = world.ecs().ais.get_or_err(entity);
         let ai_goal = ai.data.last_goal.borrow();
         let triggers = ai.data.triggers.borrow();
@@ -47,7 +47,7 @@ impl AiKind {
                      world: &World,
                      goal: AiGoal,
                      trigger: AiTrigger)
-                     -> Option<(AiGoal, Option<Entity>)> {
+                     -> Option<(AiGoal, Option<Target>)> {
         match *self {
             AiKind::Guard => {
                 match goal {
@@ -55,11 +55,21 @@ impl AiKind {
                         match trigger {
                             // TODO: More detailed enemy/friend anger management
                             AiTrigger::AttackedBy(attacker) => {
-                                Some((AiGoal::KillTarget, Some(attacker)))
+                                Some((AiGoal::KillTarget,
+                                      Some(Target {
+                                               entity: attacker,
+                                               priority: 100,
+                                               kind: TargetKind::Attack,
+                                           })))
                             },
                             AiTrigger::SawEntity(seen) => {
                                 if !world.is_player(seen) {
-                                    Some((AiGoal::KillTarget, Some(seen)))
+                                    Some((AiGoal::KillTarget,
+                                          Some(Target {
+                                                   entity: seen,
+                                                   priority: 100,
+                                                   kind: TargetKind::Attack,
+                                               })))
                                 } else {
                                     None
                                 }

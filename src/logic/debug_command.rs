@@ -83,6 +83,7 @@ fn debug_print_entity_info(context: &mut GameContext) -> CommandResult<()> {
     Ok(())
 }
 
+// TODO: Make into prefab
 fn debug_scav(context: &mut GameContext) -> CommandResult<()> {
     goto_new_world(context,
                    get_debug_world("blank", Some(prefab_args! { width: 100, height: 100, }))

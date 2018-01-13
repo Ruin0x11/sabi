@@ -7,15 +7,17 @@ use logic::entity::EntityQuery;
 use world::traits::Query;
 use world::World;
 
-use super::{Ai, AiFacts};
+use super::{Ai, AiFacts, Target, TargetKind};
 
 macro_rules! generate_sensors {
     ( $( $prop:ident, $default:expr, $sensor:ident );+ $(;)*) => {
-        #[derive(Serialize, Deserialize, Hash, Ord, PartialOrd, Eq, PartialEq, Debug, Clone)]
+        macro_attr! {
+        #[derive(Serialize, Deserialize, Hash, Ord, PartialOrd, Eq, PartialEq, Debug, Clone, EnumFromStr!)]
         pub enum AiProp {
             $(
                 $prop,
             )*
+        }
         }
 
         pub(super) fn default_ai_facts() -> AiFacts {
@@ -47,6 +49,8 @@ macro_rules! generate_sensors {
 
 generate_sensors! {
     HasTarget, false, sense_has_target;
+    HasAttackTarget, false, sense_has_attack_target;
+    HasPickupTarget, false, sense_has_pickup_target;
     TargetVisible, false, sense_target_visible;
     TargetDead, false, sense_target_dead;
     NextToTarget, false, sense_next_to_target;
@@ -78,8 +82,8 @@ fn sense_has_throwable(world: &World, entity: Entity, ai: &Ai) -> bool {
 }
 
 fn sense_target_visible(world: &World, entity: Entity, ai: &Ai) -> bool {
-    ai.data.target.borrow().map_or(false, |t| {
-        let pos = match world.position(t) {
+    ai.data.targets.borrow().peek().map_or(false, |t| {
+        let pos = match world.position(t.entity) {
             Some(t) => t,
             None => return false,
         };
@@ -90,14 +94,15 @@ fn sense_target_visible(world: &World, entity: Entity, ai: &Ai) -> bool {
 
 fn sense_target_dead(world: &World, _entity: Entity, ai: &Ai) -> bool {
     ai.data
-      .target
+      .targets
       .borrow()
-      .map_or(false, |t| !world.is_alive(t))
+      .peek()
+      .map_or(false, |t| !world.is_alive(t.entity))
 }
 
 fn sense_next_to_target(world: &World, entity: Entity, ai: &Ai) -> bool {
-    ai.data.target.borrow().map_or(false, |t| {
-        let pos = match world.position(t) {
+    ai.data.targets.borrow().peek().map_or(false, |t| {
+        let pos = match world.position(t.entity) {
             Some(p) => p,
             None => return false,
         };
@@ -107,8 +112,8 @@ fn sense_next_to_target(world: &World, entity: Entity, ai: &Ai) -> bool {
 }
 
 fn sense_on_top_of_target(world: &World, entity: Entity, ai: &Ai) -> bool {
-    ai.data.target.borrow().map_or(false, |t| {
-        let pos = match world.position(t) {
+    ai.data.targets.borrow().peek().map_or(false, |t| {
+        let pos = match world.position(t.entity) {
             Some(p) => p,
             None => return false,
         };
@@ -118,8 +123,8 @@ fn sense_on_top_of_target(world: &World, entity: Entity, ai: &Ai) -> bool {
 }
 
 fn sense_target_in_range(world: &World, entity: Entity, ai: &Ai) -> bool {
-    ai.data.target.borrow().map_or(false, |t| {
-        let pos = match world.position(t) {
+    ai.data.targets.borrow().peek().map_or(false, |t| {
+        let pos = match world.position(t.entity) {
             Some(p) => p,
             None => return false,
         };
@@ -129,10 +134,10 @@ fn sense_target_in_range(world: &World, entity: Entity, ai: &Ai) -> bool {
 }
 
 fn sense_target_in_inventory(world: &World, entity: Entity, ai: &Ai) -> bool {
-    ai.data.target.borrow().map_or(false, |t| {
+    ai.data.targets.borrow().peek().map_or(false, |t| {
         let e = world.entities_in(entity);
         debug_ecs!(world, entity, "CONT: {:?} {:?}", t, e);
-        e.contains(&t)
+        e.contains(&t.entity)
     })
 }
 
@@ -144,7 +149,23 @@ fn sense_at_position(world: &World, entity: Entity, ai: &Ai) -> bool {
 }
 
 fn sense_has_target(_world: &World, _entity: Entity, ai: &Ai) -> bool {
-    ai.data.target.borrow().is_some()
+    !ai.data.targets.borrow().is_empty()
+}
+
+fn sense_has_attack_target(_world: &World, _entity: Entity, ai: &Ai) -> bool {
+    ai.data
+      .targets
+      .borrow()
+      .peek()
+      .map_or(false, |t| t.kind == TargetKind::Attack)
+}
+
+fn sense_has_pickup_target(_world: &World, _entity: Entity, ai: &Ai) -> bool {
+    ai.data
+      .targets
+      .borrow()
+      .peek()
+      .map_or(false, |t| t.kind == TargetKind::Pickup)
 }
 
 fn sense_health_low(world: &World, entity: Entity, _ai: &Ai) -> bool {

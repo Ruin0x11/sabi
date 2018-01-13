@@ -4,21 +4,24 @@ use goap::*;
 use ecs::traits::*;
 use point::Direction;
 use logic::Action;
+use logic::entity::EntityQuery;
 use data::Walkability;
 use point::{Path, Point};
 use rand::{self, Rng};
 use world::traits::*;
 use world::World;
 
-use super::{Ai, AiProp};
+use super::{Ai, AiProp, Target, TargetKind};
 
 macro_rules! generate_ai_actions {
     ( $( $action:ident, $func:ident );+ $(;)*) => {
-        #[derive(Serialize, Deserialize, Hash, Ord, PartialOrd, Eq, PartialEq, Debug, Clone)]
-        pub enum AiAction {
-            $(
-                $action,
-            )*
+        macro_attr! {
+        #[derive(Serialize, Deserialize, Hash, Ord, PartialOrd, Eq, PartialEq, Debug, Clone, EnumFromStr!)]
+            pub enum AiAction {
+                $(
+                    $action,
+                )*
+            }
         }
 
         pub(super) fn choose_action(entity: Entity, world: &World) -> Action {
@@ -48,12 +51,34 @@ generate_ai_actions! {
     Wander, ai_wander;
     MoveCloser, ai_move_closer;
     PickupItem, ai_pickup_item;
+    GetThrowable, ai_get_throwable;
     SwingAt, ai_swing_at;
     ShootAt, ai_shoot_at;
     RunAway, ai_run_away;
     ReturnToPosition, ai_return_to_position;
     Wait, ai_wait;
 }
+
+
+fn ai_get_throwable(entity: Entity, world: &World) -> Action {
+    let ai = &world.ecs().ais.get_or_err(entity).data;
+
+    let throwable =
+        world.seen_entities(entity)
+             .into_iter()
+             .find(|i| world.is_item(*i) && i.basename(world) == "watermelon");
+
+    if let Some(t) = throwable {
+        ai.targets.borrow_mut().push(Target {
+                                         entity: t,
+                                         priority: 90,
+                                         kind: TargetKind::Pickup,
+                                     });
+    }
+
+    Action::Wait
+}
+
 
 fn ai_wait(_entity: Entity, _world: &World) -> Action {
     Action::Wait
@@ -85,7 +110,7 @@ fn ai_return_to_position(entity: Entity, world: &World) -> Action {
 
 fn ai_pickup_item(entity: Entity, world: &World) -> Action {
     let ai = &world.ecs().ais.get_or_err(entity).data;
-    let target = ai.target.borrow().unwrap();
+    let target = ai.targets.borrow().peek().unwrap().entity;
     let items = world.entities_below(entity);
     assert!(items.contains(&target));
     assert!(world.is_item(target));
@@ -95,7 +120,7 @@ fn ai_pickup_item(entity: Entity, world: &World) -> Action {
 fn ai_swing_at(entity: Entity, world: &World) -> Action {
     let ai = &world.ecs().ais.get_or_err(entity).data;
 
-    Action::SwingAt(ai.target.borrow().unwrap())
+    Action::SwingAt(ai.targets.borrow().peek().unwrap().entity)
 }
 
 fn ai_shoot_at(entity: Entity, world: &World) -> Action {
@@ -105,7 +130,7 @@ fn ai_shoot_at(entity: Entity, world: &World) -> Action {
     }
 
     let ai = &world.ecs().ais.get_or_err(entity).data;
-    Action::ShootAt(ai.target.borrow().unwrap())
+    Action::ShootAt(ai.targets.borrow().peek().unwrap().entity)
 }
 
 fn ai_run_away(entity: Entity, world: &World) -> Action {
@@ -143,7 +168,7 @@ fn direction_towards_target(entity: Entity, world: &World) -> Option<Direction> 
     let ais = &world.ecs().ais;
     let ai = &ais.get_or_err(entity).data;
 
-    let target = ai.target.borrow().unwrap();
+    let target = ai.targets.borrow().peek().unwrap().entity;
     let target_pos = world.position(target).unwrap();
     direction_towards(entity, target_pos, world)
 }

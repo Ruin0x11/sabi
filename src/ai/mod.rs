@@ -22,6 +22,7 @@ use point::Point;
 use world::World;
 use world::traits::Query;
 use macros::{Getter, TomlInstantiate};
+use util;
 use toml;
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -56,11 +57,11 @@ impl Ai {
 pub struct AiData {
     #[serde(skip_serializing)]
     #[serde(skip_deserializing)]
-    #[serde(default = "make_planner")]
+    #[serde(default = "planner_from_toml")]
     planner: AiPlanner,
 
     important_pos: RefCell<Option<Point>>,
-    target: RefCell<Option<Entity>>,
+    targets: RefCell<Targets>,
     memory: RefCell<AiMemory>,
     goal: RefCell<AiMemory>,
     next_action: RefCell<Option<AiAction>>,
@@ -77,10 +78,10 @@ impl AiData {
         //TEMP: Figure out how to work with defaults.
         let facts = default_ai_facts();
         AiData {
-            planner: make_planner(),
+            planner: planner_from_toml(),
 
             important_pos: RefCell::new(None),
-            target: RefCell::new(None),
+            targets: RefCell::new(Targets::new()),
             goal: RefCell::new(AiMemory { facts: facts.clone() }),
             memory: RefCell::new(AiMemory { facts: facts }),
 
@@ -115,7 +116,7 @@ impl AiData {
 
     fn is_state_invalid(&self) -> bool {
         if self.last_goal.borrow().requires_target() {
-            if self.target.borrow().is_none() {
+            if self.targets.borrow().is_empty() {
                 return true;
             }
         }
@@ -134,7 +135,9 @@ impl AiData {
     }
 
     pub fn debug_info(&self) -> String {
-        format!("target: {:?}, goal: {:?}", self.target.borrow(), self.last_goal.borrow())
+        format!("target: {:?}, goal: {:?}",
+                self.targets.borrow().peek(),
+                self.last_goal.borrow())
     }
 }
 
@@ -163,15 +166,26 @@ fn check_target(entity: Entity, world: &World) {
     // The entity reference could go stale, so make sure it isn't.
     // TODO: Should this have to happen every time an entity reference is held
     // by something?
+    let mut target_is_invalid = false;
     let ai = &world.ecs().ais.get_or_err(entity).data;
 
-    let mut target = ai.target.borrow_mut();
-    let dead = target.map_or(true, |t| world.position(t).is_none());
-    let removed = target.map_or(true, |t| !world.ecs().contains(t));
-    let in_inventory = target.map_or(false, |t| world.entities_in(entity).contains(&t));
-    // debug_ecs!(entity, world, "Target: {:?} dead {} removed {} in inv {}", target, dead, removed, in_inventory);
-    if target.is_some() && (dead || removed) && !in_inventory {
-        *target = None;
+    {
+        let target = ai.targets.borrow();
+        let dead = target.peek()
+                         .map_or(true, |t| world.position(t.entity).is_none());
+        let removed = target.peek()
+                            .map_or(true, |t| !world.ecs().contains(t.entity));
+        let in_inventory =
+            target.peek()
+                  .map_or(false, |t| world.entities_in(entity).contains(&t.entity));
+        // debug_ecs!(entity, world, "Target: {:?} dead {} removed {} in inv {}", target, dead, removed, in_inventory);
+        if target.peek().is_some() && (dead || removed) && !in_inventory {
+            target_is_invalid = true;
+        }
+    }
+
+    if target_is_invalid {
+        ai.targets.borrow_mut().pop();
     }
 
     if ai.important_pos.borrow().is_none() {
@@ -203,14 +217,17 @@ fn update_goal(entity: Entity, world: &World) {
 fn set_goal(entity: Entity,
             world: &World,
             desired: AiFacts,
-            target: Option<Entity>,
+            target: Option<Target>,
             goal_kind: AiGoal) {
     let ai = &world.ecs().ais.get_or_err(entity).data;
 
     let goal = GoapState { facts: desired };
     *ai.last_goal.borrow_mut() = goal_kind;
     *ai.goal.borrow_mut() = goal;
-    *ai.target.borrow_mut() = target;
+
+    if let Some(t) = target {
+        ai.targets.borrow_mut().set_sole(t);
+    }
 
     // ai.kind.on_goal(goal_kind, entity, world);
 }
@@ -239,7 +256,7 @@ fn update_memory(entity: Entity, world: &World) {
 
     if stale {
         debug_ecs!(world, entity, "Regenerating AI cache! {:?}", ai.data.memory.borrow());
-        debug_ecs!(world, entity, "Target: {:?}", ai.data.target.borrow());
+        debug_ecs!(world, entity, "Target: {:?}", ai.data.targets.borrow().peek());
 
         // make sure the memory is fresh before picking an action
         *ai.data.memory.borrow_mut() = new_memory;
@@ -252,93 +269,44 @@ fn update_memory(entity: Entity, world: &World) {
 
 type AiPlanner = GoapPlanner<AiProp, bool, AiAction>;
 
-// FIXME: ugh?
-pub fn make_planner() -> AiPlanner {
+// TODO: Reverse priorities, so larger priorities are more important
+fn planner_from_toml() -> AiPlanner {
     let mut actions = HashMap::new();
-    let mut effects = GoapEffects::new(100);
-    effects.set_precondition(AiProp::Moving, false);
-    effects.set_postcondition(AiProp::Moving, true);
-    effects.set_postcondition(AiProp::HasTarget, true);
-    effects.set_postcondition(AiProp::TargetVisible, true);
-    effects.set_postcondition(AiProp::FoundItem, true);
-    actions.insert(AiAction::Wander, effects);
+    let value = util::toml::toml_value_from_file("./data/actions.toml");
+    if let toml::Value::Array(ref array) = value["action"] {
+        for action in array.iter() {
+            // Parse string as enum
+            let name = action["name"]
+                .clone()
+                .try_into::<String>()
+                .unwrap()
+                .parse::<AiAction>()
+                .unwrap();
+            let cost = action["cost"].clone().try_into::<u32>().unwrap();
+            let mut effects = GoapEffects::new(cost);
 
-    let mut effects = GoapEffects::new(1000);
-    effects.set_postcondition(AiProp::HealthLow, false);
-    effects.set_postcondition(AiProp::Moving, false);
-    actions.insert(AiAction::Wait, effects);
+            // TODO: crashes if action.pre or action.post don't exist
+            // Read preconditions
+            if let toml::Value::Table(ref pre_table) = action["pre"] {
+                for (pre_name, pre_value) in pre_table.iter() {
+                    let key = pre_name.parse::<AiProp>().unwrap();
+                    let value = pre_value.clone().try_into::<bool>().unwrap();
+                    effects.set_precondition(key, value);
+                }
+            }
 
-    let mut effects = GoapEffects::new(12);
-    effects.set_precondition(AiProp::HasTarget, true);
-    effects.set_precondition(AiProp::OnTopOfTarget, true);
-    effects.set_precondition(AiProp::TargetInInventory, false);
-    effects.set_postcondition(AiProp::TargetVisible, true);
-    effects.set_postcondition(AiProp::TargetInInventory, true);
-    actions.insert(AiAction::PickupItem, effects);
+            // Read postconditions
+            if let toml::Value::Table(ref post_table) = action["post"] {
+                for (post_name, post_value) in post_table.iter() {
+                    let key = post_name.parse::<AiProp>().unwrap();
+                    let value = post_value.clone().try_into::<bool>().unwrap();
+                    effects.set_postcondition(key, value);
+                }
+            }
 
-    let mut effects = GoapEffects::new(10);
-    effects.set_precondition(AiProp::HasTarget, true);
-    effects.set_precondition(AiProp::OnTopOfTarget, false);
-    effects.set_postcondition(AiProp::NextToTarget, true);
-    effects.set_postcondition(AiProp::OnTopOfTarget, true);
-    effects.set_postcondition(AiProp::TargetInRange, true);
-    effects.set_postcondition(AiProp::TargetVisible, true);
-    actions.insert(AiAction::MoveCloser, effects);
-
-    let mut effects = GoapEffects::new(10);
-    effects.set_precondition(AiProp::AtPosition, false);
-    effects.set_postcondition(AiProp::AtPosition, true);
-    actions.insert(AiAction::ReturnToPosition, effects);
-
-    let mut effects = GoapEffects::new(9);
-    effects.set_precondition(AiProp::HasTarget, true);
-    effects.set_precondition(AiProp::TargetVisible, true);
-    effects.set_precondition(AiProp::NextToTarget, true);
-    effects.set_precondition(AiProp::CanDoMelee, true);
-    effects.set_precondition(AiProp::TargetDead, false);
-    effects.set_postcondition(AiProp::TargetDead, true);
-    actions.insert(AiAction::SwingAt, effects);
-
-
-    // let mut effects = GoapEffects::new(10);
-    // effects.set_precondition(AiProp::HasTarget, true);
-    // effects.set_precondition(AiProp::ThorwableNearby, true);
-    // effects.set_precondition(AiProp::HasThrowable, false);
-    // effects.set_precondition(AiProp::AtThrowable, false);
-    // effects.set_postcondition(AiProp::AtThrowable, true);
-    // actions.insert(AiAction::GetThrowable, effects);
-
-    // let mut effects = GoapEffects::new(10);
-    // effects.set_precondition(AiProp::HasTarget, true);
-    // effects.set_precondition(AiProp::AtThrowable, true);
-    // effects.set_precondition(AiProp::HasThrowable, false);
-    // effects.set_postcondition(AiProp::HasThrowable, true);
-    // actions.insert(AiAction::PickupThrowable, effects);
-
-    // let mut effects = GoapEffects::new(9);
-    // effects.set_precondition(AiProp::HasTarget, true);
-    // effects.set_precondition(AiProp::TargetVisible, true);
-    // effects.set_precondition(AiProp::TargetInRange, true);
-    // effects.set_precondition(AiProp::HasThrowable, true);
-    // effects.set_precondition(AiProp::TargetDead, false);
-    // effects.set_postcondition(AiProp::TargetDead, true);
-    // actions.insert(AiAction::ShootAt, effects);
-
-
-    let mut effects = GoapEffects::new(8);
-    effects.set_precondition(AiProp::HasTarget, true);
-    effects.set_precondition(AiProp::TargetVisible, true);
-    effects.set_precondition(AiProp::NextToTarget, false);
-    effects.set_precondition(AiProp::CanDoRanged, true);
-    effects.set_precondition(AiProp::TargetInRange, true);
-    effects.set_precondition(AiProp::TargetDead, false);
-    effects.set_postcondition(AiProp::TargetDead, true);
-    actions.insert(AiAction::ShootAt, effects);
-
-    let mut effects = GoapEffects::new(2);
-    effects.set_precondition(AiProp::HealthLow, true);
-    effects.set_postcondition(AiProp::HealthLow, false);
-    actions.insert(AiAction::RunAway, effects);
+            actions.insert(name, effects);
+        }
+    }
 
     GoapPlanner { actions: actions }
 }
@@ -347,13 +315,14 @@ use std::collections::BinaryHeap;
 use std::cmp::Ordering;
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
-enum TargetKind {
+pub enum TargetKind {
     Attack,
-    Obtain,
+    Pickup,
+    Other,
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
-struct Target {
+pub struct Target {
     entity: Entity,
     priority: u32,
     kind: TargetKind,
@@ -372,7 +341,8 @@ impl PartialOrd for Target {
     }
 }
 
-struct Targets {
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Targets {
     targets: BinaryHeap<Target>,
 }
 
@@ -381,11 +351,15 @@ impl Targets {
         Targets { targets: BinaryHeap::new() }
     }
 
-    pub fn peek() -> Option<&Target> {
+    pub fn is_empty(&self) -> bool {
+        self.targets.is_empty()
+    }
+
+    pub fn peek(&self) -> Option<&Target> {
         self.targets.peek()
     }
 
-    pub fn pop() -> Option<Target> {
+    pub fn pop(&mut self) -> Option<Target> {
         self.targets.pop()
     }
 
@@ -393,14 +367,8 @@ impl Targets {
         self.targets.push(target);
     }
 
-    pub fn forget_all(&mut self) {
-        let mut targets = BinaryHeap::new();
-        {
-            let target_opt = self.targets.iter().find(|i| i.kind == TargetKind::Attack);
-            if let Some(target) = target_opt {
-                targets.push(*target);
-            }
-        }
-        self.targets = targets;
+    pub fn set_sole(&mut self, target: Target) {
+        self.targets = BinaryHeap::new();
+        self.targets.push(target);
     }
 }
