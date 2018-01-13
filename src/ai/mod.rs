@@ -160,6 +160,7 @@ thread_local! {
     static SENSORS: HashMap<AiProp, Sensor> = sensors::make_sensors();
 }
 
+
 pub fn run(entity: Entity, world: &World) -> Option<Action> {
     assert!(!world.is_player(entity), "Tried running AI on current player!");
 

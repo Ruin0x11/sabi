@@ -140,6 +140,10 @@ impl EntityQuery for Entity {
     }
 
     fn can_see_other(&self, target: Entity, world: &World) -> bool {
+        if world.is_mob(target) && target.is_dead(world) {
+            return false;
+        }
+
         if let Some(target_pos) = world.position(target) {
             if !world.is_player(*self) {
                 if world.is_player(target) {
