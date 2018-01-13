@@ -214,6 +214,7 @@ pub fn update_next_action(entity: Entity, world: &World) {
     *ai.data.next_action.borrow_mut() = next_action;
 }
 
+// FIXME: increase speed
 fn check_target(entity: Entity, world: &World) {
     // The entity reference could go stale, so make sure it isn't.
     // TODO: Should this have to happen every time an entity reference is held
@@ -432,11 +433,6 @@ impl Targets {
 
     /// DO NOT CALL DIRECTLY. Use add_target instead.
     pub fn push(&mut self, target: Target) {
-        self.targets.push(target);
-    }
-
-    pub fn set_sole(&mut self, target: Target) {
-        self.targets = BinaryHeap::new();
         self.targets.push(target);
     }
 }

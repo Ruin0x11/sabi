@@ -49,10 +49,11 @@ fn debug_reload_ai(context: &mut GameContext) -> CommandResult<()> {
 
 fn debug_follow_entity(context: &mut GameContext) -> CommandResult<()> {
     mes!(context.state.world, "Which?");
-    let pos = select_tile(context, |_, _| ())?;
-    if let Some(mob) = context.state.world.mob_at(pos) {
-        debug::follow_entity(mob);
-    }
+    let pos = select_tile(context, |pos, world| {
+        debug::follow_entity(world.mob_at(pos));
+        debug::update(world);
+    })?;
+    debug::follow_entity(context.state.world.mob_at(pos));
     Ok(())
 }
 
@@ -154,11 +155,11 @@ fn debug_throw(context: &mut GameContext) -> CommandResult<()> {
 
     context.state
            .world
-           .create(ecs::prefab::item("watermelon", "watermelon"), Point::new(6, 6));
+           .create(ecs::prefab::item("watermelon", "watermelon"), Point::new(5, 5));
 
     context.state
            .world
-           .create(ecs::prefab::mob("putit", 1000, "putit"), Point::new(7, 7));
+           .create(ecs::prefab::mob("putit", 1000, "putit"), Point::new(9, 9));
 
     Ok(())
 }

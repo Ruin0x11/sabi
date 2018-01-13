@@ -93,7 +93,7 @@ impl AiGoal {
 fn hostile_entity(entity: Entity, world: &World) -> Option<Entity> {
     world.seen_entities(entity)
          .into_iter()
-         .find(|e| e.is_hostile(entity, world))
+         .find(|e| !e.is_dead(world) && e.is_hostile(entity, world))
 }
 
 fn get_default_goal(entity: Entity, world: &World) -> Target {

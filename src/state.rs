@@ -123,7 +123,7 @@ pub fn game_step(context: &mut GameContext, input: Option<Key>) {
         run_command(context, command);
     }
 
-    debug::update(context);
+    debug::update(&context.state.world);
 }
 
 pub fn run_command(context: &mut GameContext, command: Command) {
@@ -237,7 +237,7 @@ fn spawn_enemy<F: Rng>(context: &mut GameContext, rng: &mut F) {
     }
 
     if found {
-        //context.state.world.spawn(prefab::random_mob(), pos);
+        context.state.world.spawn(prefab::random_mob(), pos);
     }
 }
 

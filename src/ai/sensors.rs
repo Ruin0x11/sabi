@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use calx_ecs::Entity;
 
+use data::Walkability;
 use ecs::traits::*;
+use point::Path;
 use logic::entity::EntityQuery;
 use world::traits::Query;
 use world::World;
@@ -65,9 +67,10 @@ generate_sensors! {
     FoundItem, false, sense_found_item;
     HealingItemNearby, false, sense_always_false;
     ThrowableNearby, false, sense_throwable_nearby;
+    PathToTargetClear, false, sense_path_to_target_clear;
 
-    TargetClose, false, sense_always_false;
     TargetInRange, false, sense_target_in_range;
+    TargetClose, false, sense_target_close;
 
     Exists, true, sense_always_true;
     Moving, false, sense_always_false;
@@ -121,6 +124,7 @@ fn sense_on_top_of_target(world: &World, entity: Entity, ai: &Ai) -> bool {
         if t.entity.is_none() {
             return false;
         }
+
         let pos = match world.position(t.entity.unwrap()) {
             Some(p) => p,
             None => return false,
@@ -130,7 +134,45 @@ fn sense_on_top_of_target(world: &World, entity: Entity, ai: &Ai) -> bool {
     })
 }
 
+fn sense_path_to_target_clear(world: &World, entity: Entity, ai: &Ai) -> bool {
+    ai.data.targets.borrow().peek().map_or(false, |t| {
+        if t.entity.is_none() {
+            return false;
+        }
+
+        let target_pos = match world.position(t.entity.unwrap()) {
+            Some(p) => p,
+            None => return false,
+        };
+
+        let my_pos = world.position(entity).unwrap();
+        let is_item = world.is_item(t.entity.unwrap());
+
+        let path = Path::find(my_pos, target_pos, world, Walkability::MonstersBlocking);
+        if is_item {
+            path.len() > 0 && world.mob_at(target_pos).is_none()
+        } else {
+            path.len() > 0
+        }
+    })
+}
+
 fn sense_target_in_range(world: &World, entity: Entity, ai: &Ai) -> bool {
+    ai.data.targets.borrow().peek().map_or(false, |t| {
+        if t.entity.is_none() {
+            return false;
+        }
+
+        let pos = match world.position(t.entity.unwrap()) {
+            Some(p) => p,
+            None => return false,
+        };
+
+        pos.distance(world.position(entity).unwrap()) < 8.0
+    })
+}
+
+fn sense_target_close(world: &World, entity: Entity, ai: &Ai) -> bool {
     ai.data.targets.borrow().peek().map_or(false, |t| {
         if t.entity.is_none() {
             return false;
@@ -140,7 +182,7 @@ fn sense_target_in_range(world: &World, entity: Entity, ai: &Ai) -> bool {
             None => return false,
         };
 
-        pos.distance(world.position(entity).unwrap()) < 6.0
+        pos.distance(world.position(entity).unwrap()) < 5.0
     })
 }
 

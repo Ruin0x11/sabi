@@ -36,6 +36,7 @@ cost=50
 [action.pre]
 HasTarget=true
 OnTopOfTarget=false
+PathToTargetClear=true
 [action.post]
 NextToTarget=true
 OnTopOfTarget=true

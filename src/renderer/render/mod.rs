@@ -167,6 +167,7 @@ impl RenderContext {
 
     pub fn update(&mut self, world: &World) {
         if let Some(text) = debug::pop_text() {
+            println!("SET {}", text);
             self.ui.set_text(text);
         }
 
