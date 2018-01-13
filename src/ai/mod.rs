@@ -9,7 +9,7 @@ use self::sensors::*;
 pub use self::goal::AiKind;
 pub use self::trigger::AiTrigger;
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 
 use calx_ecs::Entity;
@@ -34,7 +34,6 @@ pub enum Attitude {
 
 make_getter!(Ai {
                  kind: AiKind,
-
                  data: AiData,
              });
 
@@ -53,18 +52,20 @@ impl Ai {
     }
 }
 
+make_global!(AI_PLANNER, AiPlanner, planner_from_toml());
+
+pub fn reload_planner() {
+    instance::with_mut(|planner| *planner = planner_from_toml());
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AiData {
-    #[serde(skip_serializing)]
-    #[serde(skip_deserializing)]
-    #[serde(default = "planner_from_toml")]
-    planner: AiPlanner,
-
     important_pos: RefCell<Option<Point>>,
     targets: RefCell<Targets>,
     memory: RefCell<AiMemory>,
     goal: RefCell<AiMemory>,
     next_action: RefCell<Option<AiAction>>,
+    target_was_switched: Cell<bool>,
     triggers: RefCell<Vec<AiTrigger>>,
 
     pub last_goal: RefCell<AiGoal>,
@@ -78,14 +79,13 @@ impl AiData {
         //TEMP: Figure out how to work with defaults.
         let facts = default_ai_facts();
         AiData {
-            planner: planner_from_toml(),
-
             important_pos: RefCell::new(None),
             targets: RefCell::new(Targets::new()),
             goal: RefCell::new(AiMemory { facts: facts.clone() }),
             memory: RefCell::new(AiMemory { facts: facts }),
 
             next_action: RefCell::new(None),
+            target_was_switched: Cell::new(false),
             triggers: RefCell::new(Vec::new()),
             last_goal: RefCell::new(AiGoal::DoNothing),
         }
@@ -100,8 +100,7 @@ impl AiData {
     }
 
     pub fn get_plan(&self) -> Result<Vec<AiAction>, AiMemory> {
-        self.planner
-            .get_plan(&self.memory.borrow(), &self.goal.borrow())
+        instance::with(|planner| planner.get_plan(&self.memory.borrow(), &self.goal.borrow()))
     }
 
     pub fn get_next_action(&self) -> Option<AiAction> {
@@ -111,12 +110,19 @@ impl AiData {
     pub fn goal_finished(&self) -> bool {
         let invalid = self.is_state_invalid();
         let no_possible_action = self.next_action.borrow().is_none();
+
+        println!("inv: {}, no: {}", invalid, no_possible_action);
+        println!("{:?}", self.get_next_action());
         invalid || no_possible_action
     }
 
     fn is_state_invalid(&self) -> bool {
         if self.last_goal.borrow().requires_target() {
             if self.targets.borrow().is_empty() {
+                return true;
+            }
+
+            if self.targets.borrow().peek().unwrap().entity.is_none() {
                 return true;
             }
         }
@@ -135,9 +141,18 @@ impl AiData {
     }
 
     pub fn debug_info(&self) -> String {
-        format!("target: {:?}, goal: {:?}",
-                self.targets.borrow().peek(),
-                self.last_goal.borrow())
+        let mut senses = String::new();
+        for (fact, truth) in self.memory.borrow().facts.iter() {
+            if *truth {
+                senses = format!("{}{:?}\n", senses, fact);
+            }
+        }
+        format!("targets:\n{}\ngoal:{:?}\nplan:{:?}\nnext:{:?}\nsenses:{}",
+                self.targets.borrow(),
+                self.goal.borrow(),
+                self.get_plan(),
+                self.get_next_action(),
+                senses)
     }
 }
 
@@ -160,76 +175,6 @@ pub fn run(entity: Entity, world: &World) -> Option<Action> {
     let action = choose_action(entity, world);
 
     Some(action)
-}
-
-fn check_target(entity: Entity, world: &World) {
-    // The entity reference could go stale, so make sure it isn't.
-    // TODO: Should this have to happen every time an entity reference is held
-    // by something?
-    let mut target_is_invalid = false;
-    let ai = &world.ecs().ais.get_or_err(entity).data;
-
-    {
-        let target = ai.targets.borrow();
-        let dead = target.peek()
-                         .map_or(true, |t| world.position(t.entity).is_none());
-        let removed = target.peek()
-                            .map_or(true, |t| !world.ecs().contains(t.entity));
-        let in_inventory =
-            target.peek()
-                  .map_or(false, |t| world.entities_in(entity).contains(&t.entity));
-        // debug_ecs!(entity, world, "Target: {:?} dead {} removed {} in inv {}", target, dead, removed, in_inventory);
-        if target.peek().is_some() && (dead || removed) && !in_inventory {
-            target_is_invalid = true;
-        }
-    }
-
-    if target_is_invalid {
-        ai.targets.borrow_mut().pop();
-    }
-
-    if ai.important_pos.borrow().is_none() {
-        *ai.important_pos.borrow_mut() = world.position(entity)
-    }
-}
-
-fn check_triggers(entity: Entity, world: &World) {
-    let ai = world.ecs().ais.get_or_err(entity);
-
-    if let Some((goal, target)) = ai.kind.check_triggers(entity, world) {
-        set_goal(entity, world, goal.get_end_state(), target, goal);
-    }
-
-    ai.data.triggers.borrow_mut().clear();
-}
-
-fn update_goal(entity: Entity, world: &World) {
-    let ai = &world.ecs().ais.get_or_err(entity).data;
-
-    if ai.goal_finished() {
-        debug_ecs!(world, entity, "Last goal finished.");
-        let (desired, target, goal_kind) = make_new_plan(entity, world);
-
-        set_goal(entity, world, desired, target, goal_kind);
-    }
-}
-
-fn set_goal(entity: Entity,
-            world: &World,
-            desired: AiFacts,
-            target: Option<Target>,
-            goal_kind: AiGoal) {
-    let ai = &world.ecs().ais.get_or_err(entity).data;
-
-    let goal = GoapState { facts: desired };
-    *ai.last_goal.borrow_mut() = goal_kind;
-    *ai.goal.borrow_mut() = goal;
-
-    if let Some(t) = target {
-        ai.targets.borrow_mut().set_sole(t);
-    }
-
-    // ai.kind.on_goal(goal_kind, entity, world);
 }
 
 fn update_memory(entity: Entity, world: &World) {
@@ -255,16 +200,121 @@ fn update_memory(entity: Entity, world: &World) {
     };
 
     if stale {
-        debug_ecs!(world, entity, "Regenerating AI cache! {:?}", ai.data.memory.borrow());
-        debug_ecs!(world, entity, "Target: {:?}", ai.data.targets.borrow().peek());
-
         // make sure the memory is fresh before picking an action
         *ai.data.memory.borrow_mut() = new_memory;
 
-        let next_action = ai.data.get_next_action();
-        debug_ecs!(world, entity, "Do thing: {:?}", next_action);
-        *ai.data.next_action.borrow_mut() = next_action;
+        update_next_action(entity, world);
     }
+}
+
+pub fn update_next_action(entity: Entity, world: &World) {
+    let ai = world.ecs().ais.get_or_err(entity);
+    let next_action = ai.data.get_next_action();
+    debug_ecs!(world, entity, "Do thing: {:?}", next_action);
+    *ai.data.next_action.borrow_mut() = next_action;
+}
+
+fn check_target(entity: Entity, world: &World) {
+    // The entity reference could go stale, so make sure it isn't.
+    // TODO: Should this have to happen every time an entity reference is held
+    // by something?
+    let mut target_is_invalid = false;
+    let ai = &world.ecs().ais.get_or_err(entity).data;
+
+    {
+        let target = ai.targets.borrow();
+        if !ai.targets.borrow().is_empty() && ai.targets.borrow().peek().unwrap().entity.is_some() {
+            let entity = ai.targets.borrow().peek().unwrap().entity.unwrap();
+            let dead = target.peek()
+                             .map_or(true, |t| world.position(entity).is_none());
+            let removed = target.peek()
+                                .map_or(true, |t| !world.ecs().contains(entity));
+            let in_inventory =
+                target.peek()
+                      .map_or(false, |t| world.entities_in(entity).contains(&entity));
+            // debug_ecs!(world,
+            //            entity,
+            //            "Target: {:?} dead {} removed {} in inv {}",
+            //            target,
+            //            dead,
+            //            removed,
+            //            in_inventory);
+            if (dead || removed) && !in_inventory {
+                target_is_invalid = true;
+            }
+        }
+    }
+
+    if target_is_invalid {
+        finish_target(entity, world);
+    }
+
+    if ai.important_pos.borrow().is_none() {
+        *ai.important_pos.borrow_mut() = world.position(entity)
+    }
+}
+
+fn check_triggers(entity: Entity, world: &World) {
+    let ai = world.ecs().ais.get_or_err(entity);
+
+    if let Some((goal, target)) = ai.kind.check_triggers(entity, world) {
+        set_goal(entity, world, goal.get_end_state(), target);
+    }
+
+    ai.data.triggers.borrow_mut().clear();
+}
+
+fn update_goal(entity: Entity, world: &World) {
+    let ai = &world.ecs().ais.get_or_err(entity).data;
+
+    if ai.goal_finished() {
+        debug_ecs!(world, entity, "Last goal finished: {:?}.", ai.last_goal.borrow());
+
+        // Target finished, stop tracking it.
+        finish_target(entity, world);
+    }
+}
+
+fn add_target(target: Target, entity: Entity, world: &World) {
+    let ai = &world.ecs().ais.get_or_err(entity).data;
+    ai.targets.borrow_mut().push(target);
+    debug_ecs!(world, entity, "Target pushed: {:?}", target);
+
+    on_target_switch(entity, world);
+}
+
+fn finish_target(entity: Entity, world: &World) {
+    let ai = &world.ecs().ais.get_or_err(entity).data;
+    let target = ai.targets.borrow_mut().pop();
+    debug_ecs!(world, entity, "Target popped: {:?}", target);
+
+    on_target_switch(entity, world);
+}
+
+fn on_target_switch(entity: Entity, world: &World) {
+    let (desired, target) = make_new_plan(entity, world);
+    debug_ecs!(world, entity, "AI target was changed! {:?}", target);
+    set_goal(entity, world, desired, target);
+
+    // to avoid borrowing next_action twice
+
+    let ai = &world.ecs().ais.get_or_err(entity).data;
+    ai.target_was_switched.set(true);
+}
+
+fn set_goal(entity: Entity, world: &World, desired: AiFacts, target_opt: Option<Target>) {
+    let ai = &world.ecs().ais.get_or_err(entity).data;
+
+    let goal = GoapState { facts: desired };
+    *ai.goal.borrow_mut() = goal;
+
+    if let Some(target) = target_opt {
+        //debug_ecs!(world, entity, "Setting last goal to {:?}, {:?}", target.goal, target);
+        *ai.last_goal.borrow_mut() = target.goal;
+        ai.targets.borrow_mut().push(target);
+    }
+
+    // ai.kind.on_goal(goal_kind, entity, world);
 }
 
 type AiPlanner = GoapPlanner<AiProp, bool, AiAction>;
@@ -315,17 +365,20 @@ use std::collections::BinaryHeap;
 use std::cmp::Ordering;
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TargetKind {
-    Attack,
-    Pickup,
-    Other,
+pub struct Target {
+    entity: Option<Entity>,
+    priority: u32,
+    goal: AiGoal,
 }
 
-#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Target {
-    entity: Entity,
-    priority: u32,
-    kind: TargetKind,
+impl Target {
+    pub fn new(goal: AiGoal) -> Self {
+        Target {
+            entity: None,
+            priority: 1,
+            goal: goal,
+        }
+    }
 }
 
 impl Ord for Target {
@@ -346,6 +399,18 @@ pub struct Targets {
     targets: BinaryHeap<Target>,
 }
 
+use std::fmt;
+
+impl fmt::Display for Targets {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        for target in self.targets.iter() {
+            write!(f, "{:?}\n", target)?;
+        }
+
+        Ok(())
+    }
+}
+
 impl Targets {
     pub fn new() -> Self {
         Targets { targets: BinaryHeap::new() }
@@ -359,10 +424,13 @@ impl Targets {
         self.targets.peek()
     }
 
+    /// DO NOT CALL DIRECTLY, since the AI would not know to create a new plan for the new target.
+    /// Use finish_target instead.
     pub fn pop(&mut self) -> Option<Target> {
         self.targets.pop()
     }
 
+    /// DO NOT CALL DIRECTLY. Use add_target instead.
     pub fn push(&mut self, target: Target) {
         self.targets.push(target);
     }

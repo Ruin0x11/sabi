@@ -3,11 +3,15 @@ use renderer::ui::renderer::*;
 
 pub struct UiText {
     pub text: String,
+    pub shadow: bool,
 }
 
 impl UiText {
     pub fn new(text: String) -> Self {
-        UiText { text: text }
+        UiText {
+            text: text,
+            shadow: false,
+        }
     }
 }
 
@@ -17,7 +21,11 @@ impl UiElement for UiText {
         text_lines.reverse();
         for (idx, line) in text_lines.iter().enumerate() {
             let pos = (0, (idx as u32 * renderer.get_font_size()) as i32);
-            renderer.with_color((0, 0, 0, 255), |r| { r.add_string(pos, None, line); });
+            if self.shadow {
+                renderer.add_string_shadow(pos, None, line);
+            } else {
+                renderer.with_color((0, 0, 0, 255), |r| { r.add_string(pos, None, line); });
+            }
         }
     }
 }

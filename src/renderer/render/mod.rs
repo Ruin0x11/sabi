@@ -14,6 +14,7 @@ use glium::Surface;
 use glium::backend::Facade;
 use glium::index::PrimitiveType;
 
+use debug;
 use graphics::cell::Cell;
 use graphics::color::Color;
 use renderer::RenderUpdate;
@@ -165,6 +166,10 @@ impl RenderContext {
     }
 
     pub fn update(&mut self, world: &World) {
+        if let Some(text) = debug::pop_text() {
+            self.ui.set_text(text);
+        }
+
         self.tilemap.update(world, &self.viewport);
         self.spritemap.update(world, &self.viewport);
         self.shadowmap.update(world, &self.viewport);

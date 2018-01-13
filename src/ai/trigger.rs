@@ -4,7 +4,7 @@ use ecs::traits::*;
 use world::traits::Query;
 use world::World;
 
-use super::{AiGoal, AiKind, Target, TargetKind};
+use super::{AiGoal, AiKind, Target};
 
 // TODO: If something strange happens during an unrelated AI goal, the AI should be able to react.
 // The obvious example is a neutral entity being attacked by something, in which case they could
@@ -57,18 +57,18 @@ impl AiKind {
                             AiTrigger::AttackedBy(attacker) => {
                                 Some((AiGoal::KillTarget,
                                       Some(Target {
-                                               entity: attacker,
+                                               entity: Some(attacker),
                                                priority: 100,
-                                               kind: TargetKind::Attack,
+                                               goal: AiGoal::KillTarget,
                                            })))
                             },
                             AiTrigger::SawEntity(seen) => {
                                 if !world.is_player(seen) {
                                     Some((AiGoal::KillTarget,
                                           Some(Target {
-                                                   entity: seen,
+                                                   entity: Some(seen),
                                                    priority: 100,
-                                                   kind: TargetKind::Attack,
+                                                   goal: AiGoal::KillTarget,
                                                })))
                                 } else {
                                     None

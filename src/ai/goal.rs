@@ -96,7 +96,7 @@ fn hostile_entity(entity: Entity, world: &World) -> Option<Entity> {
          .find(|e| e.is_hostile(entity, world))
 }
 
-fn get_default_goal(entity: Entity, world: &World) -> (AiGoal, Option<Target>) {
+fn get_default_goal(entity: Entity, world: &World) -> Target {
     let ai_compo = world.ecs().ais.get_or_err(entity);
     let ai = &ai_compo.data;
 
@@ -105,45 +105,47 @@ fn get_default_goal(entity: Entity, world: &World) -> (AiGoal, Option<Target>) {
         AiKind::Guard => goal_guard(entity, world),
         AiKind::SeekTarget => goal_seek_target(entity, world),
 
-        AiKind::Wait => (AiGoal::DoNothing, None),
-        AiKind::Wander => (AiGoal::Wander, None),
+        AiKind::Wait => Target::new(AiGoal::DoNothing),
+        AiKind::Wander => Target::new(AiGoal::Wander),
         AiKind::Scavenge if ai.cond(AiProp::FoundItem, true) => goal_scavenge(entity, world),
-        AiKind::Scavenge => (AiGoal::FindItem, None),
+        AiKind::Scavenge => Target::new(AiGoal::FindItem),
     }
 }
 
 fn attack_target(entity: Entity) -> Target {
     Target {
-        entity: entity,
+        entity: Some(entity),
         priority: 100,
-        kind: TargetKind::Attack,
+        goal: AiGoal::KillTarget,
     }
 }
 
-fn goal_follow(entity: Entity, world: &World) -> (AiGoal, Option<Target>) {
+fn goal_follow(entity: Entity, world: &World) -> Target {
     if let Some(hostile) = hostile_entity(entity, world) {
-        return (AiGoal::KillTarget, Some(attack_target(hostile)));
+        return (attack_target(hostile));
     }
 
-    (AiGoal::Follow,
-     world.player().map(|p| {
-        Target {
-            entity: p,
-            priority: 1000,
-            kind: TargetKind::Other,
-        }
-    }))
+    match world.player() {
+        Some(p) => {
+            Target {
+                entity: Some(p),
+                priority: 1,
+                goal: AiGoal::Follow,
+            }
+        },
+        None => Target::new(AiGoal::Wander),
+    }
 }
 
-fn goal_guard(entity: Entity, world: &World) -> (AiGoal, Option<Target>) {
+fn goal_guard(entity: Entity, world: &World) -> Target {
     if let Some(hostile) = hostile_entity(entity, world) {
-        return (AiGoal::KillTarget, Some(attack_target(hostile)));
+        return attack_target(hostile);
     }
 
-    (AiGoal::Guard, None)
+    Target::new(AiGoal::Guard)
 }
 
-fn goal_scavenge(entity: Entity, world: &World) -> (AiGoal, Option<Target>) {
+fn goal_scavenge(entity: Entity, world: &World) -> Target {
 
     let items: Vec<Entity> = world.seen_entities(entity)
                                   .into_iter()
@@ -152,36 +154,52 @@ fn goal_scavenge(entity: Entity, world: &World) -> (AiGoal, Option<Target>) {
 
     let chosen = entity.closest_entity(items, world);
 
-    (AiGoal::GetItem,
-     chosen.map(|t| {
-        Target {
-            entity: t,
-            priority: 100,
-            kind: TargetKind::Pickup,
-        }
-    }))
+    // FIXME
+    Target {
+        entity: chosen,
+        priority: 100,
+        goal: AiGoal::GetItem,
+    }
 }
 
-fn goal_seek_target(entity: Entity, world: &World) -> (AiGoal, Option<Target>) {
+fn goal_seek_target(entity: Entity, world: &World) -> Target {
     match world.player() {
         Some(player) => {
             if entity.can_see_other(player, world) {
-                (AiGoal::KillTarget, Some(attack_target(player)))
+                attack_target(player)
             } else if let Some(hostile) = hostile_entity(entity, world) {
-                return (AiGoal::KillTarget, Some(attack_target(hostile)));
+                attack_target(hostile)
             } else {
-                (AiGoal::FindTarget, Some(attack_target(player)))
+                Target {
+                    entity: Some(player),
+                    priority: 100,
+                    goal: AiGoal::FindTarget,
+                }
             }
         },
-        None => (AiGoal::DoNothing, None),
+        None => Target::new(AiGoal::DoNothing),
     }
 
 }
 
 
-pub fn make_new_plan(entity: Entity, world: &World) -> (AiFacts, Option<Target>, AiGoal) {
-    let (goal, target) = get_default_goal(entity, world);
-    debug_ecs!(world, entity, "New AI goal: {:?} on {:?}", goal, target);
-    let desired = goal.get_end_state();
-    (desired, target, goal)
+pub fn make_new_plan(entity: Entity, world: &World) -> (AiFacts, Option<Target>) {
+    let ai = &world.ecs().ais.get_or_err(entity).data;
+
+    let mut made_target = false;
+    let target = match ai.targets.borrow().peek() {
+        Some(next_target) => *next_target,
+        None => {
+            made_target = true;
+            get_default_goal(entity, world)
+        },
+    };
+
+    debug_ecs!(world, entity, "New AI target: {:?}", target);
+    let desired = target.goal.get_end_state();
+    if made_target {
+        (desired, Some(target))
+    } else {
+        (desired, None)
+    }
 }

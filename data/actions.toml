@@ -16,21 +16,23 @@ cost=1000
 [action.post]
 HealthLow=false
 Moving=false
+Exists=false
 
 [[action]]
 name="PickupItem"
 cost=12
 [action.pre]
-HasPickupTarget=true
+HasTarget=true
 OnTopOfTarget=true
 TargetInInventory=false
 [action.post]
 TargetVisible=true
 TargetInInventory=true
+HasThrowable=true
 
 [[action]]
 name="MoveCloser"
-cost=10
+cost=50
 [action.pre]
 HasTarget=true
 OnTopOfTarget=false
@@ -52,7 +54,7 @@ AtPosition=true
 name="SwingAt"
 cost=9
 [action.pre]
-HasAttackTarget=true
+HasTarget=true
 TargetVisible=true
 NextToTarget=true
 CanDoMelee=true
@@ -64,7 +66,7 @@ TargetDead=true
 name="GetThrowable"
 cost=10
 [action.pre]
-HasAttackTarget=true
+HasTarget=true
 ThrowableNearby=true
 TargetClose=false
 HasThrowable=false
@@ -83,18 +85,18 @@ TargetDead=false
 [action.post]
 TargetDead=true
 
-[[action]]
-name="ShootAt"
-cost=8
-[action.pre]
-HasAttackTarget=true
-TargetVisible=true
-NextToTarget=false
-CanDoRanged=true
-TargetInRange=true
-TargetDead=false
-[action.post]
-TargetDead=true
+#[[action]]
+#name="ShootAt"
+#cost=8
+#[action.pre]
+#HasAttackTarget=true
+#TargetVisible=true
+#NextToTarget=false
+#CanDoRanged=true
+#TargetInRange=true
+#TargetDead=false
+#[action.post]
+#TargetDead=true
 
 [[action]]
 name="RunAway"

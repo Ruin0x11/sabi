@@ -16,20 +16,25 @@ pub use self::renderer::{UiRenderer, UiSubRenderer};
 pub use self::layer::{EventResult, UiLayer, UiQuery};
 pub use self::traits::*;
 
-use renderer::ui::elements::{UiBar, UiMessageLog};
+use renderer::render::{SCREEN_WIDTH, SCREEN_HEIGHT};
+use renderer::ui::elements::{UiBar, UiMessageLog, UiText};
 
 pub struct MainLayer {
     pub log: UiMessageLog,
     pub hp_bar: UiBar,
     pub tp_bar: UiBar,
+    pub text: UiText,
 }
 
 impl MainLayer {
     pub fn new(viewport: &Viewport) -> Self {
+        let mut text = UiText::new(String::new());
+        text.shadow = true;
         MainLayer {
             log: UiMessageLog::new(viewport),
             hp_bar: UiBar::new((100, viewport.height() as i32 - 140), 100, (255, 64, 64, 255)),
             tp_bar: UiBar::new((400, viewport.height() as i32 - 140), 100, (255, 151, 64, 255)),
+            text: text,
         }
     }
 }
@@ -39,6 +44,12 @@ impl UiElement for MainLayer {
         self.log.draw(renderer);
         self.hp_bar.draw(renderer);
         self.tp_bar.draw(renderer);
+
+        {
+            let mut sub =
+                renderer.sub_renderer((20, 20), (SCREEN_WIDTH * 2 - 40, SCREEN_HEIGHT * 2 - 40));
+            self.text.draw(&mut sub);
+        }
     }
 }
 
@@ -77,6 +88,10 @@ impl Ui {
     pub fn pop_layer(&mut self) {
         self.layers.pop();
         self.invalidate();
+    }
+
+    pub fn set_text(&mut self, text: String) {
+        self.main_layer.text.text = text
     }
 
     pub fn clear(&mut self) {

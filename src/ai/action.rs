@@ -11,7 +11,8 @@ use rand::{self, Rng};
 use world::traits::*;
 use world::World;
 
-use super::{Ai, AiProp, Target, TargetKind};
+use ai;
+use super::{Ai, AiProp, AiGoal, Target};
 
 macro_rules! generate_ai_actions {
     ( $( $action:ident, $func:ident );+ $(;)*) => {
@@ -29,7 +30,7 @@ macro_rules! generate_ai_actions {
             // happens
             let ai = world.ecs().ais.get_or_err(entity);
 
-            match *ai.data.next_action.borrow() {
+            let result = match *ai.data.next_action.borrow() {
                 Some(ref action) => {
                     match *action {
                         $(
@@ -41,7 +42,14 @@ macro_rules! generate_ai_actions {
                     warn_of_unreachable_states(entity, world, &ai);
                     Action::Wait
                 },
+            };
+
+            if ai.data.target_was_switched.get() {
+                ai.data.target_was_switched.set(false);
+                ai::update_next_action(entity, world);
             }
+
+            result
         }
 
     }
@@ -69,11 +77,13 @@ fn ai_get_throwable(entity: Entity, world: &World) -> Action {
              .find(|i| world.is_item(*i) && i.basename(world) == "watermelon");
 
     if let Some(t) = throwable {
-        ai.targets.borrow_mut().push(Target {
-                                         entity: t,
-                                         priority: 90,
-                                         kind: TargetKind::Pickup,
-                                     });
+        ai::add_target(Target {
+                           entity: Some(t),
+                           priority: 90,
+                           goal: AiGoal::GetItem,
+                       },
+                       entity,
+                       world);
     }
 
     Action::Wait
@@ -110,7 +120,7 @@ fn ai_return_to_position(entity: Entity, world: &World) -> Action {
 
 fn ai_pickup_item(entity: Entity, world: &World) -> Action {
     let ai = &world.ecs().ais.get_or_err(entity).data;
-    let target = ai.targets.borrow().peek().unwrap().entity;
+    let target = ai.targets.borrow().peek().unwrap().entity.unwrap();
     let items = world.entities_below(entity);
     assert!(items.contains(&target));
     assert!(world.is_item(target));
@@ -120,7 +130,7 @@ fn ai_pickup_item(entity: Entity, world: &World) -> Action {
 fn ai_swing_at(entity: Entity, world: &World) -> Action {
     let ai = &world.ecs().ais.get_or_err(entity).data;
 
-    Action::SwingAt(ai.targets.borrow().peek().unwrap().entity)
+    Action::SwingAt(ai.targets.borrow().peek().unwrap().entity.unwrap())
 }
 
 fn ai_shoot_at(entity: Entity, world: &World) -> Action {
@@ -130,7 +140,7 @@ fn ai_shoot_at(entity: Entity, world: &World) -> Action {
     }
 
     let ai = &world.ecs().ais.get_or_err(entity).data;
-    Action::ShootAt(ai.targets.borrow().peek().unwrap().entity)
+    Action::ShootAt(ai.targets.borrow().peek().unwrap().entity.unwrap())
 }
 
 fn ai_run_away(entity: Entity, world: &World) -> Action {
@@ -168,41 +178,46 @@ fn direction_towards_target(entity: Entity, world: &World) -> Option<Direction> 
     let ais = &world.ecs().ais;
     let ai = &ais.get_or_err(entity).data;
 
-    let target = ai.targets.borrow().peek().unwrap().entity;
+    let target = ai.targets.borrow().peek().unwrap().entity.unwrap();
     let target_pos = world.position(target).unwrap();
     direction_towards(entity, target_pos, world)
 }
 
 
 fn warn_of_unreachable_states(entity: Entity, world: &World, ai: &Ai) {
-    warn_ecs!(world, entity, "AI stuck: {}", ai.data.debug_info());
-    if let Err(failed_state) = ai.data.get_plan() {
-        let mut needed: Vec<AiProp> =
-            ai.data
-              .goal
-              .borrow()
-              .facts
-              .iter()
-              .filter(|&(cond, val)| failed_state.facts.get(cond).map_or(false, |f| f != val))
-              .map(|(cond, _)| cond.clone())
-              .collect();
+    warn_ecs!(world, entity, "AI stuck!");
+    match ai.data.get_plan() {
+        Ok(plan) => {
+            warn_ecs!(world, entity, "plan: {:?}", plan);
+        },
+        Err(failed_state) => {
+            let mut needed: Vec<AiProp> =
+                ai.data
+                  .goal
+                  .borrow()
+                  .facts
+                  .iter()
+                  .filter(|&(cond, val)| failed_state.facts.get(cond).map_or(false, |f| f != val))
+                  .map(|(cond, _)| cond.clone())
+                  .collect();
 
-        for action in ai.data.planner.get_actions().into_iter() {
-            let effects = ai.data.planner.actions(action);
-            let satisfied: Vec<AiProp> = effects.postconditions
-                                                .iter()
-                                                .filter(|&(cond, val)| {
-                failed_state.facts.get(cond).map_or(true, |f| f == val)
-            })
-                                                .map(|(cond, _)| cond.clone())
-                                                .collect();
+            ai::instance::with(|planner| for action in planner.get_actions().into_iter() {
+                let effects = planner.actions(action);
+                let satisfied: Vec<AiProp> = effects.postconditions
+                                                    .iter()
+                                                    .filter(|&(cond, val)| {
+                    failed_state.facts.get(cond).map_or(true, |f| f == val)
+                })
+                                                    .map(|(cond, _)| cond.clone())
+                                                    .collect();
 
-            for s in satisfied {
-                needed.retain(|u| *u != s);
-            }
-        }
+                for s in satisfied {
+                    needed.retain(|u| *u != s);
+                }
+            });
 
-        warn_ecs!(world, entity, "No actions could be found to make these properties true:");
-        warn_ecs!(world, entity, "{:?}", needed);
+            warn_ecs!(world, entity, "No actions could be found to make these properties true:");
+            warn_ecs!(world, entity, "{:?}", needed);
+        },
     }
 }

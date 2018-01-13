@@ -5,6 +5,7 @@ use calx_ecs::Entity;
 use GameContext;
 use ai;
 use chunk::generator::ChunkType;
+use debug;
 use ecs::globals::*;
 use engine::keys::Key;
 use graphics::cell::StairKind;
@@ -121,6 +122,8 @@ pub fn game_step(context: &mut GameContext, input: Option<Key>) {
         let command = Command::from(key);
         run_command(context, command);
     }
+
+    debug::update(context);
 }
 
 pub fn run_command(context: &mut GameContext, command: Command) {
@@ -234,7 +237,7 @@ fn spawn_enemy<F: Rng>(context: &mut GameContext, rng: &mut F) {
     }
 
     if found {
-        context.state.world.spawn(prefab::random_mob(), pos);
+        //context.state.world.spawn(prefab::random_mob(), pos);
     }
 }
 
@@ -281,7 +284,6 @@ pub fn load_context() -> GameContext {
         apply_save_manifest(&mut context, world, manifest);
     } else {
         let mut props = ::ecs::components::Props::new();
-        // props.props.set::<bool>("omniscient", true);
         let player = context.state
                             .world
                             .spawn(::ecs::prefab::mob("player", 2000, "player").c(props),

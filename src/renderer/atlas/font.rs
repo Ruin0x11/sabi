@@ -73,10 +73,18 @@ impl<'a> glium::texture::Texture2dDataSource<'a> for &'a TextureData {
     }
 }
 
+fn last_char(s: &str) -> Option<char> {
+    if let Some((_, c)) = s.char_indices().rev().nth(0) {
+        return Some(c);
+    }
+
+    None
+}
+
 impl FontTexture {
     /// Vec<char> of complete ASCII range (from 0 to 255 bytes)
     pub fn ascii_character_list() -> Vec<char> {
-        (0 .. 255).filter_map(|c| ::std::char::from_u32(c)).collect()
+        (0..255).filter_map(|c| ::std::char::from_u32(c)).collect()
     }
 
     /// Creates a new texture representing a font stored in a `FontTexture`.
@@ -84,9 +92,15 @@ impl FontTexture {
     /// texture.  Complexity grows as `font_size**2 * characters_list.len()`.
     /// **Avoid rasterizing everything at once as it will be slow and end up in
     /// out of memory abort.**
-    pub fn new<R, F, I>(facade: &F, font: R, font_size: u32, characters_list: I)
+    pub fn new<R, F, I>(facade: &F,
+                        font: R,
+                        font_size: u32,
+                        characters_list: I)
                         -> Result<FontTexture, Error>
-        where R: Read, F: Facade, I: IntoIterator<Item=char>
+    where
+        R: Read,
+        F: Facade,
+        I: IntoIterator<Item = char>,
     {
 
         // building the freetype face object
@@ -103,10 +117,10 @@ impl FontTexture {
         let texture = Texture2d::new(facade, &texture_data).unwrap();
 
         Ok(FontTexture {
-            texture: texture,
-            character_glyphs: chr_glyphs,
-            font_size: font_size,
-        })
+               texture: texture,
+               character_glyphs: chr_glyphs,
+               font_size: font_size,
+           })
     }
 
     pub fn get_texture(&self) -> &Texture2d {
@@ -118,7 +132,10 @@ impl FontTexture {
     }
 
     pub fn find_glyph(&self, character: char) -> Option<Glyph> {
-        self.character_glyphs.iter().find(|&(chr, _)| *chr == character).map(|(_, &glyph)| glyph)
+        self.character_glyphs
+            .iter()
+            .find(|&(chr, _)| *chr == character)
+            .map(|(_, &glyph)| glyph)
     }
 
     pub fn text_width_ems(&self, text: &str) -> f32 {
@@ -145,7 +162,7 @@ impl FontTexture {
         let mut space_left = wraplimit_ems - self.text_width_ems(&wrapped);
 
         for word in words.into_iter().skip(1) {
-            let length = self.text_width_ems(&word) + self.text_width_ems(" ");;
+            let length = self.text_width_ems(&word) + self.text_width_ems(" ");
             if length > space_left {
                 lines.push(wrapped);
                 wrapped = word;
@@ -153,6 +170,13 @@ impl FontTexture {
             } else {
                 wrapped.push_str(&format!(" {}", word));
                 space_left -= length;
+            }
+
+            let mut split: Vec<String> = wrapped.split('\n').map(|s| s.to_string()).collect();
+            wrapped = split.pop().unwrap();
+
+            for s in split.into_iter() {
+                lines.push(s);
             }
         }
 
@@ -164,9 +188,12 @@ impl FontTexture {
 }
 
 
-fn build_font_image<I>(font: rusttype::Font, characters_list: I, font_size: u32)
+fn build_font_image<I>(font: rusttype::Font,
+                       characters_list: I,
+                       font_size: u32)
                        -> Result<(TextureData, HashMap<char, Glyph>), Error>
-    where I: Iterator<Item=char>
+where
+    I: Iterator<Item = char>,
 {
     use std::iter;
 
@@ -180,15 +207,17 @@ fn build_font_image<I>(font: rusttype::Font, characters_list: I, font_size: u32)
 
     // this variable will store the texture data
     // we set an arbitrary capacity that we think will match what we will need
-    let mut texture_data: Vec<f32> = Vec::with_capacity(
-        size_estimation * font_size as usize * font_size as usize
-    );
+    let mut texture_data: Vec<f32> = Vec::with_capacity(size_estimation * font_size as usize *
+                                                            font_size as usize);
 
     // the width is chosen more or less arbitrarily, because we can store
     // everything as long as the texture is at least as wide as the widest
     // character we just try to estimate a width so that width ~= height
-    let texture_width = get_nearest_po2(std::cmp::max(font_size * 2 as u32,
-                                                      ((((size_estimation as u32) * font_size * font_size) as f32).sqrt()) as u32));
+    let texture_width =
+        get_nearest_po2(std::cmp::max(font_size * 2 as u32,
+                                      ((((size_estimation as u32) * font_size * font_size) as
+                                            f32)
+                                       .sqrt()) as u32));
 
     // we store the position of the "cursor" in the destination texture
     // this cursor points to the top-left pixel of the next character to write on the texture
@@ -300,7 +329,9 @@ fn build_font_image<I>(font: rusttype::Font, characters_list: I, font_size: u32)
     {
         let current_height = texture_data.len() as u32 / texture_width;
         let requested_height = get_nearest_po2(current_height);
-        texture_data.extend(iter::repeat(0.0).take((texture_width * (requested_height - current_height)) as usize));
+        texture_data.extend(iter::repeat(0.0)
+                                .take((texture_width * (requested_height - current_height)) as
+                                          usize));
     }
 
     // now our texture is finished
@@ -308,18 +339,21 @@ fn build_font_image<I>(font: rusttype::Font, characters_list: I, font_size: u32)
     assert_eq!((texture_data.len() as u32 % texture_width), 0);
     let texture_height = (texture_data.len() as u32 / texture_width) as f32;
     let float_texture_width = texture_width as f32;
-    let mut characters_infos = characters_infos.into_iter().map(|mut chr| {
-        chr.1.tex_size.0 /= float_texture_width;
-        chr.1.tex_size.1 /= texture_height;
-        chr.1.tex_coords.0 /= float_texture_width;
-        chr.1.tex_coords.1 /= texture_height;
-        chr.1.size.0 /= em_pixels;
-        chr.1.size.1 /= em_pixels;
-        chr.1.left_padding /= em_pixels;
-        chr.1.right_padding /= em_pixels;
-        chr.1.height_over_line /= em_pixels;
-        chr
-    }).collect::<HashMap<_, _>>();
+    let mut characters_infos =
+        characters_infos.into_iter()
+                        .map(|mut chr| {
+            chr.1.tex_size.0 /= float_texture_width;
+            chr.1.tex_size.1 /= texture_height;
+            chr.1.tex_coords.0 /= float_texture_width;
+            chr.1.tex_coords.1 /= texture_height;
+            chr.1.size.0 /= em_pixels;
+            chr.1.size.1 /= em_pixels;
+            chr.1.left_padding /= em_pixels;
+            chr.1.right_padding /= em_pixels;
+            chr.1.height_over_line /= em_pixels;
+            chr
+        })
+                        .collect::<HashMap<_, _>>();
 
     // this HashMap will not be used mutably any more and it makes sense to
     // compact it
@@ -327,10 +361,11 @@ fn build_font_image<I>(font: rusttype::Font, characters_list: I, font_size: u32)
 
     // returning
     Ok((TextureData {
-        data: texture_data,
-        width: texture_width,
-        height: texture_height as u32,
-    }, characters_infos))
+            data: texture_data,
+            width: texture_width,
+            height: texture_height as u32,
+        },
+        characters_infos))
 }
 
 /// Function that will calculate the nearest power of two.

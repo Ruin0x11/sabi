@@ -71,6 +71,7 @@ mod testbed;
 mod util;
 mod world;
 
+mod debug;
 #[cfg(test)]
 mod testing;
 

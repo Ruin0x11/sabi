@@ -1,8 +1,10 @@
 use rand::{self, Rng};
 
 use GameContext;
-use ai::{Ai, AiKind};
+use ai::{self, Ai, AiKind};
+use debug;
 use ecs;
+use ecs::traits::*;
 use logic::entity::*;
 use point::{Point, RectangleIter, POINT_ZERO};
 use prefab::{self, PrefabArgs};
@@ -17,17 +19,41 @@ const TEST_WORLD_ID: u32 = 10000000;
 
 pub(super) fn cmd_debug_menu(context: &mut GameContext) -> CommandResult<()> {
     menu!(context,
-          "Reload shaders" => debug_reload_shaders(),
+          "Reload AI"      => debug_reload_ai(context),
+          "omniscience"    => debug_omniscience(context),
           "AI"             => debug_ai_menu(context),
-          "print entity info" => debug_print_entity_info(context),
+          "follow entity"  => debug_follow_entity(context),
           "Item test"      => debug_item_test(context),
           "List entities"  => debug_list_entities(context),
           "Place enemies"  => debug_place_enemies(context),
           "Goto world"     => debug_goto_world(context),
           "Debug prefab"   => debug_prefab(context),
           "Deploy prefab"  => debug_deploy_prefab(context),
+          "Reload shaders" => debug_reload_shaders(),
           "Restart game"   => debug_restart_game(context)
     )
+}
+
+fn debug_omniscience(context: &mut GameContext) -> CommandResult<()> {
+    let player = context.state.world.player().unwrap();
+    let props = context.state.world.ecs_mut().props.get_mut_or_err(player);
+    props.props.set::<bool>("omniscient", true);
+    Ok(())
+}
+
+fn debug_reload_ai(context: &mut GameContext) -> CommandResult<()> {
+    ai::reload_planner();
+    mes!(context.state.world, "Reloaded AI.");
+    Ok(())
+}
+
+fn debug_follow_entity(context: &mut GameContext) -> CommandResult<()> {
+    mes!(context.state.world, "Which?");
+    let pos = select_tile(context, |_, _| ())?;
+    if let Some(mob) = context.state.world.mob_at(pos) {
+        debug::follow_entity(mob);
+    }
+    Ok(())
 }
 
 fn debug_ai_menu(context: &mut GameContext) -> CommandResult<()> {
@@ -35,7 +61,8 @@ fn debug_ai_menu(context: &mut GameContext) -> CommandResult<()> {
           "scav"           => debug_scav(context),
           "guard"          => debug_guard(context),
           "loadout"        => debug_loadout(context),
-          "pet"            => debug_pet(context)
+          "pet"            => debug_pet(context),
+          "throw"          => debug_throw(context)
     )
 }
 
@@ -68,20 +95,7 @@ fn debug_loadout(context: &mut GameContext) -> CommandResult<()> {
     Ok(())
 }
 
-
-fn debug_print_entity_info(context: &mut GameContext) -> CommandResult<()> {
-    mes!(context.state.world, "Which?");
-    let pos = select_tile(context, |_, _| ())?;
-    if let Some(_mob) = context.state.world.mob_at(pos) {
-        // let ai = context.state.world.ecs().ais.get_or_err(mob).debug_info();
-        // mes!(context.state.world, "{:?} inv: {:?}  Ai: {}",
-        //      mob.name(&context.state.world),
-        //      context.state.world.entities_in(mob),
-        //      ai);
-    }
-
-    Ok(())
-}
+use ecs::traits::ComponentQuery;
 
 // TODO: Make into prefab
 fn debug_scav(context: &mut GameContext) -> CommandResult<()> {
@@ -134,6 +148,20 @@ fn debug_guard(context: &mut GameContext) -> CommandResult<()> {
     Ok(())
 }
 
+
+fn debug_throw(context: &mut GameContext) -> CommandResult<()> {
+    goto_new_world(context, get_debug_world("blank", None).unwrap());
+
+    context.state
+           .world
+           .create(ecs::prefab::item("watermelon", "watermelon"), Point::new(6, 6));
+
+    context.state
+           .world
+           .create(ecs::prefab::mob("putit", 1000, "putit"), Point::new(7, 7));
+
+    Ok(())
+}
 
 fn debug_item_test(context: &mut GameContext) -> CommandResult<()> {
     goto_new_world(context, get_debug_world("blank", None).unwrap());
